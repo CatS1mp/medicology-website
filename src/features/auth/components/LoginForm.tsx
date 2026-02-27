@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 
@@ -21,9 +22,9 @@ export const LoginForm: React.FC = () => {
                     type="password"
                     placeholder="Password"
                     rightElement={
-                        <button type="button" className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wider">
+                        <Link href="/forgot-password" className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wider">
                             FORGOT?
-                        </button>
+                        </Link>
                     }
                 />
 
@@ -54,11 +55,13 @@ export const LoginForm: React.FC = () => {
             </div>
 
             <div className="mt-8 text-center px-4">
-                <p className="text-xs text-gray-400 leading-relaxed mb-4">
-                    By signing in to Medicology, you agree to our <a href="#" className="font-bold hover:underline">Terms</a> and <a href="#" className="font-bold hover:underline">Privacy Policy</a>.
+                <p className="text-[13px] font-medium text-gray-400 leading-relaxed mb-4">
+                    By signing in to Medicology, you agree to our <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms</a> and <br />
+                    <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a>.
                 </p>
-                <p className="text-[10px] text-gray-400 leading-relaxed">
-                    This site is protected by reCAPTCHA Enterprise and the Google <a href="#" className="font-bold hover:underline">Privacy Policy</a> and <a href="#" className="font-bold hover:underline">Terms of Service</a> apply.
+                <p className="text-[11px] font-medium text-gray-400 leading-relaxed max-w-[280px] mx-auto">
+                    This site is protected by reCAPTCHA Enterprise and the <br />
+                    Google <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a> and <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms of Service</a> apply.
                 </p>
             </div>
         </div>

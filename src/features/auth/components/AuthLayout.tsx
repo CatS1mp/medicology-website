@@ -19,7 +19,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, topRightText, 
 
             {/* Top right button */}
             <div className="absolute top-6 right-6 z-20">
-                <Link href={topRightHref} className="px-6 py-2.5 rounded-xl border-2 border-gray-200 text-[#51a8f6] font-bold text-sm tracking-wide hover:bg-gray-50 uppercase inline-block bg-white">
+                <Link href={topRightHref} tabIndex={-1} className="px-6 py-2.5 rounded-xl border-2 border-gray-200 text-[#51a8f6] font-bold text-sm tracking-wide hover:bg-gray-50 uppercase inline-block bg-white select-none focus:outline-none">
                     {topRightText}
                 </Link>
             </div>
