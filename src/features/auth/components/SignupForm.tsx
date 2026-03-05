@@ -5,26 +5,31 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 
 export const SignupForm: React.FC = () => {
+    const [password, setPassword] = React.useState('');
+    const [confirmPassword, setConfirmPassword] = React.useState('');
+
+    const passwordRules = [
+        { id: 'length', text: 'Tối thiểu 8 ký tự', validate: (p: string) => p.length >= 8 },
+        { id: 'uppercase', text: 'Ít nhất 1 chữ hoa', validate: (p: string) => /[A-Z]/.test(p) },
+        { id: 'lowercase', text: 'Ít nhất 1 chữ thường', validate: (p: string) => /[a-z]/.test(p) },
+        { id: 'number', text: 'Ít nhất 1 số', validate: (p: string) => /[0-9]/.test(p) },
+        { id: 'special', text: 'Ít nhất 1 ký tự đặc biệt', validate: (p: string) => /[^A-Za-z0-9]/.test(p) },
+    ];
+
+    const getRequirementsClasses = () => {
+        return 'mt-3 mb-2 grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] px-1 text-left';
+    };
+
     return (
         <div className="w-full max-w-sm mx-auto">
             <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-800">Create your profile</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Tạo tài khoản mới</h1>
             </div>
 
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                 <Input
-                    type="number"
-                    placeholder="Age"
-                    rightElement={
-                        <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 text-xs font-bold leading-none cursor-help">
-                            ?
-                        </div>
-                    }
-                />
-
-                <Input
                     type="text"
-                    placeholder="Name (optional)"
+                    placeholder="Tên (không bắt buộc)"
                 />
 
                 <Input
@@ -32,19 +37,62 @@ export const SignupForm: React.FC = () => {
                     placeholder="Email"
                 />
 
-                <Input
-                    type="password"
-                    placeholder="Password"
-                />
+                <div className="space-y-1">
+                    <Input
+                        type="password"
+                        placeholder="Mật khẩu"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
 
-                <Button type="submit" fullWidth className="mt-2 text-[15px] py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none">
-                    Create Account
+                    <ul className={getRequirementsClasses()}>
+                        {passwordRules.map((rule) => {
+                            const isValid = rule.validate(password);
+                            return (
+                                <li key={rule.id} className={`flex items-center space-x-2 ${isValid ? 'text-green-600' : 'text-gray-500'}`}>
+                                    <span className="flex-shrink-0">
+                                        {isValid ? (
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-3 h-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                <circle cx="10" cy="10" r="4" />
+                                            </svg>
+                                        )}
+                                    </span>
+                                    <span>{rule.text}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+
+                <div className="space-y-1">
+                    <Input
+                        type="password"
+                        placeholder="Xác nhận mật khẩu"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    {confirmPassword && password !== confirmPassword && (
+                        <p className="text-xs text-red-500 px-1 text-left mt-1">Mật khẩu xác nhận không khớp</p>
+                    )}
+                </div>
+
+                <Button
+                    type="submit"
+                    fullWidth
+                    className="mt-4 text-[14px] font-bold py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!passwordRules.every(r => r.validate(password)) || password !== confirmPassword}
+                >
+                    Tạo tài khoản
                 </Button>
             </form>
 
             <div className="flex items-center my-6">
                 <div className="flex-1 border-t border-gray-200"></div>
-                <span className="px-4 text-xs font-bold text-gray-400">OR</span>
+                <span className="px-4 text-xs font-bold text-gray-400">HOẶC</span>
                 <div className="flex-1 border-t border-gray-200"></div>
             </div>
 
@@ -65,12 +113,12 @@ export const SignupForm: React.FC = () => {
 
             <div className="mt-8 text-center px-4">
                 <p className="text-[13px] font-medium text-gray-400 leading-relaxed mb-4">
-                    By signing in to Medicology, you agree to our <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms</a> and <br />
-                    <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a>.
+                    Bằng việc đăng ký Medicology, bạn đồng ý với <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Điều khoản</a> và <br />
+                    <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Chính sách bảo mật</a> của chúng tôi.
                 </p>
                 <p className="text-[11px] font-medium text-gray-400 leading-relaxed max-w-[280px] mx-auto">
-                    This site is protected by reCAPTCHA Enterprise and the <br />
-                    Google <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a> and <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms of Service</a> apply.
+                    Trang web này được bảo vệ bởi reCAPTCHA Enterprise, <br />
+                    áp dụng <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Chính sách bảo mật</a> và <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Điều khoản dịch vụ</a> của Google.
                 </p>
             </div>
         </div>

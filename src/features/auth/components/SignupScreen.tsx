@@ -4,7 +4,7 @@ import { SignupForm } from './SignupForm';
 
 export const SignupScreen: React.FC = () => {
     return (
-        <AuthLayout topRightText="Login" topRightHref="/login">
+        <AuthLayout topRightText="Đăng nhập" topRightHref="/login">
             <SignupForm />
         </AuthLayout>
     );

@@ -4,7 +4,7 @@ import { LoginForm } from './LoginForm';
 
 export const LoginScreen: React.FC = () => {
     return (
-        <AuthLayout topRightText="Sign up" topRightHref="/signup">
+        <AuthLayout topRightText="Đăng ký" topRightHref="/signup">
             <LoginForm />
         </AuthLayout>
     );

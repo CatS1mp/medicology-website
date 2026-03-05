@@ -9,33 +9,33 @@ export const LoginForm: React.FC = () => {
     return (
         <div className="w-full max-w-sm mx-auto">
             <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-800">Log in</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Đăng nhập</h1>
             </div>
 
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                 <Input
                     type="text"
-                    placeholder="Email or username"
+                    placeholder="Email hoặc tên đăng nhập"
                 />
 
                 <Input
                     type="password"
-                    placeholder="Password"
+                    placeholder="Mật khẩu"
                     rightElement={
-                        <Link href="/forgot-password" className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wider">
-                            FORGOT?
+                        <Link href="/forgot-password" className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wider uppercase">
+                            Quên?
                         </Link>
                     }
                 />
 
-                <Button type="submit" fullWidth className="mt-2 text-[15px] py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none">
-                    Log in
+                <Button type="submit" fullWidth className="mt-4 text-[14px] font-bold py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none">
+                    Đăng nhập
                 </Button>
             </form>
 
             <div className="flex items-center my-6">
                 <div className="flex-1 border-t border-gray-200"></div>
-                <span className="px-4 text-xs font-bold text-gray-400">OR</span>
+                <span className="px-4 text-xs font-bold text-gray-400">HOẶC</span>
                 <div className="flex-1 border-t border-gray-200"></div>
             </div>
 
@@ -56,12 +56,12 @@ export const LoginForm: React.FC = () => {
 
             <div className="mt-8 text-center px-4">
                 <p className="text-[13px] font-medium text-gray-400 leading-relaxed mb-4">
-                    By signing in to Medicology, you agree to our <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms</a> and <br />
-                    <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a>.
+                    Bằng việc đăng nhập vào Medicology, bạn đồng ý với <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Điều khoản</a> và <br />
+                    <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Chính sách bảo mật</a> của chúng tôi.
                 </p>
                 <p className="text-[11px] font-medium text-gray-400 leading-relaxed max-w-[280px] mx-auto">
-                    This site is protected by reCAPTCHA Enterprise and the <br />
-                    Google <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Privacy Policy</a> and <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Terms of Service</a> apply.
+                    Trang web này được bảo vệ bởi reCAPTCHA Enterprise, <br />
+                    áp dụng <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Chính sách bảo mật</a> và <a href="#" className="font-bold text-gray-600 hover:text-gray-800">Điều khoản dịch vụ</a> của Google.
                 </p>
             </div>
         </div>
