@@ -46,7 +46,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, topRightText, 
                          * Note: User needs to ensure public/images/1.svg exists.
                          */}
                         <img
-                            src="/images/1.svg"
+                            src="/images/Mascot/1.svg"
                             alt="Medicology Robot Nurse"
                             className="w-full h-full object-contain"
                             draggable="false"

@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { DashboardSidebar } from './DashboardSidebar';
-import { DashboardHeader } from './DashboardHeader';
+import { AppSidebar } from '@/shared/components/AppSidebar';
+import { AppHeader } from '@/shared/components/AppHeader';
 import { HeroBanner } from './HeroBanner';
 import { StatsCards } from './StatsCards';
 import { LessonProgressChart } from './LessonProgressChart';
@@ -22,12 +22,12 @@ export const DashboardScreen: React.FC = () => {
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Sidebar */}
-            <DashboardSidebar />
+            <AppSidebar />
 
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
-                <DashboardHeader streak={mockUser.streak} />
+                <AppHeader streak={mockUser.streak} />
 
                 {/* Page body */}
                 <div className="flex-1 overflow-y-auto">

@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-interface DashboardHeaderProps {
+interface AppHeaderProps {
     streak: number;
 }
 
@@ -24,7 +24,7 @@ const IconBell = () => (
     </svg>
 );
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ streak }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ streak }) => {
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
             {/* Search */}

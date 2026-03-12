@@ -30,7 +30,6 @@ const MedicologyLogo = ({ collapsed }: { collapsed: boolean }) => (
     </div>
 );
 
-
 const IconDashboard = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
@@ -86,7 +85,7 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-export const DashboardSidebar: React.FC = () => {
+export const AppSidebar: React.FC = () => {
     const [collapsed, setCollapsed] = useState(false);
     const [coursesOpen, setCoursesOpen] = useState(false);
 
