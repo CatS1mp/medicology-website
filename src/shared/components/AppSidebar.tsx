@@ -30,34 +30,15 @@ const MedicologyLogo = ({ collapsed }: { collapsed: boolean }) => (
     </div>
 );
 
-const IconDashboard = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-    </svg>
-);
-const IconBell = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-    </svg>
-);
-const IconBook = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z" />
-    </svg>
-);
 const IconChevronDown = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M7 10l5 5 5-5z" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4147D5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9l6 6 6-6" />
     </svg>
 );
-const IconBookmark = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z" />
-    </svg>
-);
-const IconGlobe = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+
+const IconChevronUp = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4147D5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 15l-6-6-6 6" />
     </svg>
 );
 
@@ -65,22 +46,22 @@ const navGroups: NavGroup[] = [
     {
         title: 'TỔNG QUAN',
         items: [
-            { icon: <IconDashboard />, label: 'Bảng điều khiển', href: '/dashboard', active: true },
-            { icon: <IconBell />, label: 'Thông báo', href: '/notifications' },
+            { icon: <Image src="/images/Icons/streamline-flex-color_dashboard-3.svg" alt="Bảng điều khiển" width={24} height={24} />, label: 'Bảng điều khiển', href: '/dashboard', active: true },
+            { icon: <Image src="/images/Icons/streamline-flex-color_bell-notification.svg" alt="Thông báo" width={24} height={24} />, label: 'Thông báo', href: '/notifications' },
         ],
     },
     {
         title: 'HỌC TẬP',
         items: [
-            { icon: <IconGlobe />, label: 'Chủ đề học tập', href: '/topics' },
-            { icon: <IconBook />, label: 'Khoá học của bạn', href: '/courses' },
+            { icon: <Image src="/images/Icons/streamline-color_global-learning.svg" alt="Chủ đề học tập" width={24} height={24} />, label: 'Chủ đề học tập', href: '/topics' },
+            { icon: <Image src="/images/Icons/streamline-color_open-book.svg" alt="Khoá học của bạn" width={24} height={24} />, label: 'Khoá học của bạn', href: '/courses' },
         ],
     },
     {
         title: 'NGUỒN TÀI LIỆU',
         items: [
-            { icon: <IconGlobe />, label: 'Bách khoa Y học', href: '/encyclopedia' },
-            { icon: <IconBookmark />, label: 'Sổ tay lưu trữ', href: '/notebook' },
+            { icon: <Image src="/images/Icons/streamline-color_manual-book.svg" alt="Bách khoa Y học" width={24} height={24} />, label: 'Bách khoa Y học', href: '/encyclopedia' },
+            { icon: <Image src="/images/Icons/Component.svg" alt="Sổ tay lưu trữ" width={24} height={24} />, label: 'Sổ tay lưu trữ', href: '/notebook' },
         ],
     },
 ];
@@ -91,11 +72,11 @@ export const AppSidebar: React.FC = () => {
 
     return (
         <aside
-            className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-72'
+            className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'
                 } flex-shrink-0`}
         >
             {/* Logo */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                 <Link href="/dashboard" className="flex items-center">
                     <MedicologyLogo collapsed={collapsed} />
                 </Link>
@@ -104,7 +85,7 @@ export const AppSidebar: React.FC = () => {
                     className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors ml-auto"
                     aria-label="Toggle sidebar"
                 >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         {collapsed ? (
                             <path d="M8 4l8 8-8 8V4z" />
                         ) : (
@@ -115,52 +96,78 @@ export const AppSidebar: React.FC = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto py-3 px-2">
-                {navGroups.map((group) => (
-                    <div key={group.title} className="mb-4">
+            <nav className="flex-1 overflow-y-auto py-5 px-4 font-sans">
+                {navGroups.map((group, groupIdx) => (
+                    <div key={group.title} className={`${groupIdx !== 0 ? 'mt-8' : ''}`}>
                         {!collapsed && (
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-2 mb-1">
+                            <p className="text-[13px] font-medium text-gray-400 uppercase tracking-wide px-3 mb-3">
                                 {group.title}
                             </p>
                         )}
-                        {group.items.map((item) => {
-                            const isCourses = item.label === 'Khoá học của bạn';
-                            return (
-                                <div key={item.label}>
-                                    <Link
-                                        href={item.href}
-                                        onClick={isCourses ? (e) => { e.preventDefault(); setCoursesOpen(!coursesOpen); } : undefined}
-                                        className={`flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors mb-0.5 ${item.active
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                            }`}
-                                    >
-                                        <span className={item.active ? 'text-blue-600' : 'text-gray-500'}>
-                                            {item.icon}
-                                        </span>
-                                        {!collapsed && (
-                                            <>
-                                                <span className="flex-1">{item.label}</span>
-                                                {isCourses && <IconChevronDown />}
-                                            </>
+                        <div className="space-y-1">
+                            {group.items.map((item) => {
+                                const isCourses = item.label === 'Khoá học của bạn';
+                                const isActive = item.active || (isCourses && coursesOpen);
+                                
+                                return (
+                                    <div key={item.label}>
+                                        <Link
+                                            href={item.href}
+                                            onClick={isCourses ? (e) => { e.preventDefault(); setCoursesOpen(!coursesOpen); } : undefined}
+                                            className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${isActive
+                                                ? 'bg-[#E5F0FF] text-gray-900 font-medium'
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+                                                {item.icon}
+                                            </span>
+                                            {!collapsed && (
+                                                <>
+                                                    <span className="flex-1 truncate">{item.label}</span>
+                                                    {isCourses && (
+                                                        <span className="flex-shrink-0 pr-1">
+                                                            {coursesOpen ? <IconChevronUp /> : <IconChevronDown />}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </Link>
+                                        
+                                        {/* Sub-items for "Khoá học của bạn" */}
+                                        {isCourses && !collapsed && coursesOpen && (
+                                            <div className="relative mt-2 mb-2">
+                                                {/* Connecting stem from icon */}
+                                                <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
+                                                
+                                                <div className="flex flex-col">
+                                                    {['Tâm thần học', 'Sức khoẻ tinh thần', 'Sơ cứu & Cấp cứu'].map((sub, idx, arr) => {
+                                                        const isLast = idx === arr.length - 1;
+                                                        return (
+                                                            <div key={sub} className="relative py-[9px] pl-[52px]">
+                                                                {!isLast && (
+                                                                    <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
+                                                                )}
+                                                                {isLast && (
+                                                                    <div className="absolute left-[23px] top-0 bottom-1/2 w-[2px] bg-[#4147D5]" />
+                                                                )}
+                                                                
+                                                                {/* Curved left branch to the item */}
+                                                                <div className="absolute left-[23px] top-0 h-1/2 w-[20px] border-l-[2px] border-b-[2px] border-[#4147D5] rounded-bl-[14px]" />
+                                                                
+                                                                <Link href="#" className="block text-[15px] text-[#344054] hover:text-[#4147D5] transition-colors leading-tight">
+                                                                    {sub}
+                                                                </Link>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         )}
-                                    </Link>
-                                    {isCourses && !collapsed && coursesOpen && (
-                                        <div className="ml-9 mb-1">
-                                            {['Tim mạch học', 'Thần kinh học', 'Giải phẫu học'].map((sub) => (
-                                                <Link
-                                                    key={sub}
-                                                    href="#"
-                                                    className="block text-xs text-gray-500 hover:text-blue-600 py-1"
-                                                >
-                                                    {sub}
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 ))}
             </nav>
