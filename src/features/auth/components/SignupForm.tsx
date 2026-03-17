@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 
 export const SignupForm: React.FC = () => {
+    const router = useRouter();
     const [password, setPassword] = React.useState('');
     const [confirmPassword, setConfirmPassword] = React.useState('');
 
@@ -81,12 +83,18 @@ export const SignupForm: React.FC = () => {
                 </div>
 
                 <Button
-                    type="submit"
+                    type="button"
                     fullWidth
                     className="mt-4 text-[14px] font-bold py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!passwordRules.every(r => r.validate(password)) || password !== confirmPassword}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        // Simulate backend success and open the verify success link in new tab
+                        window.open('/verify-success', '_blank');
+                        // Redirect current tab to waiting page
+                        router.push('/verify-email');
+                    }}
                 >
-                    Tạo tài khoản
+                    Tạo tài khoản (Test Skip)
                 </Button>
             </form>
 
