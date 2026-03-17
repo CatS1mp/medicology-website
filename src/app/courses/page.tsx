@@ -1,11 +1,13 @@
-import { CoursesScreen } from '@/features/courses';
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { enrolledCourses } from '@/features/courses/data/mockRoadmap';
 
-export const metadata: Metadata = {
-    title: 'Khoá học của bạn - Medicology',
-    description: 'Bản đồ học tập và tiến trình khóa học của bạn',
-};
-
-export default function CoursesPage() {
-    return <CoursesScreen />;
+// /courses has no content of its own — redirect to the first enrolled course.
+// When API is integrated, fetch the user's most recent course and redirect there.
+export default function CoursesIndexPage() {
+    const firstCourse = enrolledCourses[0];
+    if (firstCourse) {
+        redirect(`/courses/${firstCourse.slug}`);
+    }
+    // Fallback if no enrolled courses
+    redirect('/topics');
 }
