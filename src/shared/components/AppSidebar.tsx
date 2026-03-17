@@ -108,8 +108,13 @@ export const AppSidebar: React.FC = () => {
                         <div className="space-y-1">
                             {group.items.map((item) => {
                                 const isCourses = item.label === 'Khoá học của bạn';
-                                // "Khoá học của bạn" header highlights whenever we are anywhere in /courses/*
-                                const isActive = isCourses ? !!isInCourses : pathname === item.href;
+                                const isEncyclopedia = item.label === 'Bách khoa Y học';
+                                // Highlight parent for all sub-routes
+                                const isActive = isCourses
+                                    ? !!isInCourses
+                                    : isEncyclopedia
+                                        ? !!pathname?.startsWith('/encyclopedia')
+                                        : pathname === item.href;
 
                                 return (
                                     <div key={item.label}>
