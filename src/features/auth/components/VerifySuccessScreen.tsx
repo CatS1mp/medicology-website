@@ -1,19 +1,15 @@
 'use client';
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/shared/components/Button';
+import React, { useEffect } from 'react';
 import { AuthLayout } from './AuthLayout';
 
 export const VerifySuccessScreen: React.FC = () => {
-    const router = useRouter();
-
-    const handleContinue = () => {
-        // Broadcast the success message
+    useEffect(() => {
+        // Notify any other open tab (e.g., the countdown screen) that the email is verified.
         const channel = new BroadcastChannel('email-verification');
         channel.postMessage('verified');
         channel.close();
-    };
+    }, []);
 
     return (
         <AuthLayout topRightText="Đăng nhập" topRightHref="/login">
@@ -31,16 +27,6 @@ export const VerifySuccessScreen: React.FC = () => {
                     <p className="text-sm text-gray-500">
                         Tài khoản của bạn đã được kích hoạt. Bạn hiện có thể sử dụng đầy đủ các tính năng của Medicology.
                     </p>
-                </div>
-
-                <div className="mt-8">
-                    <Button 
-                        onClick={handleContinue} 
-                        fullWidth
-                        className="text-[14px] font-bold py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none"
-                    >
-                        Bắt đầu khám phá
-                    </Button>
                 </div>
             </div>
         </AuthLayout>

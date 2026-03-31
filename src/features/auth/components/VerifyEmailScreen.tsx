@@ -4,13 +4,19 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/shared/components/Button';
 import { AuthLayout } from './AuthLayout';
+import { useVerifyEmail } from '../hooks/useVerifyEmail';
+
+const ERROR_MESSAGES: Record<string, string> = {
+    ERR_404: 'Không tìm thấy tài khoản. Vui lòng đăng ký lại.',
+    ERR_NETWORK: 'Không thể gửi lại email. Vui lòng thử lại.',
+};
 
 export const VerifyEmailScreen: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState(120);
     const router = useRouter();
+    const { handleResend, isResending, resendError, isResendSuccess } = useVerifyEmail();
 
     useEffect(() => {
-        // Countdown timer
         if (timeLeft > 0) {
             const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timerId);
@@ -18,24 +24,23 @@ export const VerifyEmailScreen: React.FC = () => {
     }, [timeLeft]);
 
     useEffect(() => {
-        // Listen to BroadcastChannel for verification success
         const channel = new BroadcastChannel('email-verification');
-        
         channel.onmessage = (event) => {
             if (event.data === 'verified') {
                 router.push('/dashboard');
             }
         };
-
-        return () => {
-            channel.close();
-        };
+        return () => channel.close();
     }, [router]);
 
-    const handleResend = () => {
-        // Mock resend logic
-        setTimeLeft(120);
+    const onResend = async () => {
+        await handleResend();
+        if (!resendError) {
+            setTimeLeft(120);
+        }
     };
+
+    const errorMessage = resendError ? (ERROR_MESSAGES[resendError] ?? 'Không thể gửi lại email. Vui lòng thử lại.') : null;
 
     return (
         <AuthLayout topRightText="Đăng nhập" topRightHref="/login">
@@ -47,14 +52,25 @@ export const VerifyEmailScreen: React.FC = () => {
                     </p>
                 </div>
 
+                {isResendSuccess && (
+                    <p className="text-sm text-green-600 mb-4">✓ Email xác thực đã được gửi lại.</p>
+                )}
+                {errorMessage && (
+                    <p className="text-sm text-red-500 mb-4">{errorMessage}</p>
+                )}
+
                 <div className="mt-8">
-                    <Button 
-                        onClick={handleResend} 
-                        disabled={timeLeft > 0}
+                    <Button
+                        onClick={onResend}
+                        disabled={timeLeft > 0 || isResending}
                         fullWidth
                         className="text-[14px] font-bold py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {timeLeft > 0 ? `Gửi lại email (${timeLeft}s)` : 'Gửi lại email'}
+                        {isResending
+                            ? 'Đang gửi...'
+                            : timeLeft > 0
+                                ? `Gửi lại email (${timeLeft}s)`
+                                : 'Gửi lại email'}
                     </Button>
                 </div>
             </div>
