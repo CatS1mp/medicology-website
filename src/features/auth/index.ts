@@ -5,3 +5,6 @@ export * from './components/SignupForm';
 export * from './components/ForgotPasswordScreen';
 export * from './components/VerifyEmailScreen';
 export * from './components/VerifySuccessScreen';
+export * from './components/ResetPasswordScreen';
+export * from './api';
+export * from './types';

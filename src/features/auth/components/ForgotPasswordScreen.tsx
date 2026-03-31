@@ -4,8 +4,24 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
+import { useForgotPassword } from '../hooks/useForgotPassword';
+
+const ERROR_MESSAGES: Record<string, string> = {
+    ERR_404: 'Không tìm thấy tài khoản với email này.',
+    ERR_NETWORK: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.',
+};
 
 export const ForgotPasswordScreen: React.FC = () => {
+    const [email, setEmail] = React.useState('');
+    const { handleSubmit, isLoading, error, isSent } = useForgotPassword();
+
+    const onSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await handleSubmit(email);
+    };
+
+    const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Đã xảy ra lỗi. Vui lòng thử lại.') : null;
+
     return (
         <div className="min-h-screen flex flex-col bg-white">
             {/* Top Header */}
@@ -46,15 +62,32 @@ export const ForgotPasswordScreen: React.FC = () => {
                         reset your password by email.
                     </p>
 
-                    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                        <Input
-                            type="email"
-                            placeholder="Email"
-                        />
-                        <Button type="submit" fullWidth className="mt-4 text-[15px] py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none">
-                            Submit
-                        </Button>
-                    </form>
+                    {isSent ? (
+                        <div className="rounded-lg bg-green-50 border border-green-200 px-6 py-4 text-green-700 text-sm font-medium">
+                            ✓ Reset link has been sent to <strong>{email}</strong>. Please check your inbox.
+                        </div>
+                    ) : (
+                        <form className="space-y-4" onSubmit={onSubmit}>
+                            <Input
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                            {errorMessage && (
+                                <p className="text-sm text-red-500 px-1">{errorMessage}</p>
+                            )}
+                            <Button
+                                type="submit"
+                                fullWidth
+                                disabled={isLoading}
+                                className="mt-4 text-[15px] py-3 uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? 'Sending...' : 'Submit'}
+                            </Button>
+                        </form>
+                    )}
                 </div>
             </main>
         </div>
