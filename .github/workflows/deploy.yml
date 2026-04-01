@@ -37,7 +37,7 @@ jobs:
       # 5. Create deployment package
       - name: Create deployment package
         run: |
-          zip -r app.zip .next package.json package-lock.json node_modules public
+          zip -r app.zip .next package.json package-lock.json public
 
       # 6. Login to Azure
       - name: Azure Login
