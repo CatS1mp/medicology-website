@@ -28,19 +28,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Ensure clean build
-        run: rm -rf .next
-
-      # 4. Build Next.js app
+      # 4. Build Next.js app (optional but useful to fail fast)
       - name: Build Next.js app
         run: npm run build
         env:
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
-      # 5. Create deployment package
+      # 5. Create deployment package (deploy source; let Oryx build on App Service)
       - name: Create deployment package
         run: |
-          zip -r app.zip .next package.json package-lock.json public
+          zip -r app.zip . \
+            -x "node_modules/**" \
+            -x ".git/**" \
+            -x ".next/**" \
+            -x ".github/**" \
+            -x ".vscode/**" \
+            -x ".env*" \
+            -x "app.zip"
 
       # 6. Login to Azure
       - name: Azure Login
