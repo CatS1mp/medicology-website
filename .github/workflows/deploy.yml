@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure clean build
+        run: rm -rf .next
+
       # 4. Build Next.js app
       - name: Build Next.js app
         run: npm run build
