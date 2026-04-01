@@ -3,15 +3,10 @@
 import React from 'react';
 import { Button } from '@/shared/components/Button';
 import { useGoogleLogin, TokenResponse } from '@react-oauth/google';
-import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
 import { useOAuth } from '../hooks/useOAuth';
-import { jwtDecode } from 'jwt-decode';
 
 export const OAuthButtons: React.FC = () => {
     const { handleOAuth, isLoading, error } = useOAuth();
-
-    const [mounted, setMounted] = React.useState(false);
-    React.useEffect(() => setMounted(true), []);
 
     const googleLogin = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
@@ -35,48 +30,9 @@ export const OAuthButtons: React.FC = () => {
         onError: errorResponse => console.log(errorResponse),
     });
 
-    const responseFacebook = async (response: any) => {
-        if (response.status === 'unknown' || response.error || !response.email) {
-            console.error('Facebook login failed or no email provided', response);
-            return;
-        }
-
-        await handleOAuth({
-            email: response.email,
-            name: response.name || '',
-            facebookId: response.id,
-        });
-    };
-
     return (
         <div className="w-full">
-            <div className="grid grid-cols-2 gap-4">
-                {mounted ? (
-                    <FacebookLogin
-                        appId={process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || ''}
-                        fields="name,email,picture"
-                        callback={responseFacebook}
-                        render={(renderProps: any) => (
-                            <Button
-                                variant="outline"
-                                className="text-[#3b5998] border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none"
-                                onClick={renderProps.onClick}
-                                disabled={isLoading}
-                            >
-                                <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
-                            </Button>
-                        )}
-                    />
-                ) : (
-                    <Button
-                        variant="outline"
-                        className="text-[#3b5998] border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] opacity-50 cursor-not-allowed"
-                        disabled
-                    >
-                        <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
-                    </Button>
-                )}
-                
+            <div className="grid grid-cols-1 gap-4">
                 <Button
                     variant="outline"
                     className="text-gray-600 border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none font-bold"
