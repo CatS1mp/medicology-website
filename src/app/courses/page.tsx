@@ -1,13 +1,36 @@
-import { redirect } from 'next/navigation';
-import { enrolledCourses } from '@/features/courses/data/mockRoadmap';
+'use client';
 
-// /courses has no content of its own — redirect to the first enrolled course.
-// When API is integrated, fetch the user's most recent course and redirect there.
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getThemes } from '@/shared/api/learning';
+
+// /courses has no content of its own — redirect to the first available theme.
+// We do this on the client because auth tokens are stored in localStorage.
 export default function CoursesIndexPage() {
-    const firstCourse = enrolledCourses[0];
-    if (firstCourse) {
-        redirect(`/courses/${firstCourse.slug}`);
-    }
-    // Fallback if no enrolled courses
-    redirect('/topics');
+    const router = useRouter();
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function run() {
+            try {
+                const themes = await getThemes();
+                const first = themes.slice().sort((a, b) => a.orderIndex - b.orderIndex)[0];
+                if (!cancelled && first) {
+                    router.replace(`/courses/${first.slug}`);
+                    return;
+                }
+            } catch {
+                // ignore
+            }
+            if (!cancelled) router.replace('/topics');
+        }
+
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
+
+    return null;
 }

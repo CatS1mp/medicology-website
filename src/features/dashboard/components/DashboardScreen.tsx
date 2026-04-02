@@ -3,12 +3,14 @@
 import React from 'react';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useLogout } from '@/shared/hooks/useLogout';
 import { HeroBanner } from './HeroBanner';
 import { StatsCards } from './StatsCards';
 import { LessonProgressChart } from './LessonProgressChart';
 import { ContinueLearning } from './ContinueLearning';
 import { LearningResultsChart } from './LearningResultsChart';
 import { LearningProgress } from './LearningProgress';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import {
     mockUser,
     mockStatCards,
@@ -19,6 +21,12 @@ import {
 } from '../data/mockData';
 
 export const DashboardScreen: React.FC = () => {
+    const { handleLogout } = useLogout();
+    const { streakDays } = useLearningStreak();
+
+    const effectiveStreak = streakDays ?? mockUser.streak;
+    const statCards = mockStatCards.map((c) => (c.id === 'streak' ? { ...c, value: effectiveStreak } : c));
+
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Sidebar */}
@@ -27,7 +35,7 @@ export const DashboardScreen: React.FC = () => {
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
-                <AppHeader streak={mockUser.streak} />
+                <AppHeader streak={effectiveStreak} onLogout={handleLogout} />
 
                 {/* Page body */}
                 <div className="flex-1 overflow-y-auto">
@@ -42,7 +50,7 @@ export const DashboardScreen: React.FC = () => {
                                 {/* Stats */}
                                 <div>
                                     <h2 className="text-sm font-bold text-gray-800 mb-3">Thống kê</h2>
-                                    <StatsCards cards={mockStatCards} />
+                                    <StatsCards cards={statCards} />
                                 </div>
 
                                 {/* Lesson progress chart */}

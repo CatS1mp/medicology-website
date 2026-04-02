@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND = process.env.NEXT_PUBLIC_LEARNING_SERVICE_URL ?? '';
+const BACKEND = process.env.NEXT_PUBLIC_DICTIONARY_SERVICE_URL ?? '';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     return proxy(req, await params);
@@ -18,41 +18,38 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ p
 async function proxy(req: NextRequest, params: { path: string[] }) {
     const pathname = params.path.join('/');
     const search = req.nextUrl.search ?? '';
-    const targetUrl = `${BACKEND}/api/v1/learning/${pathname}${search}`;
+
+    // Dictionary service uses unversioned routes under /api/dictionary
+    const targetUrl = `${BACKEND}/api/dictionary/${pathname}${search}`;
 
     const headers = new Headers();
     const contentType = req.headers.get('content-type');
     if (contentType) headers.set('content-type', contentType);
-    
-    // Pass the bearer token from the client to the upstream service
+
     const auth = req.headers.get('authorization');
     if (auth) headers.set('authorization', auth);
 
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
     const body = hasBody ? await req.text() : undefined;
 
-    try {
-        const res = await fetch(targetUrl, {
-            method: req.method,
-            headers,
-            body,
-        });
+    const res = await fetch(targetUrl, {
+        method: req.method,
+        headers,
+        body,
+    });
 
-        const resContentType = res.headers.get('content-type') ?? '';
-        if (resContentType.includes('application/json')) {
-            const json = await res.json();
-            return NextResponse.json(json, { status: res.status });
-        }
+    const resContentType = res.headers.get('content-type') ?? '';
 
-        const text = await res.text();
-        return new NextResponse(text, {
-            status: res.status,
-            headers: {
-                'content-type': resContentType || 'text/plain; charset=utf-8',
-            },
-        });
-    } catch (error) {
-        console.error('Learning API proxy error:', error);
-        return NextResponse.json({ message: 'Internal Server Error (Proxy)' }, { status: 500 });
+    if (resContentType.includes('application/json')) {
+        const json = await res.json();
+        return NextResponse.json(json, { status: res.status });
     }
+
+    const text = await res.text();
+    return new NextResponse(text, {
+        status: res.status,
+        headers: {
+            'content-type': resContentType || 'text/plain; charset=utf-8',
+        },
+    });
 }

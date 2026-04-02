@@ -4,6 +4,7 @@ import React from 'react';
 
 interface AppHeaderProps {
     streak: number;
+    onLogout?: () => void;
 }
 
 const IconSearch = () => (
@@ -24,7 +25,7 @@ const IconBell = () => (
     </svg>
 );
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ streak }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
             {/* Search */}
@@ -54,9 +55,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak }) => {
             </button>
 
             {/* Avatar */}
-            <div className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors">
+            <button
+                type="button"
+                onClick={onLogout}
+                aria-label="Logout"
+                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
+            >
                 N
-            </div>
+            </button>
         </header>
     );
 };

@@ -3,13 +3,16 @@
 import React from 'react';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useLogout } from '@/shared/hooks/useLogout';
 import { TopicFilters } from './TopicFilters';
 import { TopicCard } from './TopicCard';
 import { useTopics } from '../hooks/useTopics';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 
 export const TopicsScreen: React.FC = () => {
-    // Assuming mockUser streak is fine to hardcode for now or fetch from a global context later
-    const userStreak = 17; 
+    const { streakDays } = useLearningStreak();
+
+    const { handleLogout } = useLogout();
 
     const {
         topics,
@@ -29,7 +32,7 @@ export const TopicsScreen: React.FC = () => {
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
-                <AppHeader streak={userStreak} />
+                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
                 {/* Page body */}
                 <div className="flex-1 overflow-y-auto">
