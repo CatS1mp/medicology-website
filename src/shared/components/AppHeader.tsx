@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface AppHeaderProps {
     streak: number;
@@ -26,6 +27,37 @@ const IconBell = () => (
 );
 
 export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
+    const router = useRouter();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        function handleOutsideClick(event: MouseEvent) {
+            if (!menuRef.current) return;
+            if (!menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        }
+
+        if (isMenuOpen) {
+            document.addEventListener('mousedown', handleOutsideClick);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+        };
+    }, [isMenuOpen]);
+
+    const handleOpenProfile = () => {
+        setIsMenuOpen(false);
+        router.push('/profile');
+    };
+
+    const handleLogoutClick = () => {
+        setIsMenuOpen(false);
+        onLogout?.();
+    };
+
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
             {/* Search */}
@@ -54,15 +86,36 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
 
-            {/* Avatar */}
-            <button
-                type="button"
-                onClick={onLogout}
-                aria-label="Logout"
-                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
-            >
-                N
-            </button>
+            {/* Avatar + Dropdown */}
+            <div className="relative" ref={menuRef}>
+                <button
+                    type="button"
+                    onClick={() => setIsMenuOpen((prev) => !prev)}
+                    aria-label="Tài khoản"
+                    className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
+                >
+                    N
+                </button>
+
+                {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg z-50 overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={handleOpenProfile}
+                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                            Hồ sơ cá nhân
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleLogoutClick}
+                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                        >
+                            Đăng xuất
+                        </button>
+                    </div>
+                )}
+            </div>
         </header>
     );
 };

@@ -15,7 +15,16 @@ export function useLogout(): UseLogoutReturn {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const clearSession = () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userProfile');
+        localStorage.removeItem('enrolledCoursesLocal');
+    };
+
     const handleLogout = async () => {
+        if (isLoading) return;
+
         setError(null);
         setIsLoading(true);
 
@@ -40,10 +49,9 @@ export function useLogout(): UseLogoutReturn {
         } catch {
             setError('ERR_NETWORK');
         } finally {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('userProfile');
-            router.push('/login');
+            clearSession();
+            router.replace('/login');
+            router.refresh();
             setIsLoading(false);
         }
     };
