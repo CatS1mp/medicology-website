@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Topic, TopicFiltersState } from '../types';
-import { getThemes } from '@/shared/api/learning';
+import { getCourses } from '@/shared/api/learning';
+
+function resolveTopicImageUrl(iconFileName: string | null): string {
+    if (!iconFileName) {
+        return '/images/Others/earth.png';
+    }
+
+    // Keep internet URLs intact.
+    if (/^https?:\/\//i.test(iconFileName)) {
+        return iconFileName;
+    }
+
+    return `/images/Icons/${iconFileName}`;
+}
 
 export const useTopics = () => {
     const [filters, setFilters] = useState<TopicFiltersState>({
@@ -22,20 +35,24 @@ export const useTopics = () => {
         async function fetchThemes() {
             setIsLoading(true);
             try {
-                const themes = await getThemes();
-                const mapped: Topic[] = themes
+                // Backend giờ trả về courses thay vì themes
+                const courses = await getCourses();
+                console.log('Fetched courses (themes):', courses); // Debug log
+                const mapped: Topic[] = courses
                     .slice()
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((t) => ({
                         id: t.id,
+                        slug: t.slug,
                         title: t.name,
                         description: t.description ?? '',
                         level: 'Cơ bản',
                         category: 'Y học Thường thức',
-                        imageUrl: t.iconFileName ? `/images/Icons/${t.iconFileName}` : '/images/Others/earth.png',
+                        imageUrl: resolveTopicImageUrl(t.iconFileName),
                     }));
                 if (!cancelled) setAllTopics(mapped);
-            } catch {
+            } catch (error) {
+                console.error('Error fetching courses:', error); // Debug log
                 if (!cancelled) setAllTopics([]);
             } finally {
                 if (!cancelled) setIsLoading(false);

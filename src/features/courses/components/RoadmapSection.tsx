@@ -4,9 +4,10 @@ import { LessonNodeCard } from './LessonNodeCard';
 
 interface RoadmapSectionProps {
     section: SectionModel;
+    onLessonClick?: (lessonId: string) => void;
 }
 
-export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section }) => {
+export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section, onLessonClick }) => {
     return (
         <div className="mb-10 relative">
             {/* Section Header */}
@@ -22,6 +23,8 @@ export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section }) => {
                         key={node.id} 
                         node={node} 
                         isLastInSection={index === section.nodes.length - 1} 
+                        displayOrder={index + 1}
+                        onClick={onLessonClick}
                     />
                 ))}
             </div>

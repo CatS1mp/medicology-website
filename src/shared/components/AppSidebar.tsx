@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { enrolledCourses } from '@/features/courses/data/mockRoadmap';
+import { useEnrolledCourses } from '@/shared/hooks/useEnrolledCourses';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -69,6 +69,7 @@ const navGroups: NavGroup[] = [
 export const AppSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const { courses: enrolledCourses, isLoading: coursesLoading } = useEnrolledCourses();
 
     // "Khoá học của bạn" expands when we're inside any /courses/* route
     const isInCourses = pathname?.startsWith('/courses');
@@ -141,39 +142,47 @@ export const AppSidebar: React.FC = () => {
                                             )}
                                         </Link>
 
-                                        {/* Sub-items: list of enrolled courses from data layer */}
+                                        {/* Sub-items: list of enrolled courses from API */}
                                         {isCourses && !collapsed && coursesOpen && (
                                             <div className="relative mt-2 mb-2">
-                                                <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
-                                                <div className="flex flex-col">
-                                                    {enrolledCourses.map((course, idx) => {
-                                                        const isLast = idx === enrolledCourses.length - 1;
-                                                        const isCourseActive = pathname === `/courses/${course.slug}`;
+                                                {coursesLoading ? (
+                                                    <div className="pl-[52px] py-2 text-sm text-gray-400">Đang tải...</div>
+                                                ) : enrolledCourses.length === 0 ? (
+                                                    <div className="pl-[52px] py-2 text-sm text-gray-400">Chưa có khóa học</div>
+                                                ) : (
+                                                    <>
+                                                        <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
+                                                        <div className="flex flex-col">
+                                                            {enrolledCourses.map((course, idx) => {
+                                                                const isLast = idx === enrolledCourses.length - 1;
+                                                                const isCourseActive = pathname === `/courses/${course.slug}`;
 
-                                                        return (
-                                                            <div key={course.slug} className="relative py-[9px] pl-[52px]">
-                                                                {!isLast && (
-                                                                    <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
-                                                                )}
-                                                                {isLast && (
-                                                                    <div className="absolute left-[23px] top-0 bottom-1/2 w-[2px] bg-[#4147D5]" />
-                                                                )}
-                                                                <div className="absolute left-[23px] top-0 h-1/2 w-[20px] border-l-[2px] border-b-[2px] border-[#4147D5] rounded-bl-[14px]" />
+                                                                return (
+                                                                    <div key={course.slug} className="relative py-[9px] pl-[52px]">
+                                                                        {!isLast && (
+                                                                            <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
+                                                                        )}
+                                                                        {isLast && (
+                                                                            <div className="absolute left-[23px] top-0 bottom-1/2 w-[2px] bg-[#4147D5]" />
+                                                                        )}
+                                                                        <div className="absolute left-[23px] top-0 h-1/2 w-[20px] border-l-[2px] border-b-[2px] border-[#4147D5] rounded-bl-[14px]" />
 
-                                                                <Link
-                                                                    href={`/courses/${course.slug}`}
-                                                                    className={`block text-[15px] leading-tight transition-colors font-medium ${
-                                                                        isCourseActive
-                                                                            ? 'text-[#4147D5]'
-                                                                            : 'text-[#344054] hover:text-[#4147D5]'
-                                                                    }`}
-                                                                >
-                                                                    {course.label}
-                                                                </Link>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                                        <Link
+                                                                            href={`/courses/${course.slug}`}
+                                                                            className={`block text-[15px] leading-tight transition-colors font-medium ${
+                                                                                isCourseActive
+                                                                                    ? 'text-[#4147D5]'
+                                                                                    : 'text-[#344054] hover:text-[#4147D5]'
+                                                                            }`}
+                                                                        >
+                                                                            {course.label}
+                                                                        </Link>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </div>

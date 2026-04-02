@@ -6,7 +6,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = '', variant = 'primary', fullWidth, children, ...props }, ref) => {
+  ({ className = '', variant = 'primary', fullWidth, children, type = 'button', ...props }, ref) => {
     let variantStyles = '';
     
     switch (variant) {
@@ -26,6 +26,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        type={type}
         className={`px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide transition-colors duration-200 flex items-center justify-center gap-2 ${variantStyles} ${widthStyles} ${className}`}
         {...props}
       >

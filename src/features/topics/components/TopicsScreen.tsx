@@ -7,12 +7,11 @@ import { useLogout } from '@/shared/hooks/useLogout';
 import { TopicFilters } from './TopicFilters';
 import { TopicCard } from './TopicCard';
 import { useTopics } from '../hooks/useTopics';
-import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { useRouter } from 'next/navigation';
 
 export const TopicsScreen: React.FC = () => {
-    const { streakDays } = useLearningStreak();
-
     const { handleLogout } = useLogout();
+    const router = useRouter();
 
     const {
         topics,
@@ -24,6 +23,13 @@ export const TopicsScreen: React.FC = () => {
         isLoading
     } = useTopics();
 
+    const onStartLearning = (topicId: string) => {
+        const topic = topics.find(t => t.id === topicId);
+        if (topic) {
+            router.push(`/courses/${topic.slug}?courseId=${topic.id}`);
+        }
+    };
+
     return (
         <div className="flex h-screen bg-white overflow-hidden font-sans">
             {/* Sidebar */}
@@ -32,7 +38,7 @@ export const TopicsScreen: React.FC = () => {
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
-                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
+                <AppHeader onLogout={handleLogout} />
 
                 {/* Page body */}
                 <div className="flex-1 overflow-y-auto">
@@ -55,7 +61,8 @@ export const TopicsScreen: React.FC = () => {
                                     <TopicCard 
                                         key={topic.id} 
                                         topic={topic} 
-                                        onStartLearning={(id) => console.log('Start learning topic:', id)} 
+                                        onStartLearning={onStartLearning}
+                                        disabled={false}
                                     />
                                 ))
                             ) : (

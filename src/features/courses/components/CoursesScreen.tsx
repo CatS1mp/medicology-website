@@ -8,16 +8,14 @@ import { useRoadmap } from '../hooks/useRoadmap';
 import { RoadmapHeader } from './RoadmapHeader';
 import { RoadmapSection } from './RoadmapSection';
 import { ContinueLearningBar } from './ContinueLearningBar';
-import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 
 interface CoursesScreenProps {
     slug: string;
+    selectedCourseId?: string;
 }
 
-export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
-    const { data, isLoading } = useRoadmap(slug);
-    const { streakDays } = useLearningStreak();
-
+export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug, selectedCourseId }) => {
+    const { data, isLoading, handleLessonClick } = useRoadmap(slug, selectedCourseId);
     const { handleLogout } = useLogout();
 
     return (
@@ -28,7 +26,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
             {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Header */}
-                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
+                <AppHeader onLogout={handleLogout} />
 
                 {/* Page body */}
                 <div className="flex-1 overflow-y-auto w-full relative">
@@ -46,12 +44,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                                 <RoadmapHeader 
                                     title={data.topicTitle} 
                                     progress={data.progress} 
-                                    streak={{ ...data.streak, days: streakDays ?? data.streak.days }} 
+                                    streak={data.streak}
                                 />
 
                                 <div className="mt-8">
                                     {data.sections.map((section) => (
-                                        <RoadmapSection key={section.id} section={section} />
+                                        <RoadmapSection key={section.id} section={section} onLessonClick={handleLessonClick} />
                                     ))}
                                 </div>
                             </>

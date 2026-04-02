@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 interface Props {
     params: Promise<{ slug: string }>;
+    searchParams: Promise<{ courseId?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -14,7 +15,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
-export default async function CourseRoadmapPage({ params }: Props) {
+export default async function CourseRoadmapPage({ params, searchParams }: Props) {
     const { slug } = await params;
-    return <CoursesScreen slug={slug} />;
+    const { courseId } = await searchParams;
+    return <CoursesScreen slug={slug} selectedCourseId={courseId} />;
 }

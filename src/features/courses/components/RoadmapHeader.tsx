@@ -31,7 +31,7 @@ export const RoadmapHeader: React.FC<RoadmapHeaderProps> = ({ title, progress, s
                     />
                 </div>
                 <div className="text-xs font-bold text-gray-400 w-24 text-right">
-                    {progress.current} / {progress.total} courses
+                    {progress.current} / {progress.total} lessons
                 </div>
             </div>
 

@@ -1,19 +1,37 @@
 import React from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Topic } from '../types';
 import { Button } from '@/shared/components/Button';
 
 interface TopicCardProps {
     topic: Topic;
     onStartLearning?: (topicId: string) => void;
+    disabled?: boolean;
 }
 
-export const TopicCard: React.FC<TopicCardProps> = ({ topic, onStartLearning }) => {
+export const TopicCard: React.FC<TopicCardProps> = ({ topic, onStartLearning, disabled }) => {
+    const router = useRouter();
     const hasRating = typeof topic.rating === 'number';
     const hasCourseCount = typeof topic.courseCount === 'number';
 
+    const handleCardClick = () => {
+        // Click vào card → Xem chi tiết khóa học (không enroll)
+        router.push(`/courses/${topic.slug}?courseId=${topic.id}`);
+    };
+
+    const handleStartLearning = (e: React.MouseEvent) => {
+        // Ngăn event bubble lên card
+        e.stopPropagation();
+        // Click nút "Bắt đầu học" → Enroll và bắt đầu học
+        onStartLearning?.(topic.id);
+    };
+
     return (
-        <div className="bg-white rounded-[24px] overflow-hidden border border-gray-100 flex flex-col h-full shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300">
+        <div 
+            className="bg-white rounded-[24px] overflow-hidden border border-gray-100 flex flex-col h-full shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer"
+            onClick={handleCardClick}
+        >
             {/* Image Container */}
             <div className="relative h-48 w-full bg-[#E5F0FF] flex items-center justify-center p-6 mix-blend-multiply">
                 {/* Level Badge */}
@@ -79,14 +97,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onStartLearning }) 
                 <Button 
                     fullWidth 
                     className="py-2.5 text-[13px] font-bold tracking-wide uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none transition-all"
-                    onClick={() => onStartLearning?.(topic.id)}
+                    onClick={handleStartLearning}
+                    disabled={disabled}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Bắt đầu học
+                        {disabled ? 'Đang đăng ký...' : 'Bắt đầu học'}
                     </div>
                 </Button>
             </div>

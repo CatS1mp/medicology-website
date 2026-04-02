@@ -2,6 +2,7 @@
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import React from 'react';
+import { UserProvider } from '@/shared/contexts/UserContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'dummy_client_id_for_build';
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     return (
         <GoogleOAuthProvider clientId={clientId}>
-            {children}
+            <UserProvider>
+                {children}
+            </UserProvider>
         </GoogleOAuthProvider>
     );
 }

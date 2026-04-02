@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
+import { useUser } from '@/shared/contexts/UserContext';
 
 interface AppHeaderProps {
-    streak: number;
+    streak?: number; // Optional override, otherwise use context
     onLogout?: () => void;
 }
 
@@ -25,7 +26,13 @@ const IconBell = () => (
     </svg>
 );
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ streak: streakOverride, onLogout }) => {
+    const { userProfile, streak: contextStreak } = useUser();
+    
+    // Use override if provided, otherwise use context
+    const displayStreak = streakOverride ?? contextStreak?.currentStreak ?? 0;
+    const avatarInitials = userProfile?.avatarInitials ?? 'U';
+
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
             {/* Search */}
@@ -45,7 +52,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
 
             {/* Streak badge */}
             <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors">
-                <span className="text-orange-500 font-bold text-sm">🔥 {streak}</span>
+                <span className="text-orange-500 font-bold text-sm">🔥 {displayStreak}</span>
             </button>
 
             {/* Notification bell */}
@@ -59,9 +66,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                 type="button"
                 onClick={onLogout}
                 aria-label="Logout"
-                className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
+                title={userProfile?.fullName}
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:from-blue-500 hover:to-blue-700 transition-all shadow-sm"
             >
-                N
+                {avatarInitials}
             </button>
         </header>
     );

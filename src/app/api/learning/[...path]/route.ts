@@ -18,6 +18,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ p
 async function proxy(req: NextRequest, params: { path: string[] }) {
     const pathname = params.path.join('/');
     const search = req.nextUrl.search ?? '';
+    // Backend có path /api/v1/learning/... nên cần giữ nguyên
     const targetUrl = `${BACKEND}/api/v1/learning/${pathname}${search}`;
 
     const headers = new Headers();
