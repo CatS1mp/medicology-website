@@ -2,86 +2,23 @@
 
 import React from 'react';
 import { Button } from '@/shared/components/Button';
-import { useGoogleLogin, TokenResponse } from '@react-oauth/google';
-import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
-import { useOAuth } from '../hooks/useOAuth';
-import { jwtDecode } from 'jwt-decode';
 
 export const OAuthButtons: React.FC = () => {
-    const { handleOAuth, isLoading, error } = useOAuth();
-
-    const [mounted, setMounted] = React.useState(false);
-    React.useEffect(() => setMounted(true), []);
-
-    const googleLogin = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            // Because we didn't use the standard Google button, useGoogleLogin returns an access token
-            // We need to fetch the user info using this access token
-            try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                });
-                const userInfo = await res.json();
-                
-                await handleOAuth({
-                    email: userInfo.email,
-                    name: userInfo.name,
-                    googleId: userInfo.sub,
-                });
-            } catch (err) {
-                console.error("Failed to fetch Google user info", err);
-            }
-        },
-        onError: errorResponse => console.log(errorResponse),
-    });
-
-    const responseFacebook = async (response: any) => {
-        if (response.status === 'unknown' || response.error || !response.email) {
-            console.error('Facebook login failed or no email provided', response);
-            return;
-        }
-
-        await handleOAuth({
-            email: response.email,
-            name: response.name || '',
-            facebookId: response.id,
-        });
-    };
-
     return (
         <div className="w-full">
             <div className="grid grid-cols-2 gap-4">
-                {mounted ? (
-                    <FacebookLogin
-                        appId={process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || ''}
-                        fields="name,email,picture"
-                        callback={responseFacebook}
-                        render={(renderProps: any) => (
-                            <Button
-                                variant="outline"
-                                className="text-[#3b5998] border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none"
-                                onClick={renderProps.onClick}
-                                disabled={isLoading}
-                            >
-                                <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
-                            </Button>
-                        )}
-                    />
-                ) : (
-                    <Button
-                        variant="outline"
-                        className="text-[#3b5998] border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] opacity-50 cursor-not-allowed"
-                        disabled
-                    >
-                        <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
-                    </Button>
-                )}
+                <Button
+                    variant="outline"
+                    className="text-[#3b5998] border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none"
+                    onClick={() => console.log('Facebook login clicked')}
+                >
+                    <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
+                </Button>
                 
                 <Button
                     variant="outline"
                     className="text-gray-600 border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none font-bold"
-                    onClick={() => googleLogin()}
-                    disabled={isLoading}
+                    onClick={() => console.log('Google login clicked')}
                 >
                     <svg className="w-5 h-5 mr-1" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -92,12 +29,6 @@ export const OAuthButtons: React.FC = () => {
                     Google
                 </Button>
             </div>
-            
-            {error && (
-                <p className="text-sm text-red-500 text-center mt-4">
-                    {error === 'ERR_NETWORK' ? 'Không thể kết nối đến máy chủ.' : 'Lỗi đăng nhập OAuth.'}
-                </p>
-            )}
         </div>
     );
 };
