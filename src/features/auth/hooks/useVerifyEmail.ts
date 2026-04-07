@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { requestEmailToken } from '../api';
+import { resendVerificationEmail } from '../api';
 import { ApiError } from '../types';
 
 interface UseVerifyEmailReturn {
@@ -24,7 +24,7 @@ export function useVerifyEmail(): UseVerifyEmailReturn {
         setIsResendSuccess(false);
         setIsResending(true);
         try {
-            await requestEmailToken(email);
+            await resendVerificationEmail(email);
             setIsResendSuccess(true);
         } catch (err) {
             if (err instanceof ApiError) {
