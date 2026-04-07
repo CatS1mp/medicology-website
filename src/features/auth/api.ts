@@ -4,7 +4,6 @@ import {
     AuthResponse,
     LoginRequest,
     LogoutRequest,
-    OAuthRequest,
     RefreshTokenRequest,
     RegisterRequest,
     RegisterResponse,
@@ -59,10 +58,6 @@ export function login(data: LoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/login`, data);
 }
 
-/** POST /api/v1/auth/oauth — OAuth post-login (Google / Facebook) */
-export function oauthLogin(data: OAuthRequest): Promise<AuthResponse> {
-    return jsonPost<AuthResponse>(`${AUTH}/oauth`, data);
-}
 
 /** GET /api/v1/auth/verify?token= — Marks user as verified */
 export function verifyEmail(token: string): Promise<string> {
