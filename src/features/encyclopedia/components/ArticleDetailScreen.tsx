@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useLogout } from '@/shared/hooks/useLogout';
 import { useArticle } from '../hooks/useEncyclopedia';
 
 interface ArticleDetailScreenProps {
@@ -14,13 +15,14 @@ interface ArticleDetailScreenProps {
 export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }) => {
     const { article, isLoading } = useArticle(slug);
     const [activeSection, setActiveSection] = useState<string | null>(null);
+    const { handleLogout } = useLogout();
 
     if (isLoading) {
         return (
             <div className="flex h-screen bg-white font-sans">
                 <AppSidebar />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <AppHeader streak={17} />
+                    <AppHeader streak={17} onLogout={handleLogout} />
                     <div className="flex-1 flex items-center justify-center text-gray-400">Đang tải bài viết...</div>
                 </div>
             </div>
@@ -32,7 +34,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
             <div className="flex h-screen bg-white font-sans">
                 <AppSidebar />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <AppHeader streak={17} />
+                    <AppHeader streak={17} onLogout={handleLogout} />
                     <div className="flex-1 flex items-center justify-center text-gray-400">Không tìm thấy bài viết.</div>
                 </div>
             </div>
@@ -43,7 +45,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
         <div className="flex h-screen bg-white overflow-hidden font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={17} />
+                <AppHeader streak={17} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">

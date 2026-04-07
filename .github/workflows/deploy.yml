@@ -16,12 +16,18 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Node.js (phiên bản ổn định)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+<<<<<<< feat/bookmark
+          node-version: '20'
+          cache: 'npm' # Tăng tốc độ bằng cách cache node_modules
+=======
           node-version: '24'
           cache: 'npm'
 
@@ -32,20 +38,28 @@ jobs:
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+>>>>>>> develop
 
+      # 3. Cài đặt dependencies
       - name: Install dependencies
         run: npm ci
 
+      # 4. Build Next.js app (Để kiểm tra lỗi compile trước khi deploy)
       - name: Build Next.js app
         run: npm run build
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
+      # 5. Login to Azure
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # 6. Deploy to Azure Web App (Deploy trực tiếp thư mục hiện tại)
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: medicology
+          app-name: medicology2
+          # Thay vì dùng file .zip, ta dùng dấu chấm '.' để deploy toàn bộ code nguồn
           package: .

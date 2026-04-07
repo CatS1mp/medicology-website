@@ -36,12 +36,20 @@ async function proxy(req: NextRequest, params: { path: string[] }) {
     });
 
     const resContentType = res.headers.get('content-type') ?? '';
-    const resBody = resContentType.includes('application/json')
-        ? await res.json()
-        : await res.text();
 
-    return NextResponse.json(
-        typeof resBody === 'string' ? { message: resBody } : resBody,
-        { status: res.status }
-    );
+    // Preserve response format:
+    // - If backend returns JSON, forward JSON
+    // - If backend returns plain text, forward plain text
+    if (resContentType.includes('application/json')) {
+        const json = await res.json();
+        return NextResponse.json(json, { status: res.status });
+    }
+
+    const text = await res.text();
+    return new NextResponse(text, {
+        status: res.status,
+        headers: {
+            'content-type': resContentType || 'text/plain; charset=utf-8',
+        },
+    });
 }

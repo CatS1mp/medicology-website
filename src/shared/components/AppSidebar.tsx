@@ -64,6 +64,12 @@ const navGroups: NavGroup[] = [
             { icon: <Image src="/images/Icons/Component.svg" alt="Sổ tay lưu trữ" width={24} height={24} />, label: 'Sổ tay lưu trữ', href: '/notebook' },
         ],
     },
+    {
+        title: 'HỆ THỐNG',
+        items: [
+            { icon: <Image src="/images/Icons/Component.svg" alt="Hồ sơ cá nhân" width={24} height={24} />, label: 'Hồ sơ cá nhân', href: '/profile' },
+        ],
+    },
 ];
 
 export const AppSidebar: React.FC = () => {
@@ -109,11 +115,14 @@ export const AppSidebar: React.FC = () => {
                             {group.items.map((item) => {
                                 const isCourses = item.label === 'Khoá học của bạn';
                                 const isEncyclopedia = item.label === 'Bách khoa Y học';
+                                const isProfile = item.label === 'Hồ sơ cá nhân';
                                 // Highlight parent for all sub-routes
                                 const isActive = isCourses
                                     ? !!isInCourses
                                     : isEncyclopedia
                                         ? !!pathname?.startsWith('/encyclopedia')
+                                        : isProfile
+                                            ? !!pathname?.startsWith('/profile')
                                         : pathname === item.href;
 
                                 return (

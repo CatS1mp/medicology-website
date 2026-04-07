@@ -6,8 +6,8 @@ export interface Topic {
     description: string;
     level: TopicLevel;
     category: string;
-    rating: number;
-    courseCount: number;
+    rating?: number;
+    courseCount?: number;
     imageUrl: string;
 }
 

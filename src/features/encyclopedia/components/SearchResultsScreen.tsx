@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { useLogout } from '@/shared/hooks/useLogout';
 import { useEncyclopediaSearch } from '../hooks/useEncyclopedia';
 import { TRENDING_TAGS, ArticleCategory } from '../types';
 
@@ -15,6 +16,8 @@ export const SearchResultsScreen: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get('q') ?? '';
+
+    const { handleLogout } = useLogout();
 
     const { results, filters, setFilters, search, isLoading } = useEncyclopediaSearch(initialQuery);
     const [inputValue, setInputValue] = useState(initialQuery);
@@ -46,7 +49,7 @@ export const SearchResultsScreen: React.FC = () => {
         <div className="flex h-screen bg-white overflow-hidden font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={17} />
+                <AppHeader streak={17} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-4xl mx-auto px-6 py-8">

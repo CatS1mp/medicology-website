@@ -2,6 +2,39 @@
 
 import React from 'react';
 import { Button } from '@/shared/components/Button';
+<<<<<<< feat/bookmark
+import { useGoogleLogin, TokenResponse } from '@react-oauth/google';
+import { useOAuth } from '../hooks/useOAuth';
+
+export const OAuthButtons: React.FC = () => {
+    const { handleOAuth, isLoading, error } = useOAuth();
+
+    const googleLogin = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            // Because we didn't use the standard Google button, useGoogleLogin returns an access token
+            // We need to fetch the user info using this access token
+            try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const userInfo = await res.json();
+                
+                await handleOAuth({
+                    email: userInfo.email,
+                    name: userInfo.name,
+                    googleId: userInfo.sub,
+                });
+            } catch (err) {
+                console.error("Failed to fetch Google user info", err);
+            }
+        },
+        onError: errorResponse => console.log(errorResponse),
+    });
+
+    return (
+        <div className="w-full">
+            <div className="grid grid-cols-1 gap-4">
+=======
 
 export const OAuthButtons: React.FC = () => {
     return (
@@ -15,6 +48,7 @@ export const OAuthButtons: React.FC = () => {
                     <span className="font-bold text-lg mr-1 text-[#3b5998]">f</span> Facebook
                 </Button>
                 
+>>>>>>> develop
                 <Button
                     variant="outline"
                     className="text-gray-600 border-gray-200 py-3 uppercase tracking-wider text-[13px] shadow-[0_2px_0_0_#e5e7eb] hover:translate-y-[1px] hover:shadow-[0_1px_0_0_#e5e7eb] active:translate-y-[2px] active:shadow-none font-bold"
