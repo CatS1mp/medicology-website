@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Topic, TopicFiltersState } from '../types';
-import { getThemes } from '@/shared/api/learning';
+import { enrollCourse, getAvailableStudentCourses } from '@/shared/api/learning';
 
 export const useTopics = () => {
     const [filters, setFilters] = useState<TopicFiltersState>({
@@ -12,6 +12,7 @@ export const useTopics = () => {
 
     const [allTopics, setAllTopics] = useState<Topic[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [enrollingTopicId, setEnrollingTopicId] = useState<string | null>(null);
 
     const [page, setPage] = useState(1);
     const limit = 6;
@@ -22,17 +23,19 @@ export const useTopics = () => {
         async function fetchThemes() {
             setIsLoading(true);
             try {
-                const themes = await getThemes();
+                const themes = await getAvailableStudentCourses();
                 const mapped: Topic[] = themes
                     .slice()
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((t) => ({
                         id: t.id,
+                        slug: t.slug,
                         title: t.name,
                         description: t.description ?? '',
                         level: 'Cơ bản',
                         category: 'Y học Thường thức',
-                        imageUrl: t.iconFileName ? `/images/Icons/${t.iconFileName}` : '/images/Others/earth.png',
+                        courseCount: t.sections?.length ?? 0,
+                        imageUrl: t.iconFileName ? `${t.iconFileName}` : '/images/Others/earth.png',
                     }));
                 if (!cancelled) setAllTopics(mapped);
             } catch {
@@ -80,6 +83,18 @@ export const useTopics = () => {
     const totalPages = Math.ceil(filteredTopics.length / limit);
     const paginatedTopics = filteredTopics.slice((page - 1) * limit, page * limit);
 
+    async function handleEnroll(topicId: string) {
+        if (enrollingTopicId) return;
+
+        setEnrollingTopicId(topicId);
+        try {
+            await enrollCourse(topicId);
+            setAllTopics((current) => current.filter((topic) => topic.id !== topicId));
+        } finally {
+            setEnrollingTopicId(null);
+        }
+    }
+
     return {
         topics: paginatedTopics,
         filters,
@@ -91,6 +106,8 @@ export const useTopics = () => {
         setPage,
         totalPages,
         totalItems: filteredTopics.length,
-        isLoading
+        isLoading,
+        enrollingTopicId,
+        enrollTopic: handleEnroll,
     };
 };

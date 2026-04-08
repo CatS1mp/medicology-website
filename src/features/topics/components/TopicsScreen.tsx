@@ -21,7 +21,9 @@ export const TopicsScreen: React.FC = () => {
         page,
         setPage,
         totalPages,
-        isLoading
+        isLoading,
+        enrollingTopicId,
+        enrollTopic,
     } = useTopics();
 
     return (
@@ -55,7 +57,8 @@ export const TopicsScreen: React.FC = () => {
                                     <TopicCard 
                                         key={topic.id} 
                                         topic={topic} 
-                                        onStartLearning={(id) => console.log('Start learning topic:', id)} 
+                                        isEnrolling={enrollingTopicId === topic.id}
+                                        onEnroll={enrollTopic}
                                     />
                                 ))
                             ) : (

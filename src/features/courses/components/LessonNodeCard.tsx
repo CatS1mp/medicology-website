@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { LessonNode, LessonStatus } from '../types';
 
 interface LessonNodeCardProps {
@@ -64,8 +65,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             );
         }
         
-        // Extract number from id roughly for display if it's a lesson
-        const num = node.id.replace(/\D/g, '') || '1'; 
+        const num = String(node.orderIndex ?? 1);
         return <span className="font-bold text-lg">{num}</span>;
     };
 
@@ -95,7 +95,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
         return null;
     };
 
-    return (
+    const content = (
         <div className="relative pl-12 sm:pl-16 w-full max-w-2xl mx-auto mb-4">
             {/* The vertical connecting line to the NEXT item */}
             {!isLastInSection && (
@@ -103,7 +103,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             )}
 
             {/* The Card */}
-            <div className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm cursor-pointer transition-transform hover:-translate-y-0.5 ${style.border} ${style.bg}`}>
+            <div className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm transition-transform hover:-translate-y-0.5 ${node.href ? 'cursor-pointer' : ''} ${style.border} ${style.bg}`}>
                 
                 <div className="flex items-center gap-4">
                     {/* Index / Icon Box */}
@@ -126,6 +126,8 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                                 <span className={`text-[12px] ${style.textInfo}`}>
                                     {node.score.current} / {node.score.max} correct
                                 </span>
+                            ) : node.description ? (
+                                <span className={`text-[12px] ${style.textInfo}`}>{node.description}</span>
                             ) : (
                                 <span className={`text-[12px] ${style.textInfo}`}>
                                     0 / 10
@@ -143,4 +145,10 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             </div>
         </div>
     );
+
+    if (node.href && node.status !== 'locked') {
+        return <Link href={node.href}>{content}</Link>;
+    }
+
+    return content;
 };

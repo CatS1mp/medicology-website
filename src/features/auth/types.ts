@@ -37,8 +37,8 @@ export interface ResetPasswordRequest {
 
 export interface UserProfile {
     displayName: string;
-    avatarUrl: string;
-    bio: string;
+    avatarUrl: string | null;
+    bio: string | null;
 }
 
 export interface AuthResponse {
@@ -51,6 +51,78 @@ export interface AuthResponse {
 
 export interface RegisterResponse {
     email: string;
+}
+
+export interface CurrentUser {
+    id: string;
+    email: string;
+    username: string;
+    dateOfBirth: string | null;
+    location: string | null;
+    active: boolean;
+    verified: boolean;
+    admin: boolean;
+    lastLoginAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CurrentUserProfile {
+    userId: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    bio: string | null;
+}
+
+export interface CurrentUserSettings {
+    userId: string;
+    notificationEnabled: boolean;
+    dailyReminderTime: string | null;
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    themePreference: 'light' | 'dark' | 'system' | null;
+    dailyGoalCourses: number | null;
+}
+
+export interface LinkedOAuthAccount {
+    provider: string;
+    providerUserId: string;
+    providerEmail: string | null;
+}
+
+export interface UserSession {
+    id: string;
+    createdAt: string;
+    expiresAt: string;
+    revoked: boolean;
+    tokenPreview: string;
+}
+
+export interface UpdateCurrentUserRequest {
+    username?: string;
+    dateOfBirth?: string | null;
+    location?: string | null;
+}
+
+export interface UpdateCurrentUserProfileRequest {
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+}
+
+export interface UpdateCurrentUserSettingsRequest {
+    notificationEnabled?: boolean;
+    dailyReminderTime?: string | null;
+    emailNotifications?: boolean;
+    pushNotifications?: boolean;
+    themePreference?: 'light' | 'dark' | 'system' | null;
+    dailyGoalCourses?: number | null;
+}
+
+export interface ChangeCurrentPasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
 }
 
 // ─── Error type ───────────────────────────────────────────────────────────────

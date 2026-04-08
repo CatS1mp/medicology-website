@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { mockBookmarks } from '../data/mockBookmarks';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { listBookmarkedArticles } from '@/features/encyclopedia/api';
 import { BookmarkCategory } from '../types';
 
 const categoryFilters: Array<'All' | BookmarkCategory> = ['All', 'Emergency', 'Mental Health', 'Cardiovascular', 'Nutrition'];
@@ -19,24 +21,70 @@ const categoryLabelMap: Record<'All' | BookmarkCategory, string> = {
 
 export const NotebookScreen: React.FC = () => {
     const { handleLogout } = useLogout();
+    const { streakDays } = useLearningStreak();
     const [activeCategory, setActiveCategory] = useState<'All' | BookmarkCategory>('All');
     const [query, setQuery] = useState('');
+    const [items, setItems] = useState<Array<{
+        id: string;
+        slug: string;
+        category: BookmarkCategory;
+        title: string;
+        description: string;
+        tags: string[];
+        views: string;
+        publishedAt: string;
+        bookmarkedAt: string;
+    }>>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            setIsLoading(true);
+            setError('');
+            try {
+                const data = await listBookmarkedArticles();
+                if (cancelled) return;
+                setItems(data.map((item) => ({
+                    id: item.id,
+                    slug: item.slug,
+                    category: mapCategory(item.tags?.map((tag) => tag.name) ?? []),
+                    title: item.name,
+                    description: stripMarkdown(item.contentMarkdown).slice(0, 160),
+                    tags: (item.tags ?? []).map((tag) => tag.name),
+                    views: '-',
+                    publishedAt: item.publishedAt ? `Xuất bản ${new Date(item.publishedAt).toLocaleDateString('vi-VN')}` : 'Chưa xuất bản',
+                    bookmarkedAt: item.bookmarkedAt ? `Đã lưu ${new Date(item.bookmarkedAt).toLocaleDateString('vi-VN')}` : 'Đã lưu gần đây',
+                })));
+            } catch (nextError) {
+                if (!cancelled) {
+                    setItems([]);
+                    setError(nextError instanceof Error ? nextError.message : 'Không thể tải sổ tay lưu trữ.');
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+        run();
+        return () => { cancelled = true; };
+    }, []);
 
     const filtered = useMemo(() => {
         const byCategory = activeCategory === 'All'
-            ? mockBookmarks
-            : mockBookmarks.filter((item) => item.category === activeCategory);
+            ? items
+            : items.filter((item) => item.category === activeCategory);
 
         if (!query.trim()) return byCategory;
         const keyword = query.toLowerCase();
         return byCategory.filter((item) => item.title.toLowerCase().includes(keyword));
-    }, [activeCategory, query]);
+    }, [activeCategory, items, query]);
 
     return (
         <div className="flex h-screen bg-[#f7f8fa] overflow-hidden font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={0} onLogout={handleLogout} />
+                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto px-7 py-6">
                     <div className="max-w-[1080px] mx-auto">
@@ -80,10 +128,13 @@ export const NotebookScreen: React.FC = () => {
                             })}
                         </div>
 
-                        <p className="text-xs text-gray-600 mb-3">Hiển thị 1-6 trong tổng số 7 mục đã lưu</p>
+                        <p className="text-xs text-gray-600 mb-3">Đang hiển thị {filtered.length} mục đã lưu</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {filtered.map((item) => (
+                            {isLoading && <div className="col-span-full py-12 text-center text-gray-500">Đang tải dữ liệu lưu trữ...</div>}
+                            {!isLoading && !!error && <div className="col-span-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+                            {!isLoading && !error && filtered.length === 0 && <div className="col-span-full py-12 text-center text-gray-500">Chưa có bài viết nào trong sổ tay.</div>}
+                            {!isLoading && !error && filtered.map((item) => (
                                 <article key={item.id} className="rounded-2xl border border-gray-200 bg-white p-4 min-h-[278px] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                                     <p className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-50 text-orange-500">{categoryLabelMap[item.category]}</p>
                                     <h3 className="text-[22px] leading-tight font-bold text-gray-800 mt-3 mb-2">{item.title}</h3>
@@ -99,19 +150,34 @@ export const NotebookScreen: React.FC = () => {
                                         <p>{item.views} lượt xem  •  {item.publishedAt}</p>
                                         <p>{item.bookmarkedAt}</p>
                                     </div>
+                                    <Link href={`/encyclopedia/${item.slug}`} className="mt-4 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
+                                        Mở bài viết
+                                    </Link>
                                 </article>
                             ))}
                         </div>
 
-                        <div className="mt-7 mb-2 flex items-center justify-center gap-2">
-                            <button className="w-8 h-8 rounded-md border border-gray-200 text-gray-400">‹</button>
-                            <button className="w-8 h-8 rounded-md bg-[#2aa4e8] text-white font-semibold">1</button>
-                            <button className="w-8 h-8 rounded-md border border-gray-200 text-gray-500">2</button>
-                            <button className="w-8 h-8 rounded-md border border-gray-200 text-gray-500">›</button>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
+function stripMarkdown(markdown: string) {
+    return markdown
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/[#>*_~\-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function mapCategory(tags: string[]): BookmarkCategory {
+    const haystack = tags.join(' ').toLowerCase();
+    if (haystack.includes('tim') || haystack.includes('mach')) return 'Cardiovascular';
+    if (haystack.includes('tam') || haystack.includes('than') || haystack.includes('lo au')) return 'Mental Health';
+    if (haystack.includes('dinh duong') || haystack.includes('nutrition')) return 'Nutrition';
+    return 'Emergency';
+}

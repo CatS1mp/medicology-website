@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { enrolledCourses } from '@/features/courses/data/mockRoadmap';
+import { getEnrolledCourses } from '@/shared/api/learning';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -75,14 +75,35 @@ const navGroups: NavGroup[] = [
 export const AppSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const [courseLinks, setCourseLinks] = useState<Array<{ slug: string; label: string }>>([]);
 
-    // "Khoá học của bạn" expands when we're inside any /courses/* route
     const isInCourses = pathname?.startsWith('/courses');
-    const [coursesOpen, setCoursesOpen] = useState(isInCourses ?? false);
+    const [coursesOpen, setCoursesOpen] = useState(false);
 
     React.useEffect(() => {
-        if (isInCourses) setCoursesOpen(true);
-    }, [isInCourses]);
+        let cancelled = false;
+
+        async function loadEnrolledCourses() {
+            try {
+                const courses = await getEnrolledCourses();
+                if (cancelled) return;
+                setCourseLinks(
+                    courses
+                        .slice(0, 3)
+                        .map((course) => ({ slug: course.slug, label: course.name }))
+                );
+            } catch {
+                if (!cancelled) setCourseLinks([]);
+            }
+        }
+
+        loadEnrolledCourses();
+        window.addEventListener('learning:courses-changed', loadEnrolledCourses);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('learning:courses-changed', loadEnrolledCourses);
+        };
+    }, []);
 
     return (
         <aside className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
@@ -129,8 +150,7 @@ export const AppSidebar: React.FC = () => {
                                     <div key={item.label}>
                                         {/* Main nav item */}
                                         <Link
-                                            href={isCourses ? '#' : item.href}
-                                            onClick={isCourses ? (e) => { e.preventDefault(); setCoursesOpen(o => !o); } : undefined}
+                                            href={item.href}
                                             className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${
                                                 isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'
                                             }`}
@@ -142,9 +162,18 @@ export const AppSidebar: React.FC = () => {
                                                 <>
                                                     <span className="flex-1 truncate">{item.label}</span>
                                                     {isCourses && (
-                                                        <span className="flex-shrink-0 pr-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setCoursesOpen((open) => !open);
+                                                            }}
+                                                            aria-label={coursesOpen ? 'Ẩn khóa học gần đây' : 'Hiện khóa học gần đây'}
+                                                            className="flex-shrink-0 pr-1"
+                                                        >
                                                             {coursesOpen ? <IconChevronUp /> : <IconChevronDown />}
-                                                        </span>
+                                                        </button>
                                                     )}
                                                 </>
                                             )}
@@ -155,30 +184,37 @@ export const AppSidebar: React.FC = () => {
                                             <div className="relative mt-2 mb-2">
                                                 <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
                                                 <div className="flex flex-col">
-                                                    {enrolledCourses.map((course, idx) => {
-                                                        const isLast = idx === enrolledCourses.length - 1;
+                                                    {courseLinks.map((course, idx) => {
+                                                        const isLast = idx === courseLinks.length - 1;
                                                         const isCourseActive = pathname === `/courses/${course.slug}`;
 
                                                         return (
-                                                            <div key={course.slug} className="relative py-[9px] pl-[52px]">
+                                                            <div key={course.slug} className="relative py-[9px] pl-[52px] pr-3">
                                                                 {!isLast && (
                                                                     <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
                                                                 )}
                                                                 {isLast && (
-                                                                    <div className="absolute left-[23px] top-0 bottom-1/2 w-[2px] bg-[#4147D5]" />
+                                                                    <div className="absolute left-[23px] top-1/2 w-[2px] bg-[#4147D5]" />
                                                                 )}
                                                                 <div className="absolute left-[23px] top-0 h-1/2 w-[20px] border-l-[2px] border-b-[2px] border-[#4147D5] rounded-bl-[14px]" />
 
-                                                                <Link
-                                                                    href={`/courses/${course.slug}`}
-                                                                    className={`block text-[15px] leading-tight transition-colors font-medium ${
-                                                                        isCourseActive
-                                                                            ? 'text-[#4147D5]'
-                                                                            : 'text-[#344054] hover:text-[#4147D5]'
-                                                                    }`}
-                                                                >
-                                                                    {course.label}
-                                                                </Link>
+                                                                <div className="flex items-center gap-3 justify-between">
+                                                                    <span
+                                                                        className={`block text-[15px] leading-tight transition-colors font-medium ${
+                                                                            isCourseActive
+                                                                                ? 'text-[#4147D5]'
+                                                                                : 'text-[#344054]'
+                                                                        }`}
+                                                                    >
+                                                                        {course.label}
+                                                                    </span>
+                                                                    <Link
+                                                                        href={`/courses/${course.slug}`}
+                                                                        className="rounded-full bg-[#E5F0FF] px-3 py-1 text-[12px] font-semibold text-[#1CA1F2] hover:bg-[#d6ebff] transition-colors"
+                                                                    >
+                                                                        Vào học
+                                                                    </Link>
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}

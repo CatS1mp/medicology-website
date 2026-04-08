@@ -3,9 +3,11 @@ export type LessonType = 'lesson' | 'test';
 
 export interface LessonNode {
     id: string;
+    orderIndex?: number;
     title: string;
     status: LessonStatus;
     type: LessonType;
+    href?: string;
     score?: {
         current: number;
         max: number;

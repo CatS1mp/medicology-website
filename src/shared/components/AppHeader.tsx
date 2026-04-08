@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface AppHeaderProps {
@@ -26,10 +26,62 @@ const IconBell = () => (
     </svg>
 );
 
+function subscribeToProfileStore(onStoreChange: () => void) {
+    if (typeof window === 'undefined') {
+        return () => {};
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+        if (!event.key || event.key === 'userProfile') {
+            onStoreChange();
+        }
+    };
+
+    const handleProfileUpdated = () => {
+        onStoreChange();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('user-profile-updated', handleProfileUpdated);
+    return () => {
+        window.removeEventListener('storage', handleStorage);
+        window.removeEventListener('user-profile-updated', handleProfileUpdated);
+    };
+}
+
+function getProfileSnapshot() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    return window.localStorage.getItem('userProfile');
+}
+
+function getAvatarInitials(profileSnapshot: string | null) {
+    if (!profileSnapshot) {
+        return 'M';
+    }
+
+    try {
+        const profile = JSON.parse(profileSnapshot) as { displayName?: string | null };
+        const initials = (profile.displayName ?? 'Medicology')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join('');
+        return initials || 'M';
+    } catch {
+        return 'M';
+    }
+}
+
 export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
+    const profileSnapshot = useSyncExternalStore(subscribeToProfileStore, getProfileSnapshot, () => null);
+    const avatarLabel = getAvatarInitials(profileSnapshot);
 
     useEffect(() => {
         function handleOutsideClick(event: MouseEvent) {
@@ -81,7 +133,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
             </button>
 
             {/* Notification bell */}
-            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative">
+            <button
+                type="button"
+                onClick={() => router.push('/notifications')}
+                className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative"
+            >
                 <IconBell />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
@@ -94,7 +150,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                     aria-label="Tài khoản"
                     className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
                 >
-                    N
+                    {avatarLabel}
                 </button>
 
                 {isMenuOpen && (

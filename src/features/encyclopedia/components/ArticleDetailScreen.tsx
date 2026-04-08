@@ -6,7 +6,11 @@ import Image from 'next/image';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
 import { useArticle } from '../hooks/useEncyclopedia';
+import { bookmarkArticle, unbookmarkArticle } from '../api';
+import type { ArticleComment } from '../types';
 
 interface ArticleDetailScreenProps {
     slug: string;
@@ -15,14 +19,74 @@ interface ArticleDetailScreenProps {
 export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }) => {
     const { article, isLoading } = useArticle(slug);
     const [activeSection, setActiveSection] = useState<string | null>(null);
+    const [isBookmarked, setIsBookmarked] = useState(false);
+    const [currentViewer, setCurrentViewer] = useState<{ id: string; name: string } | null>(null);
     const { handleLogout } = useLogout();
+    const { streakDays } = useLearningStreak();
+
+    React.useEffect(() => {
+        setIsBookmarked(article?.isBookmarked ?? false);
+    }, [article?.isBookmarked]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadCurrentViewer() {
+            try {
+                const [profile, user] = await Promise.all([
+                    getCurrentProfile().catch(() => null),
+                    getCurrentUser().catch(() => null),
+                ]);
+
+                if (cancelled || !user) {
+                    return;
+                }
+
+                setCurrentViewer({
+                    id: user.id,
+                    name: profile?.displayName || user.username || 'Bạn',
+                });
+            } catch {
+                if (!cancelled) {
+                    setCurrentViewer(null);
+                }
+            }
+        }
+
+        void loadCurrentViewer();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    function getCommentAuthorName(comment: ArticleComment) {
+        if (comment.displayName?.trim()) return comment.displayName;
+        if (comment.username?.trim()) return comment.username;
+        if (currentViewer && comment.userId === currentViewer.id) return currentViewer.name;
+        return 'Người dùng';
+    }
+
+    async function handleToggleBookmark() {
+        if (!article) return;
+        try {
+            if (isBookmarked) {
+                await unbookmarkArticle(article.id);
+                setIsBookmarked(false);
+                return;
+            }
+            await bookmarkArticle(article.id);
+            setIsBookmarked(true);
+        } catch {
+            // Keep the UI non-blocking if the backend rejects duplicate bookmark state.
+        }
+    }
 
     if (isLoading) {
         return (
             <div className="flex h-screen bg-white font-sans">
                 <AppSidebar />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <AppHeader streak={17} onLogout={handleLogout} />
+                    <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
                     <div className="flex-1 flex items-center justify-center text-gray-400">Đang tải bài viết...</div>
                 </div>
             </div>
@@ -34,7 +98,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
             <div className="flex h-screen bg-white font-sans">
                 <AppSidebar />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <AppHeader streak={17} onLogout={handleLogout} />
+                    <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
                     <div className="flex-1 flex items-center justify-center text-gray-400">Không tìm thấy bài viết.</div>
                 </div>
             </div>
@@ -45,7 +109,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
         <div className="flex h-screen bg-white overflow-hidden font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={17} onLogout={handleLogout} />
+                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">
@@ -67,6 +131,13 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                         </>
                                     )}
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleToggleBookmark}
+                                    className={`ml-auto rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors ${isBookmarked ? 'border-[#1CA1F2] bg-[#E5F0FF] text-[#1CA1F2]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    {isBookmarked ? 'Đã lưu' : 'Lưu bài viết'}
+                                </button>
                             </div>
 
                             {/* Tag chips */}
@@ -82,6 +153,14 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                             <h1 className="text-3xl font-extrabold text-[#1CA1F2] mb-6 leading-tight">
                                 {article.title}
                             </h1>
+
+                            {article.interactionSummary && (
+                                <div className="mb-8 grid gap-3 md:grid-cols-3">
+                                    <InfoCard label="Lượt xem" value={article.interactionSummary.totalViews} />
+                                    <InfoCard label="Lượt lưu" value={article.interactionSummary.totalBookmarks} />
+                                    <InfoCard label="Bình luận" value={article.interactionSummary.totalComments} />
+                                </div>
+                            )}
 
                             {/* Article sections */}
                             {article.sections.map(section => (
@@ -119,6 +198,31 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                     <hr className="mt-10 border-gray-100" />
                                 </div>
                             ))}
+
+                            {!!article.comments?.length && (
+                                <div className="mb-10">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Thảo luận</h2>
+                                    <div className="space-y-3">
+                                        {article.comments.map((comment) => (
+                                            <div key={comment.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                                <p className="text-sm font-semibold text-gray-800">{getCommentAuthorName(comment)}</p>
+                                                <p className="mt-1 text-sm text-gray-600">{comment.text}</p>
+                                                <p className="mt-2 text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString('vi-VN')}</p>
+                                                {!!comment.replies.length && (
+                                                    <div className="mt-3 space-y-2 border-l border-gray-200 pl-4">
+                                                        {comment.replies.map((reply) => (
+                                                            <div key={reply.id}>
+                                                                <p className="text-sm font-medium text-gray-700">{getCommentAuthorName(reply)}</p>
+                                                                <p className="text-sm text-gray-600">{reply.text}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Right sidebar */}
@@ -171,3 +275,12 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
         </div>
     );
 };
+
+function InfoCard({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+            <div className="text-[11px] font-bold uppercase tracking-widest text-gray-400">{label}</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">{value.toLocaleString()}</div>
+        </div>
+    );
+}

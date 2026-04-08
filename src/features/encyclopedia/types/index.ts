@@ -36,6 +36,23 @@ export interface ArticleDetail extends ArticleSummary {
     tableOfContents: TableOfContentsItem[];
     sections: ArticleSection[];
     relatedArticles: ArticleSummary[];
+    interactionSummary?: {
+        totalViews: number;
+        totalBookmarks: number;
+        totalComments: number;
+    };
+    comments?: ArticleComment[];
+    isBookmarked?: boolean;
+}
+
+export interface ArticleComment {
+    id: string;
+    userId: string;
+    username?: string;
+    displayName?: string;
+    text: string;
+    createdAt: string;
+    replies: ArticleComment[];
 }
 
 export interface SearchFilters {
