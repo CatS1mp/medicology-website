@@ -1,124 +1,103 @@
 import {
     AiLearningFeedback,
-    Course,
+    CourseProgressResponse,
+    CourseResponse,
     LearningApiError,
     LearningPathResponse,
+    LessonResponse,
     RequestAiFeedback,
     SectionResponse,
-    SectionTest,
-    SubmitCourseQuizRequest,
-    SubmitSectionTestRequest,
     Theme,
-    UserCourse,
     UserDailyStreak,
-    UserSectionTest,
 } from '@/shared/types/learning';
+import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
 const API = '/api/learning';
 
-async function handleResponse<T>(res: Response): Promise<T> {
-    if (res.ok) {
-        const contentType = res.headers.get('content-type') ?? '';
-        if (contentType.includes('application/json')) {
-            return res.json() as Promise<T>;
-        }
-        return res.text() as unknown as T;
+function normalizeLearningError(error: unknown): LearningApiError {
+    if (error instanceof LearningApiError) return error;
+    if (error instanceof ApiTransportError) {
+        return new LearningApiError({
+            status: error.status,
+            message: error.message,
+            timestamp: error.timestamp,
+        });
     }
 
-    let body;
-    try {
-        body = await res.json();
-    } catch {
-        body = { status: res.status, message: res.statusText, timestamp: new Date().toISOString() };
-    }
-    throw new LearningApiError(body);
+    return new LearningApiError({
+        status: 500,
+        message: 'Unknown learning error',
+        timestamp: new Date().toISOString(),
+    });
 }
 
-function getAuthHeader(): Record<string, string> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    if (!token) return {};
-    return { Authorization: `Bearer ${token}` };
-}
-
-function get<T>(url: string): Promise<T> {
-    return fetch(url, {
+function jsonGet<T>(url: string): Promise<T> {
+    return requestApi<T>(url, {
         method: 'GET',
-        headers: {
-            ...getAuthHeader(),
-            'Content-Type': 'application/json',
-        },
-    }).then((res) => handleResponse<T>(res));
+        headers: buildHeaders(),
+    }).catch((error: unknown) => {
+        throw normalizeLearningError(error);
+    });
 }
 
-function post<T>(url: string, data?: unknown): Promise<T> {
-    return fetch(url, {
+function jsonPost<T>(url: string, data?: unknown): Promise<T> {
+    return requestApi<T>(url, {
         method: 'POST',
-        headers: {
-            ...getAuthHeader(),
-            'Content-Type': 'application/json',
-        },
+        headers: buildHeaders(),
         body: data !== undefined ? JSON.stringify(data) : undefined,
-    }).then((res) => handleResponse<T>(res));
+    }).catch((error: unknown) => {
+        throw normalizeLearningError(error);
+    });
 }
 
-// ─── Themes / Sections (DTO) ─────────────────────────────────────────────
+export function getCourses(): Promise<CourseResponse[]> {
+    return jsonGet<CourseResponse[]>(`${API}/courses`);
+}
 
 export function getThemes(): Promise<Theme[]> {
-    return get<Theme[]>(`${API}/themes`);
-}
-
-export function getThemeSections(themeId: string): Promise<SectionResponse[]> {
-    return get<SectionResponse[]>(`${API}/themes/${themeId}/sections`);
-}
-
-// ─── Courses (mixed) ────────────────────────────────────────────────────
-
-export function getCourses(): Promise<Theme[]> {
-    return get<Theme[]>(`${API}/courses`);
+    return getCourses();
 }
 
 export function getLearningPath(): Promise<LearningPathResponse> {
-    return get<LearningPathResponse>(`${API}/courses/path`);
+    return jsonGet<LearningPathResponse>(`${API}/courses/path`);
 }
 
-export function getCourseDetail(courseId: string): Promise<Course> {
-    return get<Course>(`${API}/courses/${courseId}`);
+export function getCourseDetail(courseId: string): Promise<CourseResponse> {
+    return jsonGet<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}`);
 }
 
-export function enrollCourse(courseId: string): Promise<string> {
-    return post<string>(`${API}/courses/${courseId}/enroll`);
+export function getCourseSections(courseId: string): Promise<SectionResponse[]> {
+    return jsonGet<SectionResponse[]>(`${API}/courses/${encodeURIComponent(courseId)}/sections`);
 }
 
-// ─── Progress ───────────────────────────────────────────────────────────
+export function getThemeSections(themeId: string): Promise<SectionResponse[]> {
+    return getCourseSections(themeId);
+}
 
-export function getProgress(): Promise<UserCourse[]> {
-    return get<UserCourse[]>(`${API}/progress`);
+export function getSectionDetail(sectionId: string): Promise<SectionResponse> {
+    return jsonGet<SectionResponse>(`${API}/sections/${encodeURIComponent(sectionId)}`);
+}
+
+export function getSectionLessons(sectionId: string): Promise<LessonResponse[]> {
+    return jsonGet<LessonResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/lessons`);
+}
+
+export function getLessonDetail(lessonId: string): Promise<LessonResponse> {
+    return jsonGet<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}`);
+}
+
+export function completeLesson(lessonId: string): Promise<void> {
+    return jsonPost<void>(`${API}/lessons/${encodeURIComponent(lessonId)}/complete`);
+}
+
+export function getProgress(): Promise<CourseProgressResponse[]> {
+    return jsonGet<CourseProgressResponse[]>(`${API}/progress`);
 }
 
 export function pingStreak(): Promise<UserDailyStreak> {
-    return post<UserDailyStreak>(`${API}/progress/streak/ping`);
+    return jsonPost<UserDailyStreak>(`${API}/progress/streak/ping`);
 }
-
-// ─── Tests ──────────────────────────────────────────────────────────────
-
-export function getSectionTest(sectionId: string): Promise<SectionTest> {
-    return get<SectionTest>(`${API}/tests/section/${sectionId}`);
-}
-
-export function submitCourseQuiz(courseId: string, data: SubmitCourseQuizRequest): Promise<string> {
-    return post<string>(`${API}/tests/course/${courseId}/submit`, data);
-}
-
-export function submitSectionTest(sectionId: string, data: SubmitSectionTestRequest): Promise<string> {
-    return post<string>(`${API}/tests/section/${sectionId}/submit`, data);
-}
-
-export function getTestResults(): Promise<UserSectionTest[]> {
-    return get<UserSectionTest[]>(`${API}/tests/results`);
-}
-
-// ─── AI Feedback ─────────────────────────────────────────────────────────
 
 export function requestAiFeedback(data: RequestAiFeedback): Promise<AiLearningFeedback> {
-    return post<AiLearningFeedback>(`${API}/ai-feedback`, data);
+    return jsonPost<AiLearningFeedback>(`${API}/ai-feedback`, data);
 }
