@@ -5,10 +5,11 @@ import { Button } from '@/shared/components/Button';
 
 interface TopicCardProps {
     topic: Topic;
-    onStartLearning?: (topicSlug: string) => void;
+    isEnrolling?: boolean;
+    onEnroll?: (topicId: string) => void;
 }
 
-export const TopicCard: React.FC<TopicCardProps> = ({ topic, onStartLearning }) => {
+export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false, onEnroll }) => {
     const hasRating = typeof topic.rating === 'number';
     const hasCourseCount = typeof topic.courseCount === 'number';
 
@@ -78,15 +79,16 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onStartLearning }) 
 
                 <Button 
                     fullWidth 
+                    disabled={isEnrolling}
                     className="py-2.5 text-[13px] font-bold tracking-wide uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none transition-all"
-                    onClick={() => onStartLearning?.(topic.slug)}
+                    onClick={() => onEnroll?.(topic.id)}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Bắt đầu học
+                        {isEnrolling ? 'Đang đăng ký...' : 'Đăng ký học'}
                     </div>
                 </Button>
             </div>
