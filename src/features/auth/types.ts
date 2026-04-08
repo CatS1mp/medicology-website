@@ -12,6 +12,12 @@ export interface LoginRequest {
     password: string;
 }
 
+export interface OAuthLoginRequest {
+    email: string;
+    name: string;
+    facebookId?: string;
+    googleId?: string;
+}
 
 export interface RefreshTokenRequest {
     refreshToken: string;
