@@ -71,6 +71,16 @@ export interface CourseProgressResponse {
     completionPercent: number;
 }
 
+export interface LessonActivityResponse {
+    date: string;
+    completedLessons: number;
+}
+
+export interface LessonActivitySummaryResponse {
+    totalCompletedLessons: number;
+    activities: LessonActivityResponse[];
+}
+
 export interface UserDailyStreak {
     userId: string;
     currentStreak: number;
