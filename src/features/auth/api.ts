@@ -71,24 +71,17 @@ export function verifyEmail(token: string): Promise<string> {
         .then((res) => handleResponse<string>(res));
 }
 
-/** POST /api/v1/auth/request?email= — Requests an email token/link (verify/reset depending on backend) */
-export function requestEmailToken(email: string): Promise<string> {
-    // Send both query param + JSON body for compatibility across backends.
-    return fetch(`${AUTH}/request?email=${encodeURIComponent(email)}`, {
+/** POST /api/v1/auth/resend?email= — Resends verification email */
+export function resendVerificationEmail(email: string): Promise<string> {
+    return fetch(`${AUTH}/resend?email=${encodeURIComponent(email)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
     }).then((res) => handleResponse<string>(res));
 }
 
 /** POST /api/v1/auth/reset/request?email= — Sends password reset email */
 export function requestPasswordReset(email: string): Promise<string> {
-    // Some backends expect email as a query param, others expect JSON body.
-    // Send both for maximum compatibility.
     return fetch(`${AUTH}/reset/request?email=${encodeURIComponent(email)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
     }).then((res) => handleResponse<string>(res));
 }
 
