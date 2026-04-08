@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface AppHeaderProps {
@@ -26,27 +26,62 @@ const IconBell = () => (
     </svg>
 );
 
+function subscribeToProfileStore(onStoreChange: () => void) {
+    if (typeof window === 'undefined') {
+        return () => {};
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+        if (!event.key || event.key === 'userProfile') {
+            onStoreChange();
+        }
+    };
+
+    const handleProfileUpdated = () => {
+        onStoreChange();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('user-profile-updated', handleProfileUpdated);
+    return () => {
+        window.removeEventListener('storage', handleStorage);
+        window.removeEventListener('user-profile-updated', handleProfileUpdated);
+    };
+}
+
+function getProfileSnapshot() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    return window.localStorage.getItem('userProfile');
+}
+
+function getAvatarInitials(profileSnapshot: string | null) {
+    if (!profileSnapshot) {
+        return 'M';
+    }
+
+    try {
+        const profile = JSON.parse(profileSnapshot) as { displayName?: string | null };
+        const initials = (profile.displayName ?? 'Medicology')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join('');
+        return initials || 'M';
+    } catch {
+        return 'M';
+    }
+}
+
 export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [avatarLabel] = useState(() => {
-        if (typeof window === 'undefined') return 'M';
-        try {
-            const raw = localStorage.getItem('userProfile');
-            if (!raw) return 'M';
-            const profile = JSON.parse(raw) as { displayName?: string | null };
-            const initials = (profile.displayName ?? 'Medicology')
-                .split(/\s+/)
-                .filter(Boolean)
-                .slice(0, 2)
-                .map((part) => part[0]?.toUpperCase())
-                .join('');
-            return initials || 'M';
-        } catch {
-            return 'M';
-        }
-    });
     const menuRef = useRef<HTMLDivElement | null>(null);
+    const profileSnapshot = useSyncExternalStore(subscribeToProfileStore, getProfileSnapshot, () => null);
+    const avatarLabel = getAvatarInitials(profileSnapshot);
 
     useEffect(() => {
         function handleOutsideClick(event: MouseEvent) {
