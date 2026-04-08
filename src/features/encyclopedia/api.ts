@@ -1,4 +1,5 @@
-// Requests go through the local Next.js proxy (/api/dictionary/*)
+import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
+
 const DICTIONARY = `/api/dictionary`;
 
 export interface DictionaryTagResponse {
@@ -21,36 +22,118 @@ export interface DictionaryArticleResponse {
     tags?: DictionaryTagResponse[] | null;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-    if (res.ok) {
-        const contentType = res.headers.get('content-type') ?? '';
-        if (contentType.includes('application/json')) {
-            return res.json() as Promise<T>;
-        }
-        return res.text() as unknown as T;
+export interface DictionaryCommentResponse {
+    id: string;
+    articleId: string;
+    parentCommentId: string | null;
+    userId: string;
+    commentText: string;
+    isApproved: boolean;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    replies: DictionaryCommentResponse[];
+}
+
+export interface DictionaryInteractionSummaryResponse {
+    totalViews: number;
+    uniqueViewers: number;
+    totalBookmarks: number;
+    totalComments: number;
+}
+
+export interface DictionaryViewStatisticsResponse {
+    totalViews: number;
+    uniqueViewers: number;
+    lastViewedAt: string | null;
+}
+
+export interface DictionaryBookmarkArticleResponse extends DictionaryArticleResponse {
+    bookmarkedAt?: string | null;
+}
+
+function normalizeDictionaryError(error: unknown) {
+    if (error instanceof ApiTransportError) {
+        throw new Error(`Dictionary API error (${error.status}): ${error.message}`);
     }
-
-    // Keep error handling local to this feature (no cross-feature imports).
-    const message = await res.text().catch(() => res.statusText);
-    throw new Error(`Dictionary API error (${res.status}): ${message || res.statusText}`);
+    throw error instanceof Error ? error : new Error('Unknown dictionary error');
 }
 
-function withAuth(accessToken?: string): HeadersInit {
-    const headers: Record<string, string> = {};
-    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-    return headers;
-}
-
-export function listArticles(accessToken?: string): Promise<DictionaryArticleResponse[]> {
-    return fetch(`${DICTIONARY}/articles`, {
+function getJson<T>(url: string): Promise<T> {
+    return requestApi<T>(url, {
         method: 'GET',
-        headers: withAuth(accessToken),
-    }).then((res) => handleResponse<DictionaryArticleResponse[]>(res));
+        headers: buildHeaders(),
+    }).catch((error: unknown) => {
+        normalizeDictionaryError(error);
+        throw error;
+    });
 }
 
-export function getArticleBySlug(slug: string, accessToken?: string): Promise<DictionaryArticleResponse> {
-    return fetch(`${DICTIONARY}/articles/${encodeURIComponent(slug)}`, {
-        method: 'GET',
-        headers: withAuth(accessToken),
-    }).then((res) => handleResponse<DictionaryArticleResponse>(res));
+function postJson<T>(url: string, body?: unknown): Promise<T> {
+    return requestApi<T>(url, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).catch((error: unknown) => {
+        normalizeDictionaryError(error);
+        throw error;
+    });
+}
+
+function deleteJson<T>(url: string): Promise<T> {
+    return requestApi<T>(url, {
+        method: 'DELETE',
+        headers: buildHeaders({ includeJsonContentType: false }),
+    }).catch((error: unknown) => {
+        normalizeDictionaryError(error);
+        throw error;
+    });
+}
+
+export function listArticles(): Promise<DictionaryArticleResponse[]> {
+    return getJson<DictionaryArticleResponse[]>(`${DICTIONARY}/articles`);
+}
+
+export function getArticleBySlug(slug: string): Promise<DictionaryArticleResponse> {
+    return getJson<DictionaryArticleResponse>(`${DICTIONARY}/articles/${encodeURIComponent(slug)}`);
+}
+
+export function recordArticleView(articleId: string): Promise<void> {
+    return postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/view`);
+}
+
+export function bookmarkArticle(articleId: string): Promise<void> {
+    return postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`);
+}
+
+export function unbookmarkArticle(articleId: string): Promise<void> {
+    return deleteJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`);
+}
+
+export function getInteractionSummary(articleId: string): Promise<DictionaryInteractionSummaryResponse> {
+    return getJson<DictionaryInteractionSummaryResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/interactions/summary`);
+}
+
+export function getViewStatistics(articleId: string): Promise<DictionaryViewStatisticsResponse> {
+    return getJson<DictionaryViewStatisticsResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/views`);
+}
+
+export function getArticleComments(articleId: string): Promise<DictionaryCommentResponse[]> {
+    return getJson<DictionaryCommentResponse[]>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`);
+}
+
+export function createArticleComment(articleId: string, commentText: string): Promise<string> {
+    return postJson<string>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`, { commentText });
+}
+
+export function replyArticleComment(commentId: string, commentText: string): Promise<string> {
+    return postJson<string>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/reply`, { commentText });
+}
+
+export function voteComment(commentId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<void> {
+    return postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/vote`, { voteType });
+}
+
+export function listBookmarkedArticles(): Promise<DictionaryBookmarkArticleResponse[]> {
+    return getJson<DictionaryBookmarkArticleResponse[]>(`${DICTIONARY}/users/me/bookmarks`);
 }

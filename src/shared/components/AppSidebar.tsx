@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { enrolledCourses } from '@/features/courses/data/mockRoadmap';
+import { getCourses } from '@/shared/api/learning';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -75,6 +75,7 @@ const navGroups: NavGroup[] = [
 export const AppSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const [courseLinks, setCourseLinks] = useState<Array<{ slug: string; label: string }>>([]);
 
     // "Khoá học của bạn" expands when we're inside any /courses/* route
     const isInCourses = pathname?.startsWith('/courses');
@@ -83,6 +84,26 @@ export const AppSidebar: React.FC = () => {
     React.useEffect(() => {
         if (isInCourses) setCoursesOpen(true);
     }, [isInCourses]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        getCourses()
+            .then((courses) => {
+                if (cancelled) return;
+                setCourseLinks(
+                    courses
+                        .slice()
+                        .sort((a, b) => a.orderIndex - b.orderIndex)
+                        .map((course) => ({ slug: course.slug, label: course.name }))
+                );
+            })
+            .catch(() => {
+                if (!cancelled) setCourseLinks([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     return (
         <aside className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
@@ -155,8 +176,8 @@ export const AppSidebar: React.FC = () => {
                                             <div className="relative mt-2 mb-2">
                                                 <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
                                                 <div className="flex flex-col">
-                                                    {enrolledCourses.map((course, idx) => {
-                                                        const isLast = idx === enrolledCourses.length - 1;
+                                                    {courseLinks.map((course, idx) => {
+                                                        const isLast = idx === courseLinks.length - 1;
                                                         const isCourseActive = pathname === `/courses/${course.slug}`;
 
                                                         return (

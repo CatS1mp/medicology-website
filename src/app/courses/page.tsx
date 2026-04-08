@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getThemes } from '@/shared/api/learning';
+import { getCourses } from '@/shared/api/learning';
 
-// /courses has no content of its own — redirect to the first available theme.
+// /courses has no content of its own — redirect to the first available course.
 // We do this on the client because auth tokens are stored in localStorage.
 export default function CoursesIndexPage() {
     const router = useRouter();
@@ -14,8 +14,8 @@ export default function CoursesIndexPage() {
 
         async function run() {
             try {
-                const themes = await getThemes();
-                const first = themes.slice().sort((a, b) => a.orderIndex - b.orderIndex)[0];
+                const courses = await getCourses();
+                const first = courses.slice().sort((a, b) => a.orderIndex - b.orderIndex)[0];
                 if (!cancelled && first) {
                     router.replace(`/courses/${first.slug}`);
                     return;

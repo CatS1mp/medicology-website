@@ -28,10 +28,12 @@ export const useTopics = () => {
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((t) => ({
                         id: t.id,
+                        slug: t.slug,
                         title: t.name,
                         description: t.description ?? '',
                         level: 'Cơ bản',
                         category: 'Y học Thường thức',
+                        courseCount: t.sections?.length ?? 0,
                         imageUrl: t.iconFileName ? `/images/Icons/${t.iconFileName}` : '/images/Others/earth.png',
                     }));
                 if (!cancelled) setAllTopics(mapped);

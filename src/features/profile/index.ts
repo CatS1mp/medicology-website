@@ -1,1 +1,1 @@
-export { ProfileScreen } from './components/ProfileScreen';
+export { ConnectedProfileScreen as ProfileScreen } from './components/ConnectedProfileScreen';

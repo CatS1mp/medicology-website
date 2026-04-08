@@ -3,6 +3,7 @@ import { Topic } from '../types';
 export const mockTopics: Topic[] = [
     {
         id: '1',
+        slug: 'tam-than-hoc-1',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',
@@ -13,6 +14,7 @@ export const mockTopics: Topic[] = [
     },
     {
         id: '2',
+        slug: 'tam-than-hoc-2',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',
@@ -23,6 +25,7 @@ export const mockTopics: Topic[] = [
     },
     {
         id: '3',
+        slug: 'tam-than-hoc-3',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',
@@ -33,6 +36,7 @@ export const mockTopics: Topic[] = [
     },
     {
         id: '4',
+        slug: 'tam-than-hoc-4',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',
@@ -43,6 +47,7 @@ export const mockTopics: Topic[] = [
     },
     {
         id: '5',
+        slug: 'tam-than-hoc-5',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',
@@ -53,6 +58,7 @@ export const mockTopics: Topic[] = [
     },
     {
         id: '6',
+        slug: 'tam-than-hoc-6',
         title: 'Tâm thần học - Psychiatry',
         description: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...',
         level: 'Cơ bản',

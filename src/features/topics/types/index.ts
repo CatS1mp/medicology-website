@@ -2,6 +2,7 @@ export type TopicLevel = 'Cơ bản' | 'Trung cấp' | 'Nâng cao';
 
 export interface Topic {
     id: string;
+    slug: string;
     title: string;
     description: string;
     level: TopicLevel;

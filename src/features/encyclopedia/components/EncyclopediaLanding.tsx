@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { TRENDING_TAGS } from '../types';
 
 export const EncyclopediaLanding: React.FC = () => {
     const router = useRouter();
     const { handleLogout } = useLogout();
+    const { streakDays } = useLearningStreak();
     const [query, setQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +29,7 @@ export const EncyclopediaLanding: React.FC = () => {
         <div className="flex h-screen bg-white overflow-hidden font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={17} onLogout={handleLogout} />
+                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto flex items-center justify-center px-6 relative">
                 <div className="relative z-10 w-full max-w-xl text-center flex flex-col items-center">

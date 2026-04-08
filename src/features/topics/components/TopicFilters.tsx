@@ -8,9 +8,9 @@ interface TopicFiltersProps {
 
 export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange }) => {
     
-    const updateFilter = (key: keyof TopicFiltersState, value: any) => {
+    function updateFilter<K extends keyof TopicFiltersState>(key: K, value: TopicFiltersState[K]) {
         onChange({ ...filters, [key]: value });
-    };
+    }
 
     const levels: Array<'Mọi trình độ' | TopicLevel> = ['Mọi trình độ', 'Cơ bản', 'Trung cấp', 'Nâng cao'];
     const categories: Array<'Tất cả' | string> = ['Tất cả', 'Sơ cứu & Cấp cứu', 'Dinh dưỡng & Chế độ ăn', 'Sức khỏe Tinh thần', 'Sức khỏe Tim mạch', 'Y học Thường thức'];
@@ -23,7 +23,7 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
                 <span className="text-gray-500 text-[14px]">Sắp xếp theo:</span>
                 <select 
                     value={filters.sortBy}
-                    onChange={(e) => updateFilter('sortBy', e.target.value)}
+                    onChange={(e) => updateFilter('sortBy', e.target.value as TopicFiltersState['sortBy'])}
                     className="bg-gray-50 text-gray-700 text-[14px] font-medium px-4 py-2 rounded-lg border-none focus:ring-0 cursor-pointer appearance-none pr-10 relative outline-none"
                 >
                     <option value="Phổ biến nhất">Phổ biến nhất</option>
