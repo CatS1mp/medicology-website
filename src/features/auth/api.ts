@@ -13,7 +13,7 @@ import {
 
 // Requests go through the local Next.js proxy (/api/auth/*) which forwards
 // server-to-server to the Railway backend — avoids CORS entirely.
-const AUTH = `/api/auth`;
+const AUTH = `/api/v1/auth`;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
