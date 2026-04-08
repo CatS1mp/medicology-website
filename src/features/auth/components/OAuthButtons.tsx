@@ -207,7 +207,6 @@ export const OAuthButtons: React.FC = () => {
             client_id: GOOGLE_CLIENT_ID,
             scope: OAUTH_SCOPE,
             callback: async (tokenResponse) => {
-                console.log('[OAuth][Google] token response', tokenResponse);
                 if (!tokenResponse.access_token) {
                     setLoadingProvider(null);
                     setError(tokenResponse.error ? 'ERR_GOOGLE_CANCELLED' : 'ERR_NETWORK');
@@ -220,31 +219,18 @@ export const OAuthButtons: React.FC = () => {
                             Authorization: `Bearer ${tokenResponse.access_token}`,
                         },
                     });
-                    console.log('[OAuth][Google] userinfo status', profileRes.status, profileRes.statusText);
-
                     if (!profileRes.ok) {
                         setError('ERR_GOOGLE_EXCHANGE');
                         return;
                     }
 
                     const profile = (await profileRes.json()) as GoogleUserInfo;
-                    console.log('[OAuth][Google] userinfo payload', profile);
                     const providerUserId = profile.id ?? profile.sub;
                     if (!profile.email || !providerUserId || !profile.name) {
-                        console.log('[OAuth][Google] missing fields', {
-                            email: profile.email,
-                            providerUserId,
-                            name: profile.name,
-                        });
                         setError('ERR_GOOGLE_PROFILE');
                         return;
                     }
 
-                    console.log('[OAuth][Google] sending oauth login payload', {
-                        email: profile.email,
-                        name: profile.name,
-                        googleId: providerUserId,
-                    });
                     await completeOAuthLogin(
                         oauthLogin({
                             email: profile.email,
