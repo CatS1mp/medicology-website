@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { clearAuthSession } from '@/features/auth/session';
 
 interface UseLogoutReturn {
     handleLogout: () => Promise<void>;
@@ -14,13 +15,6 @@ export function useLogout(): UseLogoutReturn {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const clearSession = () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userProfile');
-        localStorage.removeItem('enrolledCoursesLocal');
-    };
 
     const handleLogout = async () => {
         if (isLoading) return;
@@ -49,7 +43,7 @@ export function useLogout(): UseLogoutReturn {
         } catch {
             setError('ERR_NETWORK');
         } finally {
-            clearSession();
+            clearAuthSession();
             router.replace('/login');
             router.refresh();
             setIsLoading(false);
