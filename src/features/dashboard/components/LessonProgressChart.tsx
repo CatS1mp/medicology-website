@@ -1,24 +1,29 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import type { ChartDataPoint } from '../types';
+import type { LessonActivityDataset, LessonActivityRange } from '../types';
 
 interface LessonProgressChartProps {
-    data: ChartDataPoint[];
+    datasets: LessonActivityDataset[];
     totalLessons: number;
-    weeklyDelta: number;
+    activeRange: LessonActivityRange;
+    onRangeChange: (range: LessonActivityRange) => void;
+    isLoading?: boolean;
 }
 
-type TabType = 'monthly' | 'weekly' | 'daily';
-
 export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
-    data,
+    datasets,
     totalLessons,
-    weeklyDelta,
+    activeRange,
+    onRangeChange,
+    isLoading = false,
 }) => {
-    const [activeTab, setActiveTab] = useState<TabType>('weekly');
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
+
+    const activeDataset = datasets.find((dataset) => dataset.label === activeRange) ?? datasets[0];
+    const data = activeDataset?.data ?? [];
+    const rangeDelta = activeDataset?.totalCompletedLessons ?? data.reduce((sum, point) => sum + point.value, 0);
 
     const WIDTH = 560;
     // Extra top space so the tooltip never gets clipped
@@ -27,10 +32,17 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
     const PADDING = { top: TOOLTIP_SPACE + 4, right: 20, bottom: 30, left: 30 };
 
     const maxVal = Math.max(...data.map((d) => d.value), 10);
+    const pointCount = data.length;
     const plotW = WIDTH - PADDING.left - PADDING.right;
     const plotH = HEIGHT - PADDING.top - PADDING.bottom;
+    const hasData = pointCount > 0;
+    const hasMultiplePoints = pointCount > 1;
 
-    const xScale = (i: number) => PADDING.left + (i / (data.length - 1)) * plotW;
+    const xScale = (i: number) => {
+        if (!hasData) return PADDING.left;
+        if (!hasMultiplePoints) return PADDING.left + plotW / 2;
+        return PADDING.left + ((i + 0.5) / pointCount) * plotW;
+    };
     const yScale = (v: number) => PADDING.top + plotH - (v / maxVal) * plotH;
 
     const points = data.map((d, i) => ({ x: xScale(i), y: yScale(d.value) }));
@@ -49,18 +61,20 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
     };
 
     const linePath = buildSmoothPath(points);
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${HEIGHT - PADDING.bottom} L ${points[0].x} ${HEIGHT - PADDING.bottom} Z`;
+    const areaPath = hasMultiplePoints
+        ? `${linePath} L ${points[points.length - 1].x} ${HEIGHT - PADDING.bottom} L ${points[0].x} ${HEIGHT - PADDING.bottom} Z`
+        : '';
 
-    const tabs: { key: TabType; label: string }[] = [
-        { key: 'monthly', label: 'Hằng tháng' },
-        { key: 'weekly', label: 'Hằng tuần' },
-        { key: 'daily', label: 'Hằng ngày' },
+    const tabs: { key: LessonActivityRange; label: string }[] = [
+        { key: 'last7', label: '7 ngày gần đây' },
+        { key: 'last14', label: '14 ngày gần đây' },
     ];
 
     const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
         const svg = svgRef.current;
         if (!svg) return;
         const rect = svg.getBoundingClientRect();
+        if (!hasData || rect.width <= 0) return;
         const scaleX = WIDTH / rect.width;
         const svgX = (e.clientX - rect.left) * scaleX;
         let nearest = 0;
@@ -73,18 +87,29 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
     };
 
     const handleMouseLeave = () => setHoveredIndex(null);
+    const handleTabChange = (tab: LessonActivityRange) => {
+        if (tab === activeRange || isLoading) return;
+        onRangeChange(tab);
+        setHoveredIndex(null);
+    };
 
     const hovered = hoveredIndex !== null ? data[hoveredIndex] : null;
     const hoveredPt = hoveredIndex !== null ? points[hoveredIndex] : null;
 
     const tooltipW = 80;
     const tooltipH = 38;
+    const tooltipEdgePadding = 8;
     const tooltipX = hoveredPt
-        ? Math.min(Math.max(hoveredPt.x - tooltipW / 2, PADDING.left), WIDTH - PADDING.right - tooltipW)
+        ? Math.min(
+            Math.max(hoveredPt.x - tooltipW / 2, PADDING.left + tooltipEdgePadding),
+            WIDTH - PADDING.right - tooltipW - tooltipEdgePadding
+        )
         : 0;
     // Always pin tooltip to top of the extra reserved space
     const tooltipY = TOOLTIP_SPACE / 2 - tooltipH / 2;
-    const arrowX = hoveredPt ? hoveredPt.x : 0;
+    const arrowX = hoveredPt
+        ? Math.min(Math.max(hoveredPt.x, tooltipX + 10), tooltipX + tooltipW - 10)
+        : 0;
     const arrowY = tooltipY + tooltipH;
 
     return (
@@ -100,16 +125,16 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                             </svg>
                         </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">+{weeklyDelta} bài trong tuần này</p>
+                    <p className="text-xs text-gray-400 mt-0.5">+{rangeDelta} bài trong {activeRange === 'last7' ? '7' : '14'} ngày gần đây</p>
                 </div>
                 <div className="flex items-center gap-1 text-sm">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                            onClick={() => handleTabChange(tab.key)}
+                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${activeRange === tab.key ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-700'} ${isLoading ? 'opacity-80' : ''}`}
                         >
-                            {tab.label}
+                            {isLoading && activeRange !== tab.key ? 'Đang tải...' : tab.label}
                         </button>
                     ))}
                 </div>
@@ -139,8 +164,11 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                         </g>
                     ))}
 
-                    <path d={areaPath} fill="url(#areaGradient)" />
-                    <path d={linePath} fill="none" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    {hasMultiplePoints && <path d={areaPath} fill="url(#areaGradient)" />}
+                    {hasMultiplePoints && <path d={linePath} fill="none" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+                    {!hasMultiplePoints && points[0] && (
+                        <circle cx={points[0].x} cy={points[0].y} r="4" fill="#0EA5E9" stroke="white" strokeWidth="2" />
+                    )}
 
                     {hoveredIndex !== null && hoveredPt && (
                         <line x1={hoveredPt.x} y1={PADDING.top} x2={hoveredPt.x} y2={HEIGHT - PADDING.bottom} stroke="white" strokeWidth="1.5" strokeDasharray="4 2" />
@@ -152,14 +180,21 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                         ) : null
                     )}
 
-                    {data.map((d, i) => (
-                        <text key={i} x={xScale(i)} y={HEIGHT - 4} textAnchor="middle" fontSize="9"
+                    {data.map((d, i) => {
+                        const isFirst = i === 0;
+                        const isLast = i === pointCount - 1;
+                        const labelX = isFirst ? xScale(i) + 2 : isLast ? xScale(i) - 2 : xScale(i);
+                        const textAnchor = isFirst ? 'start' : isLast ? 'end' : 'middle';
+
+                        return (
+                        <text key={i} x={labelX} y={HEIGHT - 4} textAnchor={textAnchor} fontSize="9"
                             fill={hoveredIndex === i ? '#0EA5E9' : '#9CA3AF'}
                             fontWeight={hoveredIndex === i ? '600' : '400'}
                             style={{ pointerEvents: 'none' }}>
                             {d.day}
                         </text>
-                    ))}
+                        );
+                    })}
 
                     {/* SVG Tooltip — always in the reserved top zone */}
                     {hoveredIndex !== null && hoveredPt && hovered && (

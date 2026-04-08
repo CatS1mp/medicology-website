@@ -1,4 +1,5 @@
 import { buildHeaders, requestApi } from '@/shared/api/http';
+import { getOrSetCachedValue, invalidateCachedValue } from '@/shared/api/client-cache';
 import type {
     AssessmentDiscoveryResponse,
     AttemptAnswerRequest,
@@ -9,6 +10,8 @@ import type {
 } from '@/shared/types/assessment';
 
 const API = '/api/assessment';
+const MY_ATTEMPTS_CACHE_KEY = 'assessment:my-attempts';
+const MY_ATTEMPTS_TTL_MS = 30_000;
 
 function get<T>(url: string): Promise<T> {
     return requestApi<T>(url, {
@@ -39,7 +42,10 @@ export function saveAttemptAnswer(attemptId: string, data: AttemptAnswerRequest)
 }
 
 export function submitAttempt(attemptId: string): Promise<AttemptResultResponse> {
-    return post<AttemptResultResponse>(`${API}/attempts/${attemptId}/submit`);
+    return post<AttemptResultResponse>(`${API}/attempts/${attemptId}/submit`).then((result) => {
+        invalidateCachedValue(MY_ATTEMPTS_CACHE_KEY);
+        return result;
+    });
 }
 
 export function getAttemptResult(attemptId: string): Promise<AttemptResultResponse> {
@@ -47,5 +53,7 @@ export function getAttemptResult(attemptId: string): Promise<AttemptResultRespon
 }
 
 export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
-    return get<AttemptSummaryResponse[]>(`${API}/users/me/attempts`);
+    return getOrSetCachedValue(MY_ATTEMPTS_CACHE_KEY, MY_ATTEMPTS_TTL_MS, () =>
+        get<AttemptSummaryResponse[]>(`${API}/users/me/attempts`)
+    );
 }
