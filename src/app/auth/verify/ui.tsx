@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { useToast } from '@/shared/contexts/ToastContext';
 
 const SpinnerIcon = () => (
     <svg className="animate-spin w-12 h-12 mb-5" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,6 +31,7 @@ const VERIFY_ERROR_MESSAGES: Record<string, string> = {
 export function AuthVerifyClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { showToast } = useToast();
 
     const token = useMemo(() => searchParams.get('token') ?? '', [searchParams]);
 
@@ -61,14 +63,18 @@ export function AuthVerifyClient() {
                 await verifyEmail(token);
                 if (cancelled) return;
                 setStatus('success');
+                showToast('Xác thực email thành công!', 'success');
                 router.replace('/verify-success');
             } catch (err) {
                 if (cancelled) return;
                 setStatus('error');
                 if (err instanceof ApiError) {
-                    setErrorCode(`ERR_${err.status}`);
+                    const msg = [400, 403].includes(err.status) ? err.body.message : `ERR_${err.status}`;
+                    setErrorCode(msg);
+                    showToast(err.body.message || 'Xác thực thất bại', 'error');
                 } else {
                     setErrorCode('ERR_NETWORK');
+                    showToast('Không thể kết nối đến máy chủ', 'error');
                 }
             }
         }
@@ -81,7 +87,7 @@ export function AuthVerifyClient() {
     }, [router, token]);
 
     if (status === 'error') {
-        const displayError = VERIFY_ERROR_MESSAGES[errorCode] ?? 'Không thể xác thực email. Vui lòng thử lại.';
+        const displayError = VERIFY_ERROR_MESSAGES[errorCode] ?? errorCode ?? 'Không thể xác thực email. Vui lòng thử lại.';
         return (
             <AuthLayout topRightText="Đăng nhập" topRightHref="/login">
                 <div className="w-full max-w-sm mx-auto text-center">

@@ -7,11 +7,6 @@ import { Input } from '@/shared/components/Input';
 import { useLogin } from '../hooks/useLogin';
 import { OAuthButtons } from './OAuthButtons';
 
-const ERROR_MESSAGES: Record<string, string> = {
-    ERR_401: 'Email hoặc mật khẩu không đúng.',
-    ERR_NETWORK: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.',
-};
-
 export const LoginForm: React.FC = () => {
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
@@ -21,8 +16,6 @@ export const LoginForm: React.FC = () => {
         e.preventDefault();
         await handleLogin({ email, password });
     };
-
-    const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Đã xảy ra lỗi. Vui lòng thử lại.') : null;
 
     return (
         <div className="w-full max-w-sm mx-auto">
@@ -37,6 +30,7 @@ export const LoginForm: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    error={!!error}
                 />
 
                 <Input
@@ -45,6 +39,7 @@ export const LoginForm: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    error={!!error}
                     rightElement={
                         <Link href="/forgot-password" className="text-xs font-bold text-gray-400 hover:text-gray-600 tracking-wider uppercase">
                             Quên?
@@ -52,9 +47,6 @@ export const LoginForm: React.FC = () => {
                     }
                 />
 
-                {errorMessage && (
-                    <p className="text-sm text-red-500 px-1">{errorMessage}</p>
-                )}
 
                 <Button
                     type="submit"

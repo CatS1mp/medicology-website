@@ -7,11 +7,6 @@ import { useSignup } from '../hooks/useSignup';
 import { PASSWORD_RULES, allPasswordRulesPass } from '../utils/passwordRules';
 import { OAuthButtons } from './OAuthButtons';
 
-const ERROR_MESSAGES: Record<string, string> = {
-    ERR_409: 'Email hoặc tên người dùng đã tồn tại.',
-    ERR_NETWORK: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.',
-};
-
 export const SignupForm: React.FC = () => {
     const [username, setUsername] = React.useState('');
     const [email, setEmail] = React.useState('');
@@ -22,7 +17,6 @@ export const SignupForm: React.FC = () => {
     const allRulesPass = allPasswordRulesPass(password);
     const passedRulesCount = PASSWORD_RULES.filter(r => r.validate(password)).length;
     const passwordsMatch = password === confirmPassword;
-    const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Đã xảy ra lỗi. Vui lòng thử lại.') : null;
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,6 +37,7 @@ export const SignupForm: React.FC = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
+                    error={!!error}
                 />
 
                 <Input
@@ -51,6 +46,7 @@ export const SignupForm: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    error={!!error}
                 />
 
                 <div className="space-y-1">
@@ -60,6 +56,7 @@ export const SignupForm: React.FC = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        error={!!error}
                     />
 
                     <div className="mt-3 mb-4">
@@ -101,15 +98,13 @@ export const SignupForm: React.FC = () => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
+                        error={!!error || (!!confirmPassword && !passwordsMatch)}
                     />
                     {confirmPassword && !passwordsMatch && (
                         <p className="text-xs text-red-500 px-1 text-left mt-1">Mật khẩu xác nhận không khớp</p>
                     )}
                 </div>
 
-                {errorMessage && (
-                    <p className="text-sm text-red-500 px-1">{errorMessage}</p>
-                )}
 
                 <Button
                     type="submit"

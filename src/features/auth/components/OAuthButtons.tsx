@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/Button';
 import { oauthLogin } from '../api';
 import { ApiError, AuthResponse } from '../types';
 import { persistAuthSession } from '../session';
+import { useToast } from '@/shared/contexts/ToastContext';
 
 type Provider = 'facebook' | 'google';
 
@@ -104,6 +105,7 @@ export const OAuthButtons: React.FC = () => {
     const router = useRouter();
     const [loadingProvider, setLoadingProvider] = React.useState<Provider | null>(null);
     const [error, setError] = React.useState<string | null>(null);
+    const { showToast } = useToast();
     const googleClientRef = React.useRef<GoogleTokenClient | null>(null);
     const googleReadyRef = React.useRef(false);
     const facebookReadyRef = React.useRef(false);
@@ -112,37 +114,43 @@ export const OAuthButtons: React.FC = () => {
         async (sessionPromise: Promise<AuthResponse>) => {
             const session = await sessionPromise;
             persistAuthSession(session);
+            showToast('Đăng nhập thành công!', 'success');
             router.push('/dashboard');
         },
-        [router]
+        [router, showToast]
     );
 
     const handleGoogleClick = React.useCallback(() => {
         if (!GOOGLE_CLIENT_ID) {
             setError('ERR_GOOGLE_CONFIG');
+            showToast(ERROR_MESSAGES.ERR_GOOGLE_CONFIG, 'error');
             return;
         }
         if (!googleReadyRef.current || !googleClientRef.current) {
             setError('ERR_GOOGLE_SDK');
+            showToast(ERROR_MESSAGES.ERR_GOOGLE_SDK, 'error');
             return;
         }
 
         setError(null);
         setLoadingProvider('google');
         googleClientRef.current.requestAccessToken({ prompt: 'select_account' });
-    }, []);
+    }, [showToast]);
 
     const handleFacebookClick = React.useCallback(() => {
         if (!FACEBOOK_APP_ID) {
             setError('ERR_FACEBOOK_CONFIG');
+            showToast(ERROR_MESSAGES.ERR_FACEBOOK_CONFIG, 'error');
             return;
         }
         if (!isSecureFacebookOrigin()) {
             setError('ERR_FACEBOOK_HTTPS');
+            showToast(ERROR_MESSAGES.ERR_FACEBOOK_HTTPS, 'error');
             return;
         }
         if (!facebookReadyRef.current || !window.FB) {
             setError('ERR_FACEBOOK_SDK');
+            showToast(ERROR_MESSAGES.ERR_FACEBOOK_SDK, 'error');
             return;
         }
 
@@ -169,6 +177,7 @@ export const OAuthButtons: React.FC = () => {
 
                     if (!profile.email || !profile.id || !profile.name) {
                         setError('ERR_FACEBOOK_EMAIL');
+                        showToast(ERROR_MESSAGES.ERR_FACEBOOK_EMAIL, 'error');
                         return;
                     }
 
@@ -181,16 +190,19 @@ export const OAuthButtons: React.FC = () => {
                     );
                 } catch (err) {
                     if (err instanceof ApiError) {
-                        setError(`ERR_${err.status}`);
+                        const msg = [400, 403].includes(err.status) ? err.body.message : `ERR_${err.status}`;
+                        setError(msg);
+                        showToast(err.body.message || 'Đăng nhập OAuth thất bại', 'error');
                     } else {
                         setError('ERR_NETWORK');
+                        showToast('Không thể kết nối đến máy chủ', 'error');
                     }
                 } finally {
                     setLoadingProvider(null);
                 }
             })();
         }, { scope: 'email,public_profile' });
-    }, [completeOAuthLogin]);
+    }, [completeOAuthLogin, showToast]);
 
     const initGoogleClient = React.useCallback(() => {
         const oauth2 = window.google?.accounts?.oauth2;
@@ -222,6 +234,7 @@ export const OAuthButtons: React.FC = () => {
 
                     if (!profileRes.ok) {
                         setError('ERR_GOOGLE_EXCHANGE');
+                        showToast(ERROR_MESSAGES.ERR_GOOGLE_EXCHANGE, 'error');
                         return;
                     }
 
@@ -229,6 +242,7 @@ export const OAuthButtons: React.FC = () => {
                     const providerUserId = profile.id ?? profile.sub;
                     if (!profile.email || !providerUserId || !profile.name) {
                         setError('ERR_GOOGLE_PROFILE');
+                        showToast(ERROR_MESSAGES.ERR_GOOGLE_PROFILE, 'error');
                         return;
                     }
                     await completeOAuthLogin(
@@ -240,9 +254,12 @@ export const OAuthButtons: React.FC = () => {
                     );
                 } catch (err) {
                     if (err instanceof ApiError) {
-                        setError(`ERR_${err.status}`);
+                        const msg = [400, 403].includes(err.status) ? err.body.message : `ERR_${err.status}`;
+                        setError(msg);
+                        showToast(err.body.message || 'Đăng nhập OAuth thất bại', 'error');
                     } else {
                         setError('ERR_NETWORK');
+                        showToast(' Không thể kết nối đến máy chủ', 'error');
                     }
                 } finally {
                     setLoadingProvider(null);
@@ -250,7 +267,7 @@ export const OAuthButtons: React.FC = () => {
             },
         });
         googleReadyRef.current = true;
-    }, [completeOAuthLogin]);
+    }, [completeOAuthLogin, showToast]);
 
     const initFacebookClient = React.useCallback(() => {
         if (!FACEBOOK_APP_ID || !window.FB) {
@@ -275,7 +292,7 @@ export const OAuthButtons: React.FC = () => {
         initFacebookClient();
     }, [initFacebookClient, initGoogleClient]);
 
-    const errorMessage = error ? (ERROR_MESSAGES[error] ?? ERROR_MESSAGES.ERR_NETWORK) : null;
+    const errorMessage = error ? (ERROR_MESSAGES[error] ?? error) : null;
 
     return (
         <div className="w-full">
