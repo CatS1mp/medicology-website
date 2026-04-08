@@ -1,4 +1,29 @@
-export interface Theme {
+export interface LessonSummaryResponse {
+    id: string;
+    name: string;
+    description: string | null;
+    slug: string;
+    orderIndex: number;
+    estimatedDurationMinutes: number | null;
+    difficultyLevel: string | null;
+    isActive: boolean;
+    content: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SectionSummaryResponse {
+    id: string;
+    name: string;
+    slug: string;
+    orderIndex: number;
+    estimatedDurationMinutes: number | null;
+    lessons: LessonSummaryResponse[] | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CourseResponse {
     id: string;
     name: string;
     slug: string;
@@ -6,95 +31,62 @@ export interface Theme {
     iconFileName: string | null;
     colorCode: string | null;
     orderIndex: number;
+    sections: SectionSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface Section {
-    id: string;
-    theme?: Theme;
-    name: string;
-    slug: string;
-    orderIndex: number;
-    estimatedDurationMinutes: number;
-    createdAt: string;
-    updatedAt: string;
-}
-
-// DTO returned by GET /themes/{themeId}/sections
 export interface SectionResponse {
     id: string;
-    themeId: string;
+    courseId: string;
     name: string;
     slug: string;
     orderIndex: number;
-    estimatedDurationMinutes: number;
+    estimatedDurationMinutes: number | null;
+    lessons: LessonSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface Course {
+export interface LessonResponse {
     id: string;
-    section?: Section;
+    sectionId: string;
     name: string;
     description: string | null;
     slug: string;
     orderIndex: number;
-    estimatedDurationMinutes: number;
-    difficultyLevel: string;
+    estimatedDurationMinutes: number | null;
+    difficultyLevel: string | null;
     isActive: boolean;
-    content: string; // JSON string
+    content: string | null;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface SectionTest {
-    sectionId: string;
-    section?: Section;
-    name: string;
-    passingScorePercentage: number;
-    timeLimitMinutes: number;
-    maxAttempts: number;
-    isActive: boolean;
-    content: string; // JSON string
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface UserCourse {
-    userId: string;
+export interface CourseProgressResponse {
     courseId: string;
-    course?: Course;
-    quizzesCorrect: number;
-    completedAt: string;
+    courseName: string;
+    courseSlug: string;
+    lastStudiedAt: string | null;
+    completionPercent: number;
 }
 
 export interface UserDailyStreak {
     userId: string;
     currentStreak: number;
     longestStreak: number;
-    lastActivityDate: string;
-    streakStartedAt: string;
+    lastActivityDate: string | null;
+    streakStartedAt: string | null;
     totalActiveDays: number;
     createdAt: string;
     updatedAt: string;
-}
-
-export interface UserSectionTest {
-    userId: string;
-    sectionTestId: string;
-    sectionTest?: SectionTest;
-    quizzesCorrect: number;
-    totalQuestions: number;
-    passed: boolean;
-    completedAt: string;
 }
 
 export interface AiLearningFeedback {
     id: string;
     userId: string;
     referenceId: string;
-    referenceType: 'COURSE' | 'SECTION' | 'TEST';
+    referenceType: 'COURSE' | 'SECTION' | 'LESSON' | 'TEST';
     questionContent: string;
     userAnswer: string;
     isCorrect: boolean;
@@ -113,15 +105,44 @@ export interface SubmitSectionTestRequest {
 
 export interface RequestAiFeedback {
     referenceId: string;
-    referenceType: 'COURSE' | 'SECTION' | 'TEST';
+    referenceType: 'COURSE' | 'SECTION' | 'LESSON' | 'TEST';
     questionContent: string;
     userAnswer: string;
     isCorrect: boolean;
 }
 
 export interface LearningPathResponse {
-    themes: Theme[];
+    courses: CourseResponse[];
 }
+
+export interface SectionTest {
+    sectionId: string;
+    section?: SectionResponse;
+    name: string;
+    passingScorePercentage: number;
+    timeLimitMinutes: number;
+    maxAttempts: number;
+    isActive: boolean;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface UserSectionTest {
+    userId: string;
+    sectionTestId: string;
+    sectionTest?: SectionTest;
+    quizzesCorrect: number;
+    totalQuestions: number;
+    passed: boolean;
+    completedAt: string;
+}
+
+// Backward-compatible aliases while the UI migrates away from the old theme-first naming.
+export type Theme = CourseResponse;
+export type Section = SectionResponse;
+export type Course = LessonResponse;
+export type UserCourse = CourseProgressResponse;
 
 export class LearningApiError extends Error {
     public status: number;
