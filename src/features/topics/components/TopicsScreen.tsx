@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
@@ -10,6 +11,7 @@ import { useTopics } from '../hooks/useTopics';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 
 export const TopicsScreen: React.FC = () => {
+    const router = useRouter();
     const { streakDays } = useLearningStreak();
 
     const { handleLogout } = useLogout();
@@ -55,7 +57,7 @@ export const TopicsScreen: React.FC = () => {
                                     <TopicCard 
                                         key={topic.id} 
                                         topic={topic} 
-                                        onStartLearning={(id) => console.log('Start learning topic:', id)} 
+                                        onStartLearning={(topicSlug) => router.push(`/courses/${topicSlug}`)} 
                                     />
                                 ))
                             ) : (

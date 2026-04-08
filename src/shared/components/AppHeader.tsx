@@ -29,6 +29,23 @@ const IconBell = () => (
 export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [avatarLabel] = useState(() => {
+        if (typeof window === 'undefined') return 'M';
+        try {
+            const raw = localStorage.getItem('userProfile');
+            if (!raw) return 'M';
+            const profile = JSON.parse(raw) as { displayName?: string | null };
+            const initials = (profile.displayName ?? 'Medicology')
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0]?.toUpperCase())
+                .join('');
+            return initials || 'M';
+        } catch {
+            return 'M';
+        }
+    });
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -81,7 +98,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
             </button>
 
             {/* Notification bell */}
-            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative">
+            <button
+                type="button"
+                onClick={() => router.push('/notifications')}
+                className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative"
+            >
                 <IconBell />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
@@ -94,7 +115,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                     aria-label="Tài khoản"
                     className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold text-sm cursor-pointer hover:bg-gray-400 transition-colors"
                 >
-                    N
+                    {avatarLabel}
                 </button>
 
                 {isMenuOpen && (

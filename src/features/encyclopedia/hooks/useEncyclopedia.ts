@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArticleSummary, ArticleDetail, ArticleCategory, SearchFilters } from '../types';
-import { DictionaryArticleResponse, listArticles, getArticleBySlug } from '../api';
+import { ArticleSummary, ArticleDetail, ArticleCategory, SearchFilters, ArticleComment } from '../types';
+import {
+    DictionaryArticleResponse,
+    DictionaryCommentResponse,
+    getArticleBySlug,
+    getArticleComments,
+    getInteractionSummary,
+    getViewStatistics,
+    listArticles,
+    recordArticleView,
+} from '../api';
 
 function stripMarkdown(markdown: string): string {
     return markdown
@@ -51,7 +60,23 @@ function toSummary(a: DictionaryArticleResponse): ArticleSummary {
     };
 }
 
-function toDetail(a: DictionaryArticleResponse, all: ArticleSummary[]): ArticleDetail {
+function mapComment(comment: DictionaryCommentResponse): ArticleComment {
+    return {
+        id: comment.id,
+        userId: comment.userId,
+        text: comment.commentText,
+        createdAt: comment.createdAt,
+        replies: (comment.replies ?? []).map(mapComment),
+    };
+}
+
+function toDetail(
+    a: DictionaryArticleResponse,
+    all: ArticleSummary[],
+    interactionSummary?: { totalViews: number; totalBookmarks: number; totalComments: number },
+    lastViewed?: string,
+    comments?: DictionaryCommentResponse[]
+): ArticleDetail {
     const summary = toSummary(a);
     const content = (a.contentMarkdown ?? '').replace(/^\s*#\s+.*\n+/, '').trim();
 
@@ -61,6 +86,8 @@ function toDetail(a: DictionaryArticleResponse, all: ArticleSummary[]): ArticleD
 
     return {
         ...summary,
+        viewCount: interactionSummary?.totalViews ?? summary.viewCount,
+        lastViewed,
         tableOfContents: [],
         sections: [
             {
@@ -70,6 +97,9 @@ function toDetail(a: DictionaryArticleResponse, all: ArticleSummary[]): ArticleD
             },
         ],
         relatedArticles,
+        interactionSummary,
+        comments: (comments ?? []).map(mapComment),
+        isBookmarked: false,
     };
 }
 
@@ -99,8 +129,7 @@ export const useEncyclopediaSearch = (initialQuery = '') => {
 
             setIsLoading(true);
             try {
-                const accessToken = localStorage.getItem('accessToken') ?? undefined;
-                const articles = await listArticles(accessToken);
+                const articles = await listArticles();
                 const q = filters.query.toLowerCase().trim();
                 let data = articles
                     .filter(a => a.isPublished)
@@ -150,14 +179,34 @@ export const useArticle = (slug: string) => {
 
         async function run() {
             try {
-                const accessToken = localStorage.getItem('accessToken') ?? undefined;
                 const [a, list] = await Promise.all([
-                    getArticleBySlug(slug, accessToken),
-                    listArticles(accessToken),
+                    getArticleBySlug(slug),
+                    listArticles(),
+                ]);
+
+                void recordArticleView(a.id).catch(() => undefined);
+                const [summary, viewStats, comments] = await Promise.all([
+                    getInteractionSummary(a.id).catch(() => null),
+                    getViewStatistics(a.id).catch(() => null),
+                    getArticleComments(a.id).catch(() => []),
                 ]);
 
                 const summaries = list.filter(x => x.isPublished).map(toSummary);
-                const detail = toDetail(a, summaries);
+                const detail = toDetail(
+                    a,
+                    summaries,
+                    summary
+                        ? {
+                            totalViews: summary.totalViews,
+                            totalBookmarks: summary.totalBookmarks,
+                            totalComments: summary.totalComments,
+                        }
+                        : undefined,
+                    viewStats?.lastViewedAt
+                        ? new Date(viewStats.lastViewedAt).toLocaleString('vi-VN')
+                        : undefined,
+                    comments
+                );
                 if (!cancelled) setArticle(detail);
             } catch {
                 if (!cancelled) setArticle(null);

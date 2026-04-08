@@ -6,6 +6,7 @@ export interface LessonNode {
     title: string;
     status: LessonStatus;
     type: LessonType;
+    href?: string;
     score?: {
         current: number;
         max: number;
