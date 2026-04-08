@@ -12,6 +12,14 @@ export interface ChartDataPoint {
     value: number;
 }
 
+export interface LessonActivityDataset {
+    label: string;
+    data: ChartDataPoint[];
+    totalCompletedLessons: number;
+}
+
+export type LessonActivityRange = 'last7' | 'last14';
+
 export interface CourseCard {
     id: string;
     category: string;
@@ -32,8 +40,7 @@ export interface LearningResultPoint {
 export interface LearningProgressItem {
     id: string;
     subject: string;
-    completed: number;
-    total: number;
+    completionPercent: number;
     color: string;
     icon: string;
 }
