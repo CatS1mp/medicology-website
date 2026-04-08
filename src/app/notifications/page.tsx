@@ -9,10 +9,10 @@ export default function NotificationsPage() {
                 <AppHeader streak={0} />
                 <div className="flex-1 overflow-y-auto px-6 py-8">
                     <div className="mx-auto max-w-3xl rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8">
-                        <h1 className="text-2xl font-extrabold text-amber-900">Thong bao chua co backend</h1>
+                        <h1 className="text-2xl font-extrabold text-amber-900">Thông báo chưa có backend</h1>
                         <p className="mt-3 text-sm leading-6 text-amber-800">
-                            Man hinh nay da co route de tranh link hong trong sidebar, nhung repo hien tai chua co service thong bao
-                            o folder cha `Medicology`. Muc nay duoc ghi ro trong planning bundle va implementation result de tranh
+                            Màn hình này đã có route để tránh link hỏng trong sidebar, nhưng repo hiện tại chưa có service thông báo
+                            ở folder cha `Medicology`. Mục này được ghi rõ trong planning bundle và implementation result để tránh
                             fake API.
                         </p>
                     </div>

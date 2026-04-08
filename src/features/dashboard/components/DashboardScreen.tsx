@@ -12,25 +12,29 @@ import { LearningResultsChart } from './LearningResultsChart';
 import { LearningProgress } from './LearningProgress';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
-import { getCourses, getProgress } from '@/shared/api/learning';
+import { getCourses, getLessonActivity, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
-import { ChartDataPoint, CourseCard, LearningProgressItem, LearningResultPoint, StatCard } from '../types';
+import { ChartDataPoint, CourseCard, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
 
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
-    const [userName, setUserName] = React.useState('Ban');
-    const [statCards, setStatCards] = React.useState<StatCard[]>([
-        { id: 'streak', icon: '🔥', value: 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
-        { id: 'score', icon: '⭐', value: '0/10', label: 'Điểm đánh giá gần đây', color: 'text-yellow-500' },
-        { id: 'courses', icon: '📘', value: 0, label: 'Khóa học đang theo dõi', color: 'text-blue-500' },
-    ]);
-    const [weeklyChartData, setWeeklyChartData] = React.useState<ChartDataPoint[]>([]);
+    const [userName, setUserName] = React.useState('Bạn');
+    const [lessonActivityDataset, setLessonActivityDataset] = React.useState<LessonActivityDataset | null>(null);
+    const [activeRange, setActiveRange] = React.useState<LessonActivityRange>('last7');
+    const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(true);
     const [courseCards, setCourseCards] = React.useState<CourseCard[]>([]);
     const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>([]);
     const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>([]);
     const [totalLessons, setTotalLessons] = React.useState(0);
-    const [weeklyDelta, setWeeklyDelta] = React.useState(0);
+    const [averageScore, setAverageScore] = React.useState(0);
+    const [activeCourseCount, setActiveCourseCount] = React.useState(0);
+
+    const statCards: StatCard[] = [
+        { id: 'streak', icon: '🔥', value: streakDays ?? 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
+        { id: 'score', icon: '⭐', value: `${averageScore.toFixed(1)}/10`, label: 'Điểm đánh giá gần đây', color: 'text-yellow-500' },
+        { id: 'courses', icon: '📘', value: activeCourseCount, label: 'Khóa học đang theo dõi', color: 'text-blue-500' },
+    ];
 
     React.useEffect(() => {
         let cancelled = false;
@@ -45,7 +49,7 @@ export const DashboardScreen: React.FC = () => {
                 ]);
                 if (cancelled) return;
 
-                const name = profile?.displayName || user?.username || 'Ban';
+                const name = profile?.displayName || user?.username || 'Bạn';
                 const averageScore = attempts.filter((item) => item.score !== null).length
                     ? attempts.filter((item) => item.score !== null).reduce((sum, item) => sum + Number(item.score ?? 0), 0) / attempts.filter((item) => item.score !== null).length
                     : 0;
@@ -53,25 +57,10 @@ export const DashboardScreen: React.FC = () => {
                 const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
                 const lessonCount = sortedCourses.reduce((sum, course) => sum + (course.sections ?? []).reduce((sectionSum, section) => sectionSum + (section.lessons?.length ?? 0), 0), 0);
 
-                const today = new Date();
-                const week = Array.from({ length: 7 }).map((_, index) => {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() - (6 - index));
-                    const label = date.toLocaleDateString('vi-VN', { weekday: 'short' });
-                    const key = date.toISOString().slice(0, 10);
-                    const value = attempts.filter((attempt) => (attempt.submittedAt ?? attempt.startedAt)?.slice(0, 10) === key).length;
-                    return { day: label, date: date.toLocaleDateString('vi-VN'), value };
-                });
-
                 setUserName(name);
+                setAverageScore(averageScore);
+                setActiveCourseCount(progress.length);
                 setTotalLessons(lessonCount);
-                setWeeklyChartData(week);
-                setWeeklyDelta(week.reduce((sum, point) => sum + point.value, 0));
-                setStatCards([
-                    { id: 'streak', icon: '🔥', value: streakDays ?? 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
-                    { id: 'score', icon: '⭐', value: `${averageScore.toFixed(1)}/10`, label: 'Điểm đánh giá gần đây', color: 'text-yellow-500' },
-                    { id: 'courses', icon: '📘', value: progress.length, label: 'Khóa học đang theo dõi', color: 'text-blue-500' },
-                ]);
                 setCourseCards(sortedCourses.slice(0, 3).map((course) => {
                     const currentProgress = progressBySlug.get(course.slug)?.completionPercent ?? 0;
                     const lessons = course.sections?.flatMap((section) => section.lessons ?? []) ?? [];
@@ -81,7 +70,7 @@ export const DashboardScreen: React.FC = () => {
                         category: course.name.toUpperCase(),
                         categoryColor: course.colorCode || '#3B82F6',
                         title: course.description || course.name,
-                        nextLesson: lessons[Math.min(completed, Math.max(lessons.length - 1, 0))]?.name || 'Bat dau khoa hoc',
+                        nextLesson: lessons[Math.min(completed, Math.max(lessons.length - 1, 0))]?.name || 'Bắt đầu khóa học',
                         progress: currentProgress,
                         total: Math.max(lessons.length, 1),
                         completed,
@@ -95,8 +84,7 @@ export const DashboardScreen: React.FC = () => {
                 setLearningProgress(progress.slice(0, 5).map((item) => ({
                     id: item.courseId,
                     subject: item.courseName,
-                    completed: item.completionPercent,
-                    total: 100,
+                    completionPercent: item.completionPercent,
                     color: sortedCourses.find((course) => course.slug === item.courseSlug)?.colorCode || '#3B82F6',
                     icon: '📘',
                 })));
@@ -106,7 +94,49 @@ export const DashboardScreen: React.FC = () => {
         }
         run();
         return () => { cancelled = true; };
-    }, [streakDays]);
+    }, []);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        async function loadLessonActivity() {
+            setIsLessonActivityLoading(true);
+            try {
+                const days = activeRange === 'last7' ? 7 : 14;
+                const lessonActivitySummary = await getLessonActivity(days);
+                if (cancelled) return;
+
+                const activity: ChartDataPoint[] = lessonActivitySummary.activities.map((item) => {
+                    const date = new Date(item.date);
+                    return {
+                        day: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
+                        date: date.toLocaleDateString('vi-VN'),
+                        value: item.completedLessons,
+                    };
+                });
+
+                setLessonActivityDataset({
+                    label: activeRange,
+                    data: activity,
+                    totalCompletedLessons: lessonActivitySummary.totalCompletedLessons,
+                });
+            } catch {
+                if (!cancelled) {
+                    setLessonActivityDataset({
+                        label: activeRange,
+                        data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                        totalCompletedLessons: 0,
+                    });
+                }
+            } finally {
+                if (!cancelled) setIsLessonActivityLoading(false);
+            }
+        }
+
+        loadLessonActivity();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeRange]);
 
     const effectiveStreak = streakDays ?? 0;
 
@@ -140,9 +170,15 @@ export const DashboardScreen: React.FC = () => {
                                 <div>
                                     <h2 className="text-sm font-bold text-gray-800 mb-3">Tiến độ bài học</h2>
                                     <LessonProgressChart
-                                        data={weeklyChartData.length ? weeklyChartData : [{ day: 'Hom nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }]}
+                                        datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
+                                            label: activeRange,
+                                            data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                                            totalCompletedLessons: 0,
+                                        }]}
                                         totalLessons={totalLessons}
-                                        weeklyDelta={weeklyDelta}
+                                        activeRange={activeRange}
+                                        onRangeChange={setActiveRange}
+                                        isLoading={isLessonActivityLoading}
                                     />
                                 </div>
 
