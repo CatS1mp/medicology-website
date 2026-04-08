@@ -54,13 +54,13 @@ export const NotebookScreen: React.FC = () => {
                     description: stripMarkdown(item.contentMarkdown).slice(0, 160),
                     tags: (item.tags ?? []).map((tag) => tag.name),
                     views: '-',
-                    publishedAt: item.publishedAt ? `Xuat ban ${new Date(item.publishedAt).toLocaleDateString('vi-VN')}` : 'Chua xuat ban',
-                    bookmarkedAt: item.bookmarkedAt ? `Da luu ${new Date(item.bookmarkedAt).toLocaleDateString('vi-VN')}` : 'Da luu gan day',
+                    publishedAt: item.publishedAt ? `Xuất bản ${new Date(item.publishedAt).toLocaleDateString('vi-VN')}` : 'Chưa xuất bản',
+                    bookmarkedAt: item.bookmarkedAt ? `Đã lưu ${new Date(item.bookmarkedAt).toLocaleDateString('vi-VN')}` : 'Đã lưu gần đây',
                 })));
             } catch (nextError) {
                 if (!cancelled) {
                     setItems([]);
-                    setError(nextError instanceof Error ? nextError.message : 'Khong the tai so tay luu tru.');
+                    setError(nextError instanceof Error ? nextError.message : 'Không thể tải sổ tay lưu trữ.');
                 }
             } finally {
                 if (!cancelled) setIsLoading(false);
@@ -128,12 +128,12 @@ export const NotebookScreen: React.FC = () => {
                             })}
                         </div>
 
-                        <p className="text-xs text-gray-600 mb-3">Dang hien thi {filtered.length} muc da luu</p>
+                        <p className="text-xs text-gray-600 mb-3">Đang hiển thị {filtered.length} mục đã lưu</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {isLoading && <div className="col-span-full py-12 text-center text-gray-500">Dang tai du lieu luu tru...</div>}
+                            {isLoading && <div className="col-span-full py-12 text-center text-gray-500">Đang tải dữ liệu lưu trữ...</div>}
                             {!isLoading && !!error && <div className="col-span-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-                            {!isLoading && !error && filtered.length === 0 && <div className="col-span-full py-12 text-center text-gray-500">Chua co bai viet nao trong so tay.</div>}
+                            {!isLoading && !error && filtered.length === 0 && <div className="col-span-full py-12 text-center text-gray-500">Chưa có bài viết nào trong sổ tay.</div>}
                             {!isLoading && !error && filtered.map((item) => (
                                 <article key={item.id} className="rounded-2xl border border-gray-200 bg-white p-4 min-h-[278px] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                                     <p className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-50 text-orange-500">{categoryLabelMap[item.category]}</p>
@@ -151,7 +151,7 @@ export const NotebookScreen: React.FC = () => {
                                         <p>{item.bookmarkedAt}</p>
                                     </div>
                                     <Link href={`/encyclopedia/${item.slug}`} className="mt-4 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
-                                        Mo bai viet
+                                        Mở bài viết
                                     </Link>
                                 </article>
                             ))}

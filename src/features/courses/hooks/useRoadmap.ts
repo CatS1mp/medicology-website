@@ -54,12 +54,13 @@ export const useRoadmap = (slug: string) => {
                                                 : 'locked';
                                 return {
                                     id: lesson.id,
+                                    orderIndex: currentIndex + 1,
                                     title: lesson.name,
                                     status,
                                     type: 'lesson' as const,
                                     href: `/courses/${course.slug}/lessons/${lesson.slug}`,
                                     description: lesson.estimatedDurationMinutes
-                                        ? `${lesson.estimatedDurationMinutes} phut hoc`
+                                        ? `${lesson.estimatedDurationMinutes} phút học`
                                         : lesson.difficultyLevel ?? undefined,
                                 };
                             }),
@@ -71,7 +72,7 @@ export const useRoadmap = (slug: string) => {
                         return {
                             courseInfo: course.name,
                             title: nextLesson.name,
-                            description: nextLesson.description ?? 'Tiep tuc bai hoc dang dang do.',
+                            description: nextLesson.description ?? 'Tiếp tục bài học đang dang dở.',
                             link: `/courses/${course.slug}/lessons/${nextLesson.slug}`,
                         };
                     })(),

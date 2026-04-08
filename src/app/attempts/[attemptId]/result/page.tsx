@@ -27,7 +27,7 @@ export default function AttemptResultPage() {
                 const data = await getAttemptResult(params.attemptId);
                 if (!cancelled) setResult(data);
             } catch (nextError) {
-                if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'Khong the tai ket qua.');
+                if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'Không thể tải kết quả.');
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -43,23 +43,23 @@ export default function AttemptResultPage() {
                 <AppHeader streak={0} />
                 <div className="flex-1 overflow-y-auto px-6 py-8">
                     <div className="mx-auto max-w-3xl rounded-3xl border border-gray-200 bg-white px-6 py-8">
-                        {loading ? <div className="py-12 text-center text-gray-500">Dang tai ket qua...</div> : error ? (
+                        {loading ? <div className="py-12 text-center text-gray-500">Đang tải kết quả...</div> : error ? (
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
                         ) : result && (
                             <>
-                                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#2aa4e8]">Assessment result</p>
-                                <h1 className="mt-3 text-3xl font-extrabold text-gray-900">{result.passed ? 'Ban da vuot qua bai kiem tra' : 'Ban chua vuot qua bai kiem tra'}</h1>
-                                <p className="mt-3 text-sm text-gray-600">Hoan thanh luc {new Date(result.completedAt).toLocaleString('vi-VN')}</p>
+                                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#2aa4e8]">Kết quả bài kiểm tra</p>
+                                <h1 className="mt-3 text-3xl font-extrabold text-gray-900">{result.passed ? 'Bạn đã vượt qua bài kiểm tra' : 'Bạn chưa vượt qua bài kiểm tra'}</h1>
+                                <p className="mt-3 text-sm text-gray-600">Hoàn thành lúc {new Date(result.completedAt).toLocaleString('vi-VN')}</p>
                                 <div className="mt-6 grid gap-4 md:grid-cols-4">
-                                    <Card label="Diem" value={result.score} />
-                                    <Card label="Diem toi da" value={result.maxScore} />
-                                    <Card label="Dung" value={result.correctAnswers} />
-                                    <Card label="Tong cau" value={result.totalQuestions} />
+                                    <Card label="Điểm" value={result.score} />
+                                    <Card label="Điểm tối đa" value={result.maxScore} />
+                                    <Card label="Đúng" value={result.correctAnswers} />
+                                    <Card label="Tổng câu" value={result.totalQuestions} />
                                 </div>
                             </>
                         )}
                         <Link href="/dashboard" className="mt-6 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
-                            Quay lai dashboard
+                            Quay lại dashboard
                         </Link>
                     </div>
                 </div>
