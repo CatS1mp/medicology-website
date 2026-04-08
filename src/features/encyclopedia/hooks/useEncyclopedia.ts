@@ -64,6 +64,8 @@ function mapComment(comment: DictionaryCommentResponse): ArticleComment {
     return {
         id: comment.id,
         userId: comment.userId,
+        username: comment.username ?? undefined,
+        displayName: comment.displayName ?? undefined,
         text: comment.commentText,
         createdAt: comment.createdAt,
         replies: (comment.replies ?? []).map(mapComment),

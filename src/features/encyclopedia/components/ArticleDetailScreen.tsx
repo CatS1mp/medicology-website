@@ -7,8 +7,10 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
 import { useArticle } from '../hooks/useEncyclopedia';
 import { bookmarkArticle, unbookmarkArticle } from '../api';
+import type { ArticleComment } from '../types';
 
 interface ArticleDetailScreenProps {
     slug: string;
@@ -18,12 +20,51 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
     const { article, isLoading } = useArticle(slug);
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [isBookmarked, setIsBookmarked] = useState(false);
+    const [currentViewer, setCurrentViewer] = useState<{ id: string; name: string } | null>(null);
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
 
     React.useEffect(() => {
         setIsBookmarked(article?.isBookmarked ?? false);
     }, [article?.isBookmarked]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadCurrentViewer() {
+            try {
+                const [profile, user] = await Promise.all([
+                    getCurrentProfile().catch(() => null),
+                    getCurrentUser().catch(() => null),
+                ]);
+
+                if (cancelled || !user) {
+                    return;
+                }
+
+                setCurrentViewer({
+                    id: user.id,
+                    name: profile?.displayName || user.username || 'Bạn',
+                });
+            } catch {
+                if (!cancelled) {
+                    setCurrentViewer(null);
+                }
+            }
+        }
+
+        void loadCurrentViewer();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    function getCommentAuthorName(comment: ArticleComment) {
+        if (comment.displayName?.trim()) return comment.displayName;
+        if (comment.username?.trim()) return comment.username;
+        if (currentViewer && comment.userId === currentViewer.id) return currentViewer.name;
+        return 'Người dùng';
+    }
 
     async function handleToggleBookmark() {
         if (!article) return;
@@ -95,7 +136,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                     onClick={handleToggleBookmark}
                                     className={`ml-auto rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors ${isBookmarked ? 'border-[#1CA1F2] bg-[#E5F0FF] text-[#1CA1F2]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                                 >
-                                    {isBookmarked ? 'Da luu' : 'Luu bai viet'}
+                                    {isBookmarked ? 'Đã lưu' : 'Lưu bài viết'}
                                 </button>
                             </div>
 
@@ -115,9 +156,9 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                             {article.interactionSummary && (
                                 <div className="mb-8 grid gap-3 md:grid-cols-3">
-                                    <InfoCard label="Luot xem" value={article.interactionSummary.totalViews} />
-                                    <InfoCard label="Luot luu" value={article.interactionSummary.totalBookmarks} />
-                                    <InfoCard label="Binh luan" value={article.interactionSummary.totalComments} />
+                                    <InfoCard label="Lượt xem" value={article.interactionSummary.totalViews} />
+                                    <InfoCard label="Lượt lưu" value={article.interactionSummary.totalBookmarks} />
+                                    <InfoCard label="Bình luận" value={article.interactionSummary.totalComments} />
                                 </div>
                             )}
 
@@ -160,18 +201,18 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                             {!!article.comments?.length && (
                                 <div className="mb-10">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Thao luan</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Thảo luận</h2>
                                     <div className="space-y-3">
                                         {article.comments.map((comment) => (
                                             <div key={comment.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                                <p className="text-sm font-semibold text-gray-800">{comment.userId}</p>
+                                                <p className="text-sm font-semibold text-gray-800">{getCommentAuthorName(comment)}</p>
                                                 <p className="mt-1 text-sm text-gray-600">{comment.text}</p>
                                                 <p className="mt-2 text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString('vi-VN')}</p>
                                                 {!!comment.replies.length && (
                                                     <div className="mt-3 space-y-2 border-l border-gray-200 pl-4">
                                                         {comment.replies.map((reply) => (
                                                             <div key={reply.id}>
-                                                                <p className="text-sm font-medium text-gray-700">{reply.userId}</p>
+                                                                <p className="text-sm font-medium text-gray-700">{getCommentAuthorName(reply)}</p>
                                                                 <p className="text-sm text-gray-600">{reply.text}</p>
                                                             </div>
                                                         ))}

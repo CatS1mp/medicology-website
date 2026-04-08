@@ -48,6 +48,8 @@ export interface ArticleDetail extends ArticleSummary {
 export interface ArticleComment {
     id: string;
     userId: string;
+    username?: string;
+    displayName?: string;
     text: string;
     createdAt: string;
     replies: ArticleComment[];
