@@ -65,8 +65,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             );
         }
         
-        // Extract number from id roughly for display if it's a lesson
-        const num = node.id.replace(/\D/g, '') || '1'; 
+        const num = String(node.orderIndex ?? 1);
         return <span className="font-bold text-lg">{num}</span>;
     };
 
