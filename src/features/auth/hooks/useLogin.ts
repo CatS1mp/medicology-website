@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '../api';
 import { ApiError, LoginRequest } from '../types';
+import { persistAuthSession } from '../session';
 
 interface UseLoginReturn {
     handleLogin: (data: LoginRequest) => Promise<void>;
@@ -22,8 +23,7 @@ export function useLogin(): UseLoginReturn {
         setIsLoading(true);
         try {
             const res = await login(data);
-            localStorage.setItem('accessToken', res.accessToken);
-            localStorage.setItem('refreshToken', res.refreshToken);
+            persistAuthSession(res);
             router.push('/dashboard');
         } catch (err) {
             if (err instanceof ApiError) {

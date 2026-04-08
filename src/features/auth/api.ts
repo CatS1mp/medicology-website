@@ -4,6 +4,7 @@ import {
     AuthResponse,
     LoginRequest,
     LogoutRequest,
+    OAuthLoginRequest,
     RefreshTokenRequest,
     RegisterRequest,
     RegisterResponse,
@@ -56,6 +57,11 @@ export function register(data: RegisterRequest): Promise<RegisterResponse> {
 /** POST /api/v1/auth/login — Authenticates by email/password */
 export function login(data: LoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/login`, data);
+}
+
+/** POST /api/v1/auth/oauth — Completes OAuth login after provider authentication */
+export function oauthLogin(data: OAuthLoginRequest): Promise<AuthResponse> {
+    return jsonPost<AuthResponse>(`${AUTH}/oauth`, data);
 }
 
 
