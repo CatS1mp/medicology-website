@@ -14,8 +14,7 @@ import {
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 import { getOrSetCachedValue, invalidateCachedValue } from '@/shared/api/client-cache';
 
-const BASE_URL = process.env.NEXT_PUBLIC_LEARNING_SERVICE_URL || '';
-const API = `${BASE_URL}/api/learning`;
+const API = '/api/learning';
 const COURSES_CACHE_KEY = 'learning:courses';
 const ENROLLED_COURSES_CACHE_KEY = 'learning:courses:enrolled';
 const AVAILABLE_COURSES_CACHE_KEY = 'learning:courses:available';

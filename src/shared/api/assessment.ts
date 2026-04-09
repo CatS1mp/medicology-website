@@ -9,8 +9,7 @@ import type {
     AttemptSummaryResponse,
 } from '@/shared/types/assessment';
 
-const BASE_URL = process.env.NEXT_PUBLIC_ASSESSMENT_SERVICE_URL || '';
-const API = `${BASE_URL}/api/assessment`;
+const API = '/api/assessment';
 const MY_ATTEMPTS_CACHE_KEY = 'assessment:my-attempts';
 const MY_ATTEMPTS_TTL_MS = 30_000;
 

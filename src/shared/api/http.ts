@@ -113,9 +113,12 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
     }
 
     if (typeof body === 'string') {
+        const isHtml = body.trim().startsWith('<!DOCTYPE') || body.trim().startsWith('<html');
+        const message = isHtml ? (res.statusText || 'Giao tiếp với máy chủ thất bại') : (body || res.statusText || 'Request failed');
+        
         return new ApiTransportError({
             status: res.status,
-            message: body || res.statusText || 'Request failed',
+            message,
             body,
         });
     }
