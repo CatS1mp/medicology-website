@@ -33,9 +33,17 @@ export interface ResetPasswordRequest {
 }
 
 
+/** Mirrors auth-service `UserProfileResponseDTO` (login / refresh `userProfile`). */
 export interface UserProfile {
-    displayName: string;
-    avatarUrl: string | null;
+    userId: string;
+    email: string;
+    username: string;
+    lastName: string | null;
+    firstName: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    address: string | null;
+    displayName: string | null;
     bio: string | null;
 }
 
@@ -67,8 +75,14 @@ export interface CurrentUser {
 
 export interface CurrentUserProfile {
     userId: string;
+    email: string;
+    username: string;
+    lastName: string | null;
+    firstName: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    address: string | null;
     displayName: string | null;
-    avatarUrl: string | null;
     bio: string | null;
 }
 
@@ -102,9 +116,14 @@ export interface UpdateCurrentUserRequest {
     location?: string | null;
 }
 
+/** Mirrors auth-service `UpdateProfileRequestDTO` (partial PUT body). */
 export interface UpdateCurrentUserProfileRequest {
-    displayName?: string | null;
-    avatarUrl?: string | null;
+    username?: string;
+    lastName?: string | null;
+    firstName?: string | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    address?: string | null;
     bio?: string | null;
 }
 
