@@ -2,13 +2,12 @@
 
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { refreshToken as refreshAccessToken } from '../api';
 import {
     clearAuthSession,
     getStoredAccessTokenExpiry,
     getStoredRefreshToken,
-    persistAuthSession,
 } from '../session';
+import { refreshAccessTokenWithMutex } from '../token-refresh';
 
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -38,27 +37,27 @@ export function SessionManager() {
         const refreshToken = getStoredRefreshToken();
         const expiresAt = getStoredAccessTokenExpiry();
 
-        if (!refreshToken || !expiresAt) {
+        if (!refreshToken) {
             return false;
         }
 
-        const timeRemaining = expiresAt - Date.now();
-        if (!force && timeRemaining > REFRESH_THRESHOLD_MS) {
-            return false;
+        if (!force && expiresAt != null) {
+            const timeRemaining = expiresAt - Date.now();
+            if (timeRemaining > REFRESH_THRESHOLD_MS) {
+                return false;
+            }
         }
 
         if (refreshPromiseRef.current) {
             return refreshPromiseRef.current;
         }
 
-        const refreshTask = refreshAccessToken({ refreshToken })
-            .then((session) => {
-                persistAuthSession(session);
-                return true;
-            })
-            .catch(() => {
-                forceLogout();
-                return false;
+        const refreshTask = refreshAccessTokenWithMutex()
+            .then((ok) => {
+                if (!ok) {
+                    forceLogout();
+                }
+                return ok;
             })
             .finally(() => {
                 refreshPromiseRef.current = null;
@@ -75,13 +74,16 @@ export function SessionManager() {
 
         const refreshToken = getStoredRefreshToken();
         const expiresAt = getStoredAccessTokenExpiry();
-        if (!refreshToken || !expiresAt) {
+        if (!refreshToken) {
             return;
         }
 
-        const timeRemaining = expiresAt - Date.now();
+        const timeRemaining = expiresAt != null ? expiresAt - Date.now() : -1;
         if (timeRemaining <= 0) {
-            forceLogout();
+            const ok = await refreshSessionIfNeeded(true);
+            if (!ok) {
+                forceLogout();
+            }
             return;
         }
 
@@ -106,7 +108,7 @@ export function SessionManager() {
 
         const refreshToken = getStoredRefreshToken();
         const expiresAt = getStoredAccessTokenExpiry();
-        if (!refreshToken || !expiresAt) {
+        if (!refreshToken || expiresAt == null) {
             return;
         }
 

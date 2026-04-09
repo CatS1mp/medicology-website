@@ -130,6 +130,35 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
     });
 }
 
+function requestSentAuthorization(init?: RequestInit): boolean {
+    if (!init?.headers) return false;
+    try {
+        return new Headers(init.headers).has('Authorization');
+    } catch {
+        return false;
+    }
+}
+
+function shouldAttemptRefreshOn401(requestUrl: string): boolean {
+    const publicEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/oauth', '/api/auth/refresh'];
+    return !publicEndpoints.some((p) => requestUrl.includes(p));
+}
+
+function shouldRedirectToLoginAfterSessionFailure(): boolean {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    if (
+        path.startsWith('/login') ||
+        path.startsWith('/signup') ||
+        path.startsWith('/forgot-password') ||
+        path.startsWith('/reset-password') ||
+        path.startsWith('/auth/verify')
+    ) {
+        return false;
+    }
+    return true;
+}
+
 export async function requestApi<T>(
     input: string,
     init?: RequestInit,
@@ -139,5 +168,34 @@ export async function requestApi<T>(
     if (res.ok) {
         return parseSuccessResponse<T>(res, options);
     }
+
+    if (
+        res.status === 401 &&
+        typeof window !== 'undefined' &&
+        shouldAttemptRefreshOn401(input) &&
+        !!localStorage.getItem('refreshToken') &&
+        (!!getStoredAccessToken() || requestSentAuthorization(init))
+    ) {
+        const { refreshAccessTokenWithMutex } = await import('@/features/auth/token-refresh');
+        let lastRes = res;
+        const refreshed = await refreshAccessTokenWithMutex();
+        if (refreshed) {
+            const res2 = await fetch(input, {
+                ...init,
+                headers: buildHeaders({ headers: init?.headers }),
+            });
+            lastRes = res2;
+            if (res2.ok) {
+                return parseSuccessResponse<T>(res2, options);
+            }
+        }
+        const { clearAuthSession } = await import('@/features/auth/session');
+        clearAuthSession();
+        if (shouldRedirectToLoginAfterSessionFailure()) {
+            window.location.replace('/login');
+        }
+        throw await parseErrorResponse(lastRes);
+    }
+
     throw await parseErrorResponse(res);
 }
