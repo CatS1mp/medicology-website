@@ -21,14 +21,14 @@ import {
 } from './types';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
-// Requests go through the local Next.js proxy (/api/auth/*) which forwards
-// server-to-server to the Railway backend — avoids CORS entirely.
-const AUTH = `/api/v1/auth`;
-const USERS = `/api/users`;
-const PROFILES = `/api/profiles`;
-const SETTINGS = `/api/settings`;
-const OAUTH = `/api/oauth`;
-const SESSIONS = `/api/sessions`;
+// Backends on Azure/Heroku are reached directly via absolute URLs
+const BASE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || '';
+const AUTH = `${BASE_URL}/api/v1/auth`;
+const USERS = `${BASE_URL}/api/users`;
+const PROFILES = `${BASE_URL}/api/profiles`;
+const SETTINGS = `${BASE_URL}/api/settings`;
+const OAUTH = `${BASE_URL}/api/oauth`;
+const SESSIONS = `${BASE_URL}/api/sessions`;
 
 function jsonPost<T>(url: string, data?: unknown, accessToken?: string): Promise<T> {
     return requestApi<T>(url, {

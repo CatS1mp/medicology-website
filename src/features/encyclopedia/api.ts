@@ -1,6 +1,7 @@
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
-const DICTIONARY = `/api/dictionary`;
+const BASE_URL = process.env.NEXT_PUBLIC_DICTIONARY_SERVICE_URL || '';
+const DICTIONARY = `${BASE_URL}/api/dictionary`;
 
 export interface DictionaryTagResponse {
     id: string;
