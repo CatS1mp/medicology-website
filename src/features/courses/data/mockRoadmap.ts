@@ -1,6 +1,5 @@
 import { RoadmapData } from '../types';
 
-// These are the courses the user has enrolled in; will come from API later
 export const enrolledCourses = [
     { slug: 'cham-soc-khan-cap', label: 'Tâm thần học' },
     { slug: 'suc-khoe-tinh-than', label: 'Sức khoẻ tinh thần' },
@@ -15,7 +14,7 @@ export const mockRoadmapData: Record<string, RoadmapData> = {
         total: 26,
     },
     streak: {
-        days: 17, // Set to 17 per user request
+        days: 17,
         message: 'Bạn đang xây dựng một thói quen học tập vững chắc. Tiếp tục phát huy nhé!',
     },
     sections: [

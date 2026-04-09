@@ -78,7 +78,6 @@ export const mockArticles: Record<string, ArticleDetail> = {
     }
 };
 
-// Used for search results - returns any article that matches query anywhere in title/excerpt/tags
 export const searchArticles = (query: string): ArticleSummary[] => {
     const q = query.toLowerCase().trim();
     if (!q) return [];

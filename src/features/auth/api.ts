@@ -21,6 +21,7 @@ import {
 } from './types';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
+<<<<<<< HEAD
 // Backends on Azure/Heroku are reached directly via absolute URLs
 const BASE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || '';
 const AUTH = `${BASE_URL}/api/v1/auth`;
@@ -29,6 +30,14 @@ const PROFILES = `${BASE_URL}/api/profiles`;
 const SETTINGS = `${BASE_URL}/api/settings`;
 const OAUTH = `${BASE_URL}/api/oauth`;
 const SESSIONS = `${BASE_URL}/api/sessions`;
+=======
+const AUTH = `/api/v1/auth`;
+const USERS = `/api/users`;
+const PROFILES = `/api/profiles`;
+const SETTINGS = `/api/settings`;
+const OAUTH = `/api/oauth`;
+const SESSIONS = `/api/sessions`;
+>>>>>>> 1fc27b8 (chore: clean code comments and sync auth resend api)
 
 function jsonPost<T>(url: string, data?: unknown, accessToken?: string): Promise<T> {
     return requestApi<T>(url, {
@@ -95,25 +104,20 @@ function normalizeAuthError(error: unknown): ApiError {
     });
 }
 
-// ─── Endpoints ────────────────────────────────────────────────────────────────
 
-/** POST /api/v1/auth/register — Creates account, sends verification email */
 export function register(data: RegisterRequest): Promise<RegisterResponse> {
     return jsonPost<RegisterResponse>(`${AUTH}/register`, data);
 }
 
-/** POST /api/v1/auth/login — Authenticates by email/password */
 export function login(data: LoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/login`, data);
 }
 
-/** POST /api/v1/auth/oauth — Completes OAuth login after provider authentication */
 export function oauthLogin(data: OAuthLoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/oauth`, data);
 }
 
 
-/** GET /api/v1/auth/verify?token= — Marks user as verified */
 export function verifyEmail(token: string): Promise<string> {
     return requestApi<string>(`${AUTH}/verify?token=${encodeURIComponent(token)}`)
         .catch((error: unknown) => {
@@ -121,7 +125,6 @@ export function verifyEmail(token: string): Promise<string> {
         });
 }
 
-/** POST /api/v1/auth/resend?email= — Resends verification email */
 export function resend(email: string): Promise<string> {
     return requestApi<string>(`${AUTH}/resend?email=${encodeURIComponent(email)}`, {
         method: 'POST',
@@ -132,8 +135,6 @@ export function resend(email: string): Promise<string> {
 }
 
 export { resend as resendVerificationEmail };
-
-/** POST /api/v1/auth/reset/request?email= — Sends password reset email */
 export function requestPasswordReset(email: string): Promise<string> {
     return requestApi<string>(`${AUTH}/reset/request?email=${encodeURIComponent(email)}`, {
         method: 'POST',
@@ -143,17 +144,14 @@ export function requestPasswordReset(email: string): Promise<string> {
     });
 }
 
-/** POST /api/v1/auth/reset — Resets password using a reset token */
 export function resetPassword(data: ResetPasswordRequest): Promise<string> {
     return jsonPost<string>(`${AUTH}/reset`, data);
 }
 
-/** POST /api/v1/auth/logout — Revokes refresh token */
 export function logout(data?: LogoutRequest, accessToken?: string): Promise<string> {
     return jsonPost<string>(`${AUTH}/logout`, data, accessToken);
 }
 
-/** POST /api/v1/auth/refresh — Exchanges refresh token for new tokens (rotation) */
 export function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/refresh`, data);
 }

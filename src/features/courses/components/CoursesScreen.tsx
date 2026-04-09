@@ -22,15 +22,11 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-            {/* Sidebar */}
             <AppSidebar />
 
-            {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
-                {/* Header */}
                 <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
-                {/* Page body */}
                 <div className="flex-1 overflow-y-auto w-full relative">
                     <div className="w-full max-w-4xl mx-auto px-6 py-12 lg:px-12 flex flex-col min-h-full pb-32">
                         {isLoading ? (
@@ -59,7 +55,6 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                     </div>
                 </div>
 
-                {/* Sticky Continue Bar */}
                 {!isLoading && data?.continueLesson && (
                     <ContinueLearningBar data={data.continueLesson} />
                 )}

@@ -77,7 +77,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
             await bookmarkArticle(article.id);
             setIsBookmarked(true);
         } catch {
-            // Keep the UI non-blocking if the backend rejects duplicate bookmark state.
         }
     }
 
@@ -113,9 +112,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">
-                        {/* Main content */}
                         <div className="flex-1 min-w-0">
-                            {/* Meta bar */}
                             <div className="flex items-center gap-4 mb-6">
                                 <Link href="/encyclopedia/results" className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0">
                                     <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,7 +137,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </button>
                             </div>
 
-                            {/* Tag chips */}
                             <div className="flex flex-wrap gap-2 mb-6">
                                 {article.tags.map(tag => (
                                     <span key={tag.slug} className="px-3 py-1 rounded-full bg-[#E5F0FF] text-[#1CA1F2] text-[12px] font-bold uppercase tracking-wider">
@@ -149,7 +145,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 ))}
                             </div>
 
-                            {/* Title */}
                             <h1 className="text-3xl font-extrabold text-[#1CA1F2] mb-6 leading-tight">
                                 {article.title}
                             </h1>
@@ -162,7 +157,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </div>
                             )}
 
-                            {/* Article sections */}
                             {article.sections.map(section => (
                                 <div key={section.id} id={section.id} className="mb-10 scroll-mt-6">
                                     <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-3">
@@ -170,7 +164,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                         {section.heading}
                                     </h2>
 
-                                    {/* Full-width content image — the SVG IS the article content */}
                                     {section.imageUrl && (
                                         <div className="w-full mb-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
                                             <Image
@@ -225,9 +218,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                             )}
                         </div>
 
-                        {/* Right sidebar */}
                         <div className="w-64 flex-shrink-0 hidden lg:flex flex-col gap-6">
-                            {/* Table of contents */}
                             <div className="sticky top-6">
                                 <div className="bg-gray-50 rounded-2xl p-5 mb-4">
                                     <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mục lục</h4>
@@ -247,7 +238,6 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                     </nav>
                                 </div>
 
-                                {/* Related articles */}
                                 <div>
                                     <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Bài viết liên quan</h4>
                                     <div className="flex flex-col gap-2.5">

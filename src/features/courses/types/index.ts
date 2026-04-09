@@ -12,7 +12,7 @@ export interface LessonNode {
         current: number;
         max: number;
     };
-    description?: string; // used for tests like "15 questions - need >= 70%"
+    description?: string;
 }
 
 export interface CourseSection {

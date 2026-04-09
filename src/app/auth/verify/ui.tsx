@@ -50,7 +50,6 @@ export function AuthVerifyClient() {
                 return;
             }
 
-            // Rate limit verification calls (helps avoid double-calls in dev StrictMode)
             const now = Date.now();
             if (lastVerifyTokenRef.current === token && now - lastVerifyAtRef.current < 200) {
                 return;

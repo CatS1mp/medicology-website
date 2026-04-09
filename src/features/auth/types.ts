@@ -1,4 +1,3 @@
-// ─── Request types ────────────────────────────────────────────────────────────
 
 export interface RegisterRequest {
     username: string;
@@ -33,7 +32,6 @@ export interface ResetPasswordRequest {
     confirmPassword: string;
 }
 
-// ─── Response types ───────────────────────────────────────────────────────────
 
 export interface UserProfile {
     displayName: string;
@@ -125,7 +123,6 @@ export interface ChangeCurrentPasswordRequest {
     confirmNewPassword: string;
 }
 
-// ─── Error type ───────────────────────────────────────────────────────────────
 
 export interface ApiErrorBody {
     status: number;

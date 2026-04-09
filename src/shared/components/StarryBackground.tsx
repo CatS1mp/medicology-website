@@ -57,17 +57,14 @@ export const StarryBackground: React.FC<StarryBackgroundProps> = ({
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
                 ctx.fill();
 
-                // Move stars slightly
                 star.x += star.vx;
                 star.y += star.vy;
 
-                // Twinkle effect
                 star.alpha += star.dAlpha;
                 if (star.alpha <= 0.1 || star.alpha >= 1) {
                     star.dAlpha = -star.dAlpha;
                 }
 
-                // Wrap around screen
                 if (star.x < 0) star.x = canvas.width;
                 if (star.x > canvas.width) star.x = 0;
                 if (star.y < 0) star.y = canvas.height;
@@ -77,12 +74,10 @@ export const StarryBackground: React.FC<StarryBackgroundProps> = ({
             animationFrameId = requestAnimationFrame(render);
         };
 
-        // Initial setup
         resize();
         initStars();
         render();
 
-        // Handle window resize
         let resizeTimeout: NodeJS.Timeout;
         const handleResize = () => {
             clearTimeout(resizeTimeout);
@@ -104,7 +99,7 @@ export const StarryBackground: React.FC<StarryBackgroundProps> = ({
         <canvas
             ref={canvasRef}
             className={`absolute inset-0 pointer-events-none block ${className}`}
-            style={{ display: 'block' }} // Prevent inline layout issues
+            style={{ display: 'block' }} 
         />
     );
 };

@@ -18,7 +18,6 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8 flex flex-col gap-5">
-            {/* Top row: Sorting dropdown */}
             <div className="flex items-center gap-3">
                 <span className="text-gray-500 text-[14px]">Sắp xếp theo:</span>
                 <select 
@@ -30,7 +29,6 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
                     <option value="Mới nhất">Mới nhất</option>
                     <option value="Đánh giá cao">Đánh giá cao</option>
                 </select>
-                {/* Custom chevron for select */}
                 <div className="absolute left-[200px] pointer-events-none">
                     <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -38,9 +36,7 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
                 </div>
             </div>
 
-            {/* Filter rows */}
             <div className="flex flex-col gap-4">
-                {/* Level */}
                 <div className="flex items-center gap-4">
                     <span className="text-gray-500 text-[14px] w-28 flex-shrink-0">Trình độ</span>
                     <div className="flex flex-wrap gap-2">
@@ -60,7 +56,6 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
                     </div>
                 </div>
 
-                {/* Category */}
                 <div className="flex items-center gap-4">
                     <span className="text-gray-500 text-[14px] w-28 flex-shrink-0">Chuyên khoa</span>
                     <div className="flex flex-wrap gap-2">
@@ -80,7 +75,6 @@ export const TopicFilters: React.FC<TopicFiltersProps> = ({ filters, onChange })
                     </div>
                 </div>
 
-                {/* Course count */}
                 <div className="flex items-center gap-4">
                     <span className="text-gray-500 text-[14px] w-28 flex-shrink-0">Số lượng Khóa học</span>
                     <div className="flex flex-wrap gap-2">

@@ -9,7 +9,7 @@ export interface ArticleSummary {
     id: string;
     slug: string;
     title: string;
-    subtitle: string; // category type (e.g. "ARTICLE · CARDIOVASCULAR HEALTH")
+    subtitle: string;
     excerpt: string;
     category: ArticleCategory;
     tags: ArticleTag[];
@@ -27,7 +27,7 @@ export interface TableOfContentsItem {
 export interface ArticleSection {
     id: string;
     heading: string;
-    content: string; // can contain HTML later from API
+    content: string;
     imageUrl?: string;
 }
 

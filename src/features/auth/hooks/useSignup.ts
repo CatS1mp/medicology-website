@@ -30,7 +30,6 @@ export function useSignup(): UseSignupReturn {
             router.push('/verify-email');
         } catch (err) {
             if (err instanceof ApiError) {
-                // If it's a 400, it's usually a validation error with a specific message
                 const msg = err.status === 400 ? err.body.message : `ERR_${err.status}`;
                 setError(msg);
                 showToast(err.body.message || 'Đã xảy ra lỗi khi đăng ký', 'error');

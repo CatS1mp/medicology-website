@@ -43,7 +43,6 @@ export function useProgress() {
             setStreak(data);
         } catch (err) {
             if (err instanceof LearningApiError) {
-                // If the user is unverified, redirect to verify-email
                 const isUnverified = err.status === 403 && (
                     err.message.toLowerCase().includes('verify') || 
                     err.message.toLowerCase().includes('xác thực')

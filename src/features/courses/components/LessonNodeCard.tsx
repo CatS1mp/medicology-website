@@ -9,7 +9,6 @@ interface LessonNodeCardProps {
 
 export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSection }) => {
     
-    // Status colors mapping
     const statusStyles: Record<LessonStatus, {
         border: string;
         bg: string;
@@ -55,7 +54,6 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
     const style = statusStyles[node.status];
     const isTest = node.type === 'test';
 
-    // The icon inside the circle (number or star)
     const renderIcon = () => {
         if (isTest) {
             return (
@@ -69,7 +67,6 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
         return <span className="font-bold text-lg">{num}</span>;
     };
 
-    // Right side actions or info (check, lock, chevron)
     const renderRightAction = () => {
         if (node.status === 'completed') {
             return (
@@ -97,21 +94,17 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
 
     const content = (
         <div className="relative pl-12 sm:pl-16 w-full max-w-2xl mx-auto mb-4">
-            {/* The vertical connecting line to the NEXT item */}
             {!isLastInSection && (
                 <div className="absolute left-[29px] sm:left-[45px] top-[60px] bottom-[-16px] w-[2px] bg-gray-200" />
             )}
 
-            {/* The Card */}
             <div className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm transition-transform hover:-translate-y-0.5 ${node.href ? 'cursor-pointer' : ''} ${style.border} ${style.bg}`}>
                 
                 <div className="flex items-center gap-4">
-                    {/* Index / Icon Box */}
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${style.iconBg} ${style.iconText}`}>
                         {renderIcon()}
                     </div>
 
-                    {/* Content */}
                     <div>
                         <h3 className={`text-[15px] font-bold mb-0.5 ${style.title}`}>
                             {node.title}
@@ -137,7 +130,6 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                     </div>
                 </div>
 
-                {/* Right Action */}
                 <div className="pr-2">
                     {renderRightAction()}
                 </div>

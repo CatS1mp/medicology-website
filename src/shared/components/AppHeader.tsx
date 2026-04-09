@@ -112,7 +112,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
 
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
-            {/* Search */}
             <div className="flex-1 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                 <IconSearch />
                 <input
@@ -122,17 +121,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                 />
             </div>
 
-            {/* Filter */}
             <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
                 <IconFilter />
             </button>
 
-            {/* Streak badge */}
             <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors">
                 <span className="text-orange-500 font-bold text-sm">🔥 {streak}</span>
             </button>
 
-            {/* Notification bell */}
             <button
                 type="button"
                 onClick={() => router.push('/notifications')}
@@ -142,7 +138,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
 
-            {/* Avatar + Dropdown */}
             <div className="relative" ref={menuRef}>
                 <button
                     type="button"

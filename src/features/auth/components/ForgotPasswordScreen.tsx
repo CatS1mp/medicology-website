@@ -24,9 +24,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-white">
-            {/* Top Header */}
             <header className="w-full bg-[#3b71ca] py-4 px-8 flex items-center justify-between">
-                {/* Logo */}
                 <div className="flex items-center text-white font-extrabold text-xl tracking-wide uppercase">
                     <svg className="w-8 h-8 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -34,7 +32,6 @@ export const ForgotPasswordScreen: React.FC = () => {
                     MEDICOLOGY
                 </div>
 
-                {/* Right Actions */}
                 <div className="flex items-center space-x-6">
                     <div className="text-white text-[11px] font-bold uppercase tracking-wider flex items-center cursor-pointer">
                         Site Language: English
@@ -53,7 +50,6 @@ export const ForgotPasswordScreen: React.FC = () => {
                 </div>
             </header>
 
-            {/* Main Content Area */}
             <main className="flex-1 flex flex-col items-center justify-center p-8">
                 <div className="w-full max-w-sm text-center">
                     <h1 className="text-2xl font-bold text-gray-800 mb-3">Forgot password</h1>
