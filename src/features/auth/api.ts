@@ -21,7 +21,6 @@ import {
 } from './types';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
-<<<<<<< HEAD
 // Backends on Azure/Heroku are reached directly via absolute URLs
 const BASE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || '';
 const AUTH = `${BASE_URL}/api/v1/auth`;
@@ -30,14 +29,6 @@ const PROFILES = `${BASE_URL}/api/profiles`;
 const SETTINGS = `${BASE_URL}/api/settings`;
 const OAUTH = `${BASE_URL}/api/oauth`;
 const SESSIONS = `${BASE_URL}/api/sessions`;
-=======
-const AUTH = `/api/v1/auth`;
-const USERS = `/api/users`;
-const PROFILES = `/api/profiles`;
-const SETTINGS = `/api/settings`;
-const OAUTH = `/api/oauth`;
-const SESSIONS = `/api/sessions`;
->>>>>>> 1fc27b8 (chore: clean code comments and sync auth resend api)
 
 function jsonPost<T>(url: string, data?: unknown, accessToken?: string): Promise<T> {
     return requestApi<T>(url, {
