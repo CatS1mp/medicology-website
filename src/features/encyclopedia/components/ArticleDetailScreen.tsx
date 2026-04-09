@@ -9,7 +9,16 @@ import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
 import { useArticle } from '../hooks/useEncyclopedia';
-import { bookmarkArticle, unbookmarkArticle } from '../api';
+import {
+    approveArticleComment,
+    bookmarkArticle,
+    createArticleComment,
+    getArticleComments,
+    replyArticleComment,
+    unbookmarkArticle,
+    voteComment,
+    type DictionaryCommentResponse,
+} from '../api';
 import type { ArticleComment } from '../types';
 
 interface ArticleDetailScreenProps {
@@ -21,12 +30,25 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [isBookmarked, setIsBookmarked] = useState(false);
     const [currentViewer, setCurrentViewer] = useState<{ id: string; name: string } | null>(null);
+    const [comments, setComments] = useState<ArticleComment[]>([]);
+    const [discussionText, setDiscussionText] = useState('');
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [replyOpenMap, setReplyOpenMap] = useState<Record<string, boolean>>({});
+    const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+    const [replySubmittingId, setReplySubmittingId] = useState<string | null>(null);
+    const [voteSubmittingId, setVoteSubmittingId] = useState<string | null>(null);
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
 
     React.useEffect(() => {
         setIsBookmarked(article?.isBookmarked ?? false);
     }, [article?.isBookmarked]);
+
+    React.useEffect(() => {
+        setComments(article?.comments ?? []);
+        setReplyOpenMap({});
+        setReplyDrafts({});
+    }, [article?.comments]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -64,6 +86,117 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
         if (comment.username?.trim()) return comment.username;
         if (currentViewer && comment.userId === currentViewer.id) return currentViewer.name;
         return 'Người dùng';
+    }
+
+    function mapComment(comment: DictionaryCommentResponse): ArticleComment {
+        return {
+            id: comment.id,
+            userId: comment.userId,
+            username: comment.username ?? undefined,
+            displayName: comment.displayName ?? undefined,
+            text: comment.commentText,
+            createdAt: comment.createdAt,
+            replies: (comment.replies ?? []).map(mapComment),
+        };
+    }
+
+    async function refreshComments(articleId: string) {
+        const latest = await getArticleComments(articleId);
+        setComments(latest.map(mapComment));
+    }
+
+    function formatRelativeTime(isoDate: string) {
+        const then = new Date(isoDate).getTime();
+        if (Number.isNaN(then)) return 'just now';
+        const diffSeconds = Math.round((then - Date.now()) / 1000);
+        const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+        const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+            ['year', 60 * 60 * 24 * 365],
+            ['month', 60 * 60 * 24 * 30],
+            ['week', 60 * 60 * 24 * 7],
+            ['day', 60 * 60 * 24],
+            ['hour', 60 * 60],
+            ['minute', 60],
+            ['second', 1],
+        ];
+
+        for (const [unit, seconds] of units) {
+            if (Math.abs(diffSeconds) >= seconds || unit === 'second') {
+                return formatter.format(Math.round(diffSeconds / seconds), unit);
+            }
+        }
+
+        return 'just now';
+    }
+
+    function getAvatarColor(id: string) {
+        const palette = ['bg-lime-500', 'bg-sky-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500', 'bg-cyan-500'];
+        let hash = 0;
+        for (let i = 0; i < id.length; i += 1) {
+            hash = (hash << 5) - hash + id.charCodeAt(i);
+            hash |= 0;
+        }
+        return palette[Math.abs(hash) % palette.length];
+    }
+
+    function getAvatarLabel(name: string) {
+        return name.trim().charAt(0).toUpperCase() || 'U';
+    }
+
+    async function handleSubmitComment() {
+        if (!article || isSubmittingComment) return;
+        const content = discussionText.trim();
+        if (!content) return;
+
+        setIsSubmittingComment(true);
+        try {
+            const createdCommentId = await createArticleComment(article.id, content);
+            await approveArticleComment(createdCommentId);
+            setDiscussionText('');
+            await refreshComments(article.id);
+        } catch {
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    }
+
+    function toggleReply(commentId: string) {
+        setReplyOpenMap((prev) => ({ ...prev, [commentId]: !prev[commentId] }));
+    }
+
+    function setReplyDraft(commentId: string, value: string) {
+        setReplyDrafts((prev) => ({ ...prev, [commentId]: value }));
+    }
+
+    async function handleSubmitReply(commentId: string) {
+        if (!article || replySubmittingId) return;
+        const content = (replyDrafts[commentId] ?? '').trim();
+        if (!content) return;
+
+        setReplySubmittingId(commentId);
+        try {
+            const createdReplyId = await replyArticleComment(commentId, content);
+            await approveArticleComment(createdReplyId);
+            setReplyDraft(commentId, '');
+            setReplyOpenMap((prev) => ({ ...prev, [commentId]: false }));
+            await refreshComments(article.id);
+        } catch {
+        } finally {
+            setReplySubmittingId(null);
+        }
+    }
+
+    async function handleVote(commentId: string, type: 'UPVOTE' | 'DOWNVOTE') {
+        if (voteSubmittingId) return;
+
+        setVoteSubmittingId(commentId);
+        try {
+            await voteComment(commentId, type);
+        } catch {
+        } finally {
+            setVoteSubmittingId(null);
+        }
     }
 
     async function handleToggleBookmark() {
@@ -192,30 +325,139 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </div>
                             ))}
 
-                            {!!article.comments?.length && (
-                                <div className="mb-10">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Thảo luận</h2>
-                                    <div className="space-y-3">
-                                        {article.comments.map((comment) => (
-                                            <div key={comment.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                                <p className="text-sm font-semibold text-gray-800">{getCommentAuthorName(comment)}</p>
-                                                <p className="mt-1 text-sm text-gray-600">{comment.text}</p>
-                                                <p className="mt-2 text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString('vi-VN')}</p>
-                                                {!!comment.replies.length && (
-                                                    <div className="mt-3 space-y-2 border-l border-gray-200 pl-4">
-                                                        {comment.replies.map((reply) => (
-                                                            <div key={reply.id}>
-                                                                <p className="text-sm font-medium text-gray-700">{getCommentAuthorName(reply)}</p>
-                                                                <p className="text-sm text-gray-600">{reply.text}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                            <div className="mb-10 overflow-x-hidden rounded-3xl border border-gray-200 bg-[#f5f5f5] p-6 md:p-8">
+                                <h2 className="mb-2 text-[34px] font-extrabold leading-none text-[#e78d14]">Discussion</h2>
+                                <p className="mb-6 text-sm text-gray-400">Share your thoughts, ask questions, or discuss this topic with the community.</p>
+
+                                <div className="mb-6 flex items-start gap-3">
+                                    <div className="h-11 w-11 rounded-full bg-lime-500 text-center text-sm font-bold leading-[44px] text-white">You</div>
+                                    <div className="min-w-0 flex-1">
+                                        <textarea
+                                            value={discussionText}
+                                            onChange={(event) => setDiscussionText(event.target.value)}
+                                            placeholder="Share your thoughts or ask a question..."
+                                            rows={4}
+                                            className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-[#8cc63f]"
+                                        />
+                                        <div className="mt-3 flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={handleSubmitComment}
+                                                disabled={isSubmittingComment || !discussionText.trim()}
+                                                className="rounded-xl bg-[#68d125] px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-[#57b11f] disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {isSubmittingComment ? 'Posting...' : 'Post comment'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            )}
+
+                                <div className="space-y-4">
+                                    {!comments.length && (
+                                        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-5 text-sm text-gray-500">
+                                            Chưa có bình luận được duyệt. Hãy bắt đầu thảo luận.
+                                        </div>
+                                    )}
+
+                                    {comments.map((comment) => {
+                                        const authorName = getCommentAuthorName(comment);
+                                        const isReplyOpen = !!replyOpenMap[comment.id];
+                                        const isReplyBusy = replySubmittingId === comment.id;
+
+                                        return (
+                                            <div key={comment.id} className="overflow-hidden rounded-2xl border border-gray-300 bg-white p-4 shadow-sm">
+                                                <div className="flex gap-3">
+                                                    <div className={`h-10 w-10 shrink-0 rounded-full text-center text-sm font-bold leading-10 text-white ${getAvatarColor(comment.id)}`}>
+                                                        {getAvatarLabel(authorName)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-base font-semibold text-gray-800">{authorName}</p>
+                                                        <p className="text-xs text-gray-400">{formatRelativeTime(comment.createdAt)}</p>
+                                                        <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-gray-600 [overflow-wrap:anywhere]">{comment.text}</p>
+
+                                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleVote(comment.id, 'UPVOTE')}
+                                                                disabled={voteSubmittingId === comment.id}
+                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
+                                                            >
+                                                                👍 Like
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleVote(comment.id, 'DOWNVOTE')}
+                                                                disabled={voteSubmittingId === comment.id}
+                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
+                                                            >
+                                                                👎 Dislike
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleReply(comment.id)}
+                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100"
+                                                            >
+                                                                Reply {comment.replies.length > 0 ? `(${comment.replies.length})` : ''}
+                                                            </button>
+                                                        </div>
+
+                                                        {isReplyOpen && (
+                                                            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                                                <textarea
+                                                                    value={replyDrafts[comment.id] ?? ''}
+                                                                    onChange={(event) => setReplyDraft(comment.id, event.target.value)}
+                                                                    placeholder="Write your reply..."
+                                                                    rows={3}
+                                                                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-[#8cc63f]"
+                                                                />
+                                                                <div className="mt-2 flex justify-end gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleReply(comment.id)}
+                                                                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSubmitReply(comment.id)}
+                                                                        disabled={isReplyBusy || !(replyDrafts[comment.id] ?? '').trim()}
+                                                                        className="rounded-lg bg-[#68d125] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                                    >
+                                                                        {isReplyBusy ? 'Sending...' : 'Reply'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {!!comment.replies.length && (
+                                                            <div className="mt-4 space-y-3 border-l-2 border-sky-300 pl-4">
+                                                                {comment.replies.map((reply) => {
+                                                                    const replyAuthor = getCommentAuthorName(reply);
+                                                                    return (
+                                                                        <div key={reply.id} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className={`h-8 w-8 shrink-0 rounded-full text-center text-xs font-bold leading-8 text-white ${getAvatarColor(reply.id)}`}>
+                                                                                    {getAvatarLabel(replyAuthor)}
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="text-sm font-semibold text-gray-800">{replyAuthor}</p>
+                                                                                    <p className="text-[11px] text-gray-400">{formatRelativeTime(reply.createdAt)}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600 [overflow-wrap:anywhere]">{reply.text}</p>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="w-64 flex-shrink-0 hidden lg:flex flex-col gap-6">

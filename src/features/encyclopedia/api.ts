@@ -132,6 +132,10 @@ export function replyArticleComment(commentId: string, commentText: string): Pro
     return postJson<string>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/reply`, { commentText });
 }
 
+export function approveArticleComment(commentId: string): Promise<void> {
+    return postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/approve`);
+}
+
 export function voteComment(commentId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<void> {
     return postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/vote`, { voteType });
 }
