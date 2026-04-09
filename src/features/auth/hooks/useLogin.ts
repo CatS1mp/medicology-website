@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, resendVerificationEmail } from '../api';
+import { login, resend } from '../api';
 import { ApiError, LoginRequest } from '../types';
 import { persistAuthSession } from '../session';
 import { useToast } from '@/shared/contexts/ToastContext';
@@ -39,7 +39,7 @@ export function useLogin(): UseLoginReturn {
                 if (isUnverified) {
                     sessionStorage.setItem('pendingVerifyEmail', data.email);
                     // Automatically trigger resend
-                    void resendVerificationEmail(data.email).catch(console.error);
+                    void resend(data.email).catch(console.error);
                     showToast('Tài khoản chưa xác thực. Một email mới đã được gửi!', 'info');
                     router.push('/verify-email');
                     return;

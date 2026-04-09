@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { resendVerificationEmail } from '../api';
+import { resend } from '../api';
 import { ApiError } from '../types';
 
 interface UseVerifyEmailReturn {
@@ -30,7 +30,7 @@ export function useVerifyEmail(): UseVerifyEmailReturn {
         setIsResendSuccess(false);
         setIsResending(true);
         try {
-            await resendVerificationEmail(email);
+            await resend(email);
             setIsResendSuccess(true);
             showToast('Email xác thực đã được gửi lại!', 'success');
         } catch (err) {

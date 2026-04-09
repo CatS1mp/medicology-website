@@ -122,7 +122,7 @@ export function verifyEmail(token: string): Promise<string> {
 }
 
 /** POST /api/v1/auth/resend?email= — Resends verification email */
-export function requestEmailToken(email: string): Promise<string> {
+export function resend(email: string): Promise<string> {
     return requestApi<string>(`${AUTH}/resend?email=${encodeURIComponent(email)}`, {
         method: 'POST',
         headers: buildHeaders({ includeJsonContentType: false }),
@@ -130,6 +130,8 @@ export function requestEmailToken(email: string): Promise<string> {
         throw normalizeAuthError(error);
     });
 }
+
+export { resend as resendVerificationEmail };
 
 /** POST /api/v1/auth/reset/request?email= — Sends password reset email */
 export function requestPasswordReset(email: string): Promise<string> {
