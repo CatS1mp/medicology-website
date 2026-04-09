@@ -5,8 +5,8 @@ interface ProxyConfig {
     upstreamBasePath: string;
 }
 
-function buildTargetUrl(req: NextRequest, params: { path: string[] }, config: ProxyConfig) {
-    const pathname = params.path.join('/');
+function buildTargetUrl(req: NextRequest, pathSegments: string[], config: ProxyConfig) {
+    const pathname = pathSegments.join('/');
     const suffix = pathname ? `/${pathname}` : '';
     const search = req.nextUrl.search ?? '';
     return `${config.backendUrl}${config.upstreamBasePath}${suffix}${search}`;
@@ -14,10 +14,10 @@ function buildTargetUrl(req: NextRequest, params: { path: string[] }, config: Pr
 
 export async function proxyToBackend(
     req: NextRequest,
-    params: { path: string[] },
+    params: { path?: string[] },
     config: ProxyConfig
 ) {
-    const targetUrl = buildTargetUrl(req, params, config);
+    const targetUrl = buildTargetUrl(req, params.path ?? [], config);
     const headers = new Headers();
     const contentType = req.headers.get('content-type');
     const authorization = req.headers.get('authorization');
