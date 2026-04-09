@@ -25,7 +25,7 @@ export const LearningResultsChart: React.FC<LearningResultsChartProps> = ({ data
     const yScale = (v: number) => PADDING.top + plotH - (v / maxVal) * plotH;
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm w-full">
             <div className="flex items-center justify-between mb-1">
                 <h3 className="text-sm font-bold text-gray-900">Kết quả học tập</h3>
             </div>

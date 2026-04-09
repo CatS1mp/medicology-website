@@ -110,29 +110,47 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
         onLogout?.();
     };
 
+    const handleToggleSidebar = () => {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(new Event('app:toggle-sidebar'));
+    };
+
     return (
-        <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
-            <div className="flex-1 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+        <header className="flex items-center gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:gap-3 sm:px-4 md:px-6 md:py-4">
+            <button
+                type="button"
+                onClick={handleToggleSidebar}
+                className="inline-flex lg:hidden p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                aria-label="Mở menu"
+            >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                    <path d="M3 6h18" />
+                    <path d="M3 12h18" />
+                    <path d="M3 18h18" />
+                </svg>
+            </button>
+
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
                 <IconSearch />
                 <input
                     type="text"
                     placeholder="Tìm kiếm..."
-                    className="flex-1 bg-transparent text-base text-gray-700 placeholder:text-gray-400 outline-none"
+                    className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 outline-none sm:text-base"
                 />
             </div>
 
-            <button className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
+            <button className="hidden p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors sm:inline-flex">
                 <IconFilter />
             </button>
 
-            <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors">
+            <button className="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors md:inline-flex">
                 <span className="text-orange-500 font-bold text-sm">🔥 {streak}</span>
             </button>
 
             <button
                 type="button"
                 onClick={() => router.push('/notifications')}
-                className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative"
+                className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
             >
                 <IconBell />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />

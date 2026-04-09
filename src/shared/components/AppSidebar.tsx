@@ -75,6 +75,7 @@ const navGroups: NavGroup[] = [
 export const AppSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [courseLinks, setCourseLinks] = useState<Array<{ slug: string; label: string }>>([]);
 
     const isInCourses = pathname?.startsWith('/courses');
@@ -87,17 +88,13 @@ export const AppSidebar: React.FC = () => {
             try {
                 const courses = await getEnrolledCourses();
                 if (cancelled) return;
-                setCourseLinks(
-                    courses
-                        .slice(0, 3)
-                        .map((course) => ({ slug: course.slug, label: course.name }))
-                );
+                setCourseLinks(courses.slice(0, 3).map((course) => ({ slug: course.slug, label: course.name })));
             } catch {
                 if (!cancelled) setCourseLinks([]);
             }
         }
 
-        loadEnrolledCourses();
+        void loadEnrolledCourses();
         window.addEventListener('learning:courses-changed', loadEnrolledCourses);
         return () => {
             cancelled = true;
@@ -105,30 +102,38 @@ export const AppSidebar: React.FC = () => {
         };
     }, []);
 
-    return (
-        <aside className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                <Link href="/dashboard" className="flex items-center">
-                    <MedicologyLogo collapsed={collapsed} />
-                </Link>
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors ml-auto"
-                    aria-label="Toggle sidebar"
-                >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        {collapsed ? <path d="M8 4l8 8-8 8V4z" /> : <path d="M16 4l-8 8 8 8V4z" />}
-                    </svg>
-                </button>
-            </div>
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
 
+        const handleToggleSidebar = () => {
+            setMobileOpen((prev) => !prev);
+        };
+
+        window.addEventListener('app:toggle-sidebar', handleToggleSidebar);
+        return () => {
+            window.removeEventListener('app:toggle-sidebar', handleToggleSidebar);
+        };
+    }, []);
+
+    React.useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
+
+    React.useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.style.overflow = mobileOpen ? 'hidden' : '';
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [mobileOpen]);
+
+    function renderNav(isMobile: boolean) {
+        return (
             <nav className="flex-1 overflow-y-auto py-5 px-4 font-sans">
                 {navGroups.map((group, groupIdx) => (
                     <div key={group.title} className={groupIdx !== 0 ? 'mt-8' : ''}>
-                        {!collapsed && (
-                            <p className="text-[13px] font-medium text-gray-400 uppercase tracking-wide px-3 mb-3">
-                                {group.title}
-                            </p>
+                        {(isMobile || !collapsed) && (
+                            <p className="text-[13px] font-medium text-gray-400 uppercase tracking-wide px-3 mb-3">{group.title}</p>
                         )}
                         <div className="space-y-1">
                             {group.items.map((item) => {
@@ -141,20 +146,16 @@ export const AppSidebar: React.FC = () => {
                                         ? !!pathname?.startsWith('/encyclopedia')
                                         : isProfile
                                             ? !!pathname?.startsWith('/profile')
-                                        : pathname === item.href;
+                                            : pathname === item.href;
 
                                 return (
                                     <div key={item.label}>
                                         <Link
                                             href={item.href}
-                                            className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${
-                                                isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'
-                                            }`}
+                                            className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                                         >
-                                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
-                                                {item.icon}
-                                            </span>
-                                            {!collapsed && (
+                                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">{item.icon}</span>
+                                            {(isMobile || !collapsed) && (
                                                 <>
                                                     <span className="flex-1 truncate">{item.label}</span>
                                                     {isCourses && (
@@ -175,7 +176,7 @@ export const AppSidebar: React.FC = () => {
                                             )}
                                         </Link>
 
-                                        {isCourses && !collapsed && coursesOpen && (
+                                        {isCourses && (isMobile || !collapsed) && coursesOpen && (
                                             <div className="relative mt-2 mb-2">
                                                 <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />
                                                 <div className="flex flex-col">
@@ -185,21 +186,13 @@ export const AppSidebar: React.FC = () => {
 
                                                         return (
                                                             <div key={course.slug} className="relative py-[9px] pl-[52px] pr-3">
-                                                                {!isLast && (
-                                                                    <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
-                                                                )}
-                                                                {isLast && (
-                                                                    <div className="absolute left-[23px] top-1/2 w-[2px] bg-[#4147D5]" />
-                                                                )}
+                                                                {!isLast && <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />}
+                                                                {isLast && <div className="absolute left-[23px] top-1/2 w-[2px] bg-[#4147D5]" />}
                                                                 <div className="absolute left-[23px] top-0 h-1/2 w-[20px] border-l-[2px] border-b-[2px] border-[#4147D5] rounded-bl-[14px]" />
 
                                                                 <div className="flex items-center gap-3 justify-between">
                                                                     <span
-                                                                        className={`block text-[15px] leading-tight transition-colors font-medium ${
-                                                                            isCourseActive
-                                                                                ? 'text-[#4147D5]'
-                                                                                : 'text-[#344054]'
-                                                                        }`}
+                                                                        className={`block text-[15px] leading-tight transition-colors font-medium ${isCourseActive ? 'text-[#4147D5]' : 'text-[#344054]'}`}
                                                                     >
                                                                         {course.label}
                                                                     </span>
@@ -223,6 +216,58 @@ export const AppSidebar: React.FC = () => {
                     </div>
                 ))}
             </nav>
-        </aside>
+        );
+    }
+
+    return (
+        <>
+            <aside className={`relative hidden lg:flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                    <Link href="/dashboard" className="flex items-center">
+                        <MedicologyLogo collapsed={collapsed} />
+                    </Link>
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors ml-auto"
+                        aria-label="Thu gọn thanh điều hướng"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            {collapsed ? <path d="M8 4l8 8-8 8V4z" /> : <path d="M16 4l-8 8 8 8V4z" />}
+                        </svg>
+                    </button>
+                </div>
+                {renderNav(false)}
+            </aside>
+
+            {mobileOpen && (
+                <div className="fixed inset-0 z-[60] lg:hidden">
+                    <button
+                        type="button"
+                        aria-label="Đóng menu"
+                        onClick={() => setMobileOpen(false)}
+                        className="absolute inset-0 bg-black/40"
+                    />
+                    <aside className="relative z-[61] flex h-full w-[86%] max-w-[320px] flex-col bg-white shadow-2xl">
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                            <Link href="/dashboard" className="flex items-center">
+                                <MedicologyLogo collapsed={false} />
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={() => setMobileOpen(false)}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                                aria-label="Đóng menu"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 6L6 18" />
+                                    <path d="M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        {renderNav(true)}
+                    </aside>
+                </div>
+            )}
+        </>
     );
 };

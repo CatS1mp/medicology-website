@@ -15,14 +15,14 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
     const canNext = startIndex + 3 < courses.length;
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-bold text-gray-900">Học tiếp thôi nào!</h3>
                 <div className="flex items-center gap-1.5">
                     <button
                         onClick={() => setStartIndex(Math.max(0, startIndex - 1))}
                         disabled={!canPrev}
-                        className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${canPrev ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-gray-100 text-gray-300 cursor-default'
+                        className={`h-7 w-7 rounded-full border flex items-center justify-center transition-colors ${canPrev ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-gray-100 text-gray-300 cursor-default'
                             }`}
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -32,7 +32,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                     <button
                         onClick={() => setStartIndex(Math.min(courses.length - 3, startIndex + 1))}
                         disabled={!canNext}
-                        className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${canNext ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-gray-100 text-gray-300 cursor-default'
+                        className={`h-7 w-7 rounded-full border flex items-center justify-center transition-colors ${canNext ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-gray-100 text-gray-300 cursor-default'
                             }`}
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -42,7 +42,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {visible.map((course) => (
                     <div
                         key={course.id}

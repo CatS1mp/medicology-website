@@ -141,17 +141,17 @@ export const DashboardScreen: React.FC = () => {
     const effectiveStreak = streakDays ?? 0;
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        <div className="flex h-dvh min-h-screen bg-gray-50 overflow-hidden">
             <AppSidebar />
 
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AppHeader streak={effectiveStreak} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="flex flex-col gap-5 p-5 min-h-full">
+                    <div className="flex min-h-full flex-col gap-4 p-3 sm:gap-5 sm:p-5">
                         <HeroBanner userName={userName} />
 
-                        <div className="flex gap-5">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:gap-5">
                             <div className="flex-1 min-w-0 flex flex-col gap-5">
                                 <div>
                                     <h2 className="text-sm font-bold text-gray-800 mb-3">Thống kê</h2>
@@ -176,7 +176,7 @@ export const DashboardScreen: React.FC = () => {
                                 <ContinueLearning courses={courseCards} />
                             </div>
 
-                            <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+                            <div className="flex w-full flex-col gap-4 xl:w-72 xl:flex-shrink-0">
                                 <LearningResultsChart
                                     data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
                                     currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}

@@ -22,35 +22,27 @@ const Sparkle = ({ size, style }: { size: number; style: React.CSSProperties }) 
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
     return (
-        <div style={{ position: 'relative', marginBottom: '120px' }}>
+        <div className="relative mb-4 md:mb-14">
             <div
-                style={{
-                    position: 'relative',
-                    height: '220px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(90deg, #3B8BF5 0%, #62C8FF 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 44px',
-                    overflow: 'hidden',
-                }}
+                className="relative flex min-h-[190px] items-center overflow-hidden rounded-2xl px-4 py-5 sm:min-h-[220px] sm:px-7 md:px-10"
+                style={{ background: 'linear-gradient(90deg, #3B8BF5 0%, #62C8FF 100%)' }}
             >
-                <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', width: 320, height: 320, top: -100, right: 310, pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', width: 200, height: 200, bottom: -70, right: 280, pointerEvents: 'none' }} />
+                <div className="pointer-events-none absolute -top-20 right-[10%] h-64 w-64 rounded-full bg-white/15 sm:h-80 sm:w-80" />
+                <div className="pointer-events-none absolute -bottom-16 right-[6%] h-40 w-40 rounded-full bg-white/10 sm:h-52 sm:w-52" />
 
-                <Sparkle size={56} style={{ top: 16, right: 420, animation: 'twinkle 2.4s ease-in-out infinite' }} />
-                <Sparkle size={34} style={{ bottom: 18, right: 390, animation: 'twinkle 3.2s ease-in-out infinite 0.6s' }} />
-                <Sparkle size={22} style={{ top: 42, right: 370, animation: 'twinkle 1.8s ease-in-out infinite 0.2s' }} />
+                <Sparkle size={40} style={{ top: 14, right: '30%', animation: 'twinkle 2.4s ease-in-out infinite' }} />
+                <Sparkle size={28} style={{ bottom: 20, right: '26%', animation: 'twinkle 3.2s ease-in-out infinite 0.6s' }} />
+                <Sparkle size={18} style={{ top: 44, right: '23%', animation: 'twinkle 1.8s ease-in-out infinite 0.2s' }} />
 
-                <div style={{ position: 'relative', zIndex: 1, maxWidth: 420 }}>
-                    <p style={{ color: 'rgba(219,234,254,0.95)', fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
+                <div className="relative z-[1] max-w-[600px] pr-2 sm:max-w-[440px]">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:mb-2.5 sm:text-[11px]">
                         KIẾN THỨC SỨC KHỎE
                     </p>
-                    <h2 style={{ color: 'white', fontSize: 21, fontWeight: 800, lineHeight: 1.4, marginBottom: 22 }}>
+                    <h2 className="mb-4 text-lg font-extrabold leading-[1.35] text-white sm:mb-5 sm:text-[21px]">
                         Xin chào, {userName}! Hãy Nâng cao hiểu biết y tế với các khóa học trực tuyến của Medicology
                     </h2>
                     <button
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', color: '#2563EB', fontWeight: 700, fontSize: 13, padding: '10px 22px', borderRadius: 999, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', color: '#2563EB', fontWeight: 700, fontSize: 13, padding: '10px 18px', borderRadius: 999, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', transition: 'transform 0.2s, box-shadow 0.2s' }}
                         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)'; }}
                         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)'; }}
                     >
@@ -63,20 +55,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
             </div>
 
             <div
-                style={{
-                    position: 'absolute',
-                    right: 380,
-                    bottom: '-110px',
-                    width: '420px',
-                    height: '420px',
-                    backgroundImage: 'url(/images/Mascot/5.svg)',
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'bottom center',
-                    zIndex: 10,
-                    filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.15))',
-                    pointerEvents: 'none',
-                }}
+                className="pointer-events-none absolute bottom-[-64px] right-[2%] hidden h-[250px] w-[250px] bg-contain bg-bottom bg-no-repeat drop-shadow-[0_8px_20px_rgba(0,0,0,0.15)] sm:block md:bottom-[-92px] md:h-[340px] md:w-[340px]"
+                style={{ backgroundImage: 'url(/images/Mascot/5.svg)' }}
             />
         </div>
     );

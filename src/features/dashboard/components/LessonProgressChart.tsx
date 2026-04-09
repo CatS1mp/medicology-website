@@ -111,11 +111,11 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
     const arrowY = tooltipY + tooltipH;
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm" style={{ overflow: 'visible' }}>
-            <div className="flex items-start justify-between mb-3">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm" style={{ overflow: 'visible' }}>
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <div className="flex items-center gap-2">
-                        <span className="text-3xl font-extrabold text-gray-900">{totalLessons} Bài học</span>
+                        <span className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{totalLessons} Bài học</span>
                         <span className="flex items-center gap-1 text-blue-500 text-sm font-semibold">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M7 14l5-5 5 5H7z" />
@@ -124,12 +124,12 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">+{rangeDelta} bài trong {activeRange === 'last7' ? '7' : '14'} ngày gần đây</p>
                 </div>
-                <div className="flex items-center gap-1 text-sm">
+                <div className="flex flex-wrap items-center gap-1 text-sm">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => handleTabChange(tab.key)}
-                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${activeRange === tab.key ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-700'} ${isLoading ? 'opacity-80' : ''}`}
+                            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${activeRange === tab.key ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-700'} ${isLoading ? 'opacity-80' : ''}`}
                         >
                             {isLoading && activeRange !== tab.key ? 'Đang tải...' : tab.label}
                         </button>
