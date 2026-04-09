@@ -33,7 +33,6 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                     const accentColor = normalizeColor(item.color);
                     return (
                         <div key={item.id} className="flex items-center gap-3">
-                            {/* Icon */}
                             <div
                                 className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm"
                                 style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
@@ -41,7 +40,6 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                                 {item.icon}
                             </div>
 
-                            {/* Label + Bar */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
                                     <p className="text-xs font-medium text-gray-800 truncate">{item.subject}</p>
@@ -66,7 +64,6 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                 })}
             </div>
 
-            {/* View all link */}
             <div className="mt-3 text-center">
                 <button className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors">
                     Xem tất cả &rsaquo;

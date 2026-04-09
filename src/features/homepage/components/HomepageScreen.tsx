@@ -23,7 +23,6 @@ export const HomepageScreen = () => {
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* Top Bar Header */}
             <header className="bg-[#153e6b] relative z-20 w-full flex justify-between items-center px-8 md:px-24 py-4 font-sans shadow-md border-b border-[#ffffff1a]">
                 <div className="flex items-center">
                     <Image
@@ -40,7 +39,6 @@ export const HomepageScreen = () => {
                 </div>
             </header>
 
-            {/* Hero Section */}
             <section className="bg-[#1f5793] text-white min-h-[60vh] relative overflow-hidden">
                 <div className="absolute inset-0 overflow-hidden">
                     <StarryBackground starCount={150} />
@@ -48,17 +46,13 @@ export const HomepageScreen = () => {
                 </div>
 
                 <div className="container mx-auto px-4 py-12 md:py-20 relative z-10 flex flex-col h-full">
-                    {/* Hero Content */}
                     <div className="flex flex-col md:flex-row items-center justify-center flex-1 mt-0 gap-12 md:gap-24 h-full max-w-7xl mx-auto">
                         <div className="w-full md:w-1/2 flex justify-center md:justify-end">
-                            {/* Globe and Robot illustration */}
                             <div className="relative w-[320px] h-[320px] md:w-[600px] md:h-[600px] flex items-center justify-center">
                                 <div className="absolute inset-4 md:inset-12 bg-green-500 rounded-full opacity-30 blur-3xl z-0"></div>
 
-                                {/* Earth Aura Glow - layered to match reference images */}
                                 <div className="absolute w-[300px] h-[300px] md:w-[600px] md:h-[600px] -left-20 md:-left-48 top-1/2 -translate-y-1/2 bg-blue-500 rounded-full opacity-50 blur-3xl z-0 pointer-events-none"></div>
 
-                                {/* Earth Image */}
                                 <div className="absolute z-0 w-[200px] h-[200px] md:w-[400px] md:h-[400px] -left-12 md:-left-24 top-1/2 -translate-y-1/2 opacity-90 drop-shadow-2xl transition-transform duration-300 hover:scale-110 hover:animate-shake cursor-pointer">
                                     <Image
                                         src="/images/Others/earth.png"
@@ -69,7 +63,6 @@ export const HomepageScreen = () => {
                                     />
                                 </div>
 
-                                {/* Mascot Image */}
                                 <div className="relative z-10 w-[240px] h-[240px] md:w-[450px] md:h-[450px] transition-transform duration-300 hover:scale-110 hover:animate-shake cursor-pointer">
                                     <Image
                                         src="/images/Mascot/13 1.svg"
@@ -105,7 +98,6 @@ export const HomepageScreen = () => {
                 </div>
             </section>
 
-            {/* Categories Navigation */}
             <nav className="bg-[#10345d] text-[#b0c4df] py-5 shadow-lg z-20 sticky top-0 border-b border-[#1f5793]">
                 <div className="w-full flex justify-center items-center relative">
                     <div
@@ -149,7 +141,6 @@ export const HomepageScreen = () => {
             <main className="flex-1 bg-white text-gray-800">
                 <div className="container mx-auto px-4 py-16 space-y-24">
 
-                    {/* Intro section */}
                     <section className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-0 max-w-5xl mx-auto px-4 md:px-0">
                         <div className="w-full md:w-1/2 flex justify-center md:justify-center shrink-0">
                             <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] scale-110 md:scale-125">
@@ -171,7 +162,6 @@ export const HomepageScreen = () => {
                         </div>
                     </section>
 
-                    {/* Why Section */}
                     <section className="text-center max-w-6xl mx-auto">
                         <h2 className="text-3xl font-extrabold mb-16 text-gray-800">Lý do người học sẽ yêu thích việc học cùng Medicology</h2>
 
@@ -231,7 +221,6 @@ export const HomepageScreen = () => {
                         </div>
                     </section>
 
-                    {/* Knowledge Test Break */}
                     <section className="border-t-2 border-b-2 border-gray-100 py-20 my-12">
                         <div className="flex flex-col md:flex-row items-center justify-between max-w-5xl mx-auto gap-12 md:gap-24">
                             <div className="w-full md:w-1/2 md:pl-12">
@@ -259,7 +248,6 @@ export const HomepageScreen = () => {
                         </div>
                     </section>
 
-                    {/* Courses */}
                     <section className="flex flex-col lg:flex-row items-center justify-center max-w-6xl mx-auto gap-8 lg:gap-16 px-4 md:px-0 mb-16">
                         <div className="w-full lg:w-5/12 flex justify-center lg:justify-end shrink-0">
                             <div className="relative w-[220px] h-[220px] md:w-[320px] md:h-[320px]">
@@ -286,7 +274,6 @@ export const HomepageScreen = () => {
                 </div>
             </main>
 
-            {/* Footer pre-banner */}
             <section className="bg-[#1f5793] text-white py-16 flex flex-col items-center justify-center relative overflow-hidden">
                 <StarryBackground className="opacity-70" starCount={50} />
                 <div className="absolute inset-0 bg-black opacity-10 mix-blend-multiply"></div>
@@ -301,7 +288,6 @@ export const HomepageScreen = () => {
                 </div>
             </section>
 
-            {/* Footer */}
             <footer className="bg-[#153e6b] text-white py-12 relative overflow-hidden text-sm">
                 <StarryBackground className="opacity-50" starCount={80} />
                 <div className="absolute inset-0 bg-black opacity-10 mix-blend-multiply"></div>

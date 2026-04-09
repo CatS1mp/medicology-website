@@ -107,7 +107,6 @@ export const AppSidebar: React.FC = () => {
 
     return (
         <aside className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
-            {/* Logo */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                 <Link href="/dashboard" className="flex items-center">
                     <MedicologyLogo collapsed={collapsed} />
@@ -123,7 +122,6 @@ export const AppSidebar: React.FC = () => {
                 </button>
             </div>
 
-            {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-5 px-4 font-sans">
                 {navGroups.map((group, groupIdx) => (
                     <div key={group.title} className={groupIdx !== 0 ? 'mt-8' : ''}>
@@ -137,7 +135,6 @@ export const AppSidebar: React.FC = () => {
                                 const isCourses = item.label === 'Khoá học của bạn';
                                 const isEncyclopedia = item.label === 'Bách khoa Y học';
                                 const isProfile = item.label === 'Hồ sơ cá nhân';
-                                // Highlight parent for all sub-routes
                                 const isActive = isCourses
                                     ? !!isInCourses
                                     : isEncyclopedia
@@ -148,7 +145,6 @@ export const AppSidebar: React.FC = () => {
 
                                 return (
                                     <div key={item.label}>
-                                        {/* Main nav item */}
                                         <Link
                                             href={item.href}
                                             className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${
@@ -179,7 +175,6 @@ export const AppSidebar: React.FC = () => {
                                             )}
                                         </Link>
 
-                                        {/* Sub-items: list of enrolled courses from data layer */}
                                         {isCourses && !collapsed && coursesOpen && (
                                             <div className="relative mt-2 mb-2">
                                                 <div className="absolute left-[23px] top-[-8px] h-[8px] w-[2px] bg-[#4147D5]" />

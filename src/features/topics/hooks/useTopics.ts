@@ -51,7 +51,6 @@ export const useTopics = () => {
         };
     }, []);
 
-    // Simulate API filtering and sorting
     const filteredTopics = useMemo(() => {
         let result = [...allTopics];
 
@@ -64,7 +63,6 @@ export const useTopics = () => {
         }
 
         if (filters.courseCount !== 'Tất cả') {
-            // Only apply when backend provides courseCount.
             if (result.some((t) => typeof t.courseCount === 'number')) {
                 if (filters.courseCount === '1-3 khóa học') result = result.filter(t => (t.courseCount ?? 0) >= 1 && (t.courseCount ?? 0) <= 3);
                 if (filters.courseCount === '4-7 khóa học') result = result.filter(t => (t.courseCount ?? 0) >= 4 && (t.courseCount ?? 0) <= 7);
@@ -79,7 +77,6 @@ export const useTopics = () => {
         return result;
     }, [allTopics, filters]);
 
-    // Simulate pagination
     const totalPages = Math.ceil(filteredTopics.length / limit);
     const paginatedTopics = filteredTopics.slice((page - 1) * limit, page * limit);
 

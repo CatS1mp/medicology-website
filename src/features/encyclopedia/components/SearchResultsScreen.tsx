@@ -24,11 +24,9 @@ export const SearchResultsScreen: React.FC = () => {
     const { results, filters, setFilters, search, isLoading } = useEncyclopediaSearch(initialQuery);
     const [inputValue, setInputValue] = useState(initialQuery);
 
-    // Sync input with URL query param changes
     useEffect(() => {
         setInputValue(initialQuery);
         search(initialQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialQuery]);
 
     const handleSearch = () => {
@@ -37,7 +35,6 @@ export const SearchResultsScreen: React.FC = () => {
         router.push(`/encyclopedia/results?q=${encodeURIComponent(trimmed)}`);
     };
 
-    // Highlight query term inside text
     const highlight = (text: string, q: string) => {
         if (!q) return text;
         const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -55,7 +52,6 @@ export const SearchResultsScreen: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-4xl mx-auto px-6 py-8">
-                        {/* Back button */}
                         <Link href="/encyclopedia" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 text-[14px]">
                             <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,7 +60,6 @@ export const SearchResultsScreen: React.FC = () => {
                             </div>
                         </Link>
 
-                        {/* Search bar */}
                         <div className="w-full flex items-center gap-3 border border-gray-200 rounded-2xl px-5 py-4 bg-white shadow-sm mb-6 focus-within:border-[#1CA1F2] focus-within:shadow-[0_0_0_3px_rgba(28,161,242,0.1)] transition-all">
                             <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -87,9 +82,7 @@ export const SearchResultsScreen: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Filters row */}
                         <div className="flex flex-wrap items-center gap-4 mb-4">
-                            {/* Sort */}
                             <select
                                 value={filters.sortBy}
                                 onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value as typeof filters.sortBy }))}
@@ -100,7 +93,6 @@ export const SearchResultsScreen: React.FC = () => {
                                 <option>Nhiều lượt xem</option>
                             </select>
 
-                            {/* Per page */}
                             <div className="flex items-center gap-1.5 text-[14px] text-gray-500">
                                 <span>Mỗi trang</span>
                                 {PER_PAGE_OPTIONS.map(n => (
@@ -115,7 +107,6 @@ export const SearchResultsScreen: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Category chip filters */}
                         <div className="flex flex-wrap gap-2 mb-6">
                             {CATEGORIES.map(cat => (
                                 <button
@@ -128,14 +119,12 @@ export const SearchResultsScreen: React.FC = () => {
                             ))}
                         </div>
 
-                        {/* Results count */}
                         {filters.query && !isLoading && (
                             <p className="text-[13px] text-gray-400 mb-4 uppercase tracking-wide font-medium">
                                 {results.length} KẾT QUẢ CHO &ldquo;{filters.query.toUpperCase()}&rdquo;
                             </p>
                         )}
 
-                        {/* Results list */}
                         {isLoading ? (
                             <div className="py-16 text-center text-gray-400">Đang tìm kiếm...</div>
                         ) : results.length > 0 ? (

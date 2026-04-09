@@ -148,7 +148,6 @@ export interface UserSectionTest {
     completedAt: string;
 }
 
-// Backward-compatible aliases while the UI migrates away from the old theme-first naming.
 export type Theme = CourseResponse;
 export type Section = SectionResponse;
 export type Course = LessonResponse;

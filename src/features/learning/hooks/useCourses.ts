@@ -23,7 +23,6 @@ export function useCourses() {
             setCourses(data);
         } catch (err) {
             if (err instanceof LearningApiError) {
-                // Handle unverified user redirect
                 const isUnverified = err.status === 403 && (
                     err.message.toLowerCase().includes('verify') || 
                     err.message.toLowerCase().includes('xác thực')
@@ -55,7 +54,6 @@ export function useCourses() {
             setLearningPath(data);
         } catch (err) {
             if (err instanceof LearningApiError) {
-                // Handle unverified user redirect
                 const isUnverified = err.status === 403 && (
                     err.message.toLowerCase().includes('verify') || 
                     err.message.toLowerCase().includes('xác thực')

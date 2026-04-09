@@ -5,7 +5,6 @@ import { AuthLayout } from './AuthLayout';
 
 export const VerifySuccessScreen: React.FC = () => {
     useEffect(() => {
-        // Notify any other open tab (e.g., the countdown screen) that the email is verified.
         const channel = new BroadcastChannel('email-verification');
         channel.postMessage('verified');
         channel.close();

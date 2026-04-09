@@ -25,7 +25,6 @@ export function useLearningStreak() {
                 setStreakDays(null);
                 
                 if (err instanceof LearningApiError) {
-                    // Detect if 403 is due to unverified account
                     const isUnverified = err.status === 403 && (
                         err.message.toLowerCase().includes('verify') || 
                         err.message.toLowerCase().includes('xác thực')

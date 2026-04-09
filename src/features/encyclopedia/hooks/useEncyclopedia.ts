@@ -22,7 +22,6 @@ function stripMarkdown(markdown: string): string {
 }
 
 function estimateReadTimeMin(text: string): number {
-    // Roughly 200 wpm. Keep a minimum of 3 minutes for UI consistency.
     const words = text.split(/\s+/).filter(Boolean).length;
     return Math.max(3, Math.ceil(words / 200));
 }
@@ -105,7 +104,6 @@ function toDetail(
     };
 }
 
-// Hook for search screen - replaces all mock logic with an API call later
 export const useEncyclopediaSearch = (initialQuery = '') => {
     const [filters, setFilters] = useState<SearchFilters>({
         query: initialQuery,
@@ -169,7 +167,6 @@ export const useEncyclopediaSearch = (initialQuery = '') => {
     return { results, filters, setFilters, search, isLoading };
 };
 
-// Hook for article detail screen
 export const useArticle = (slug: string) => {
     const [article, setArticle] = useState<ArticleDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);

@@ -21,8 +21,6 @@ import {
 } from './types';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 
-// Requests go through the local Next.js proxy (/api/auth/*) which forwards
-// server-to-server to the Railway backend — avoids CORS entirely.
 const AUTH = `/api/v1/auth`;
 const USERS = `/api/users`;
 const PROFILES = `/api/profiles`;
@@ -95,25 +93,20 @@ function normalizeAuthError(error: unknown): ApiError {
     });
 }
 
-// ─── Endpoints ────────────────────────────────────────────────────────────────
 
-/** POST /api/v1/auth/register — Creates account, sends verification email */
 export function register(data: RegisterRequest): Promise<RegisterResponse> {
     return jsonPost<RegisterResponse>(`${AUTH}/register`, data);
 }
 
-/** POST /api/v1/auth/login — Authenticates by email/password */
 export function login(data: LoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/login`, data);
 }
 
-/** POST /api/v1/auth/oauth — Completes OAuth login after provider authentication */
 export function oauthLogin(data: OAuthLoginRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/oauth`, data);
 }
 
 
-/** GET /api/v1/auth/verify?token= — Marks user as verified */
 export function verifyEmail(token: string): Promise<string> {
     return requestApi<string>(`${AUTH}/verify?token=${encodeURIComponent(token)}`)
         .catch((error: unknown) => {
@@ -121,7 +114,6 @@ export function verifyEmail(token: string): Promise<string> {
         });
 }
 
-/** POST /api/v1/auth/resend?email= — Resends verification email */
 export function resend(email: string): Promise<string> {
     return requestApi<string>(`${AUTH}/resend?email=${encodeURIComponent(email)}`, {
         method: 'POST',
@@ -132,8 +124,6 @@ export function resend(email: string): Promise<string> {
 }
 
 export { resend as resendVerificationEmail };
-
-/** POST /api/v1/auth/reset/request?email= — Sends password reset email */
 export function requestPasswordReset(email: string): Promise<string> {
     return requestApi<string>(`${AUTH}/reset/request?email=${encodeURIComponent(email)}`, {
         method: 'POST',
@@ -143,17 +133,14 @@ export function requestPasswordReset(email: string): Promise<string> {
     });
 }
 
-/** POST /api/v1/auth/reset — Resets password using a reset token */
 export function resetPassword(data: ResetPasswordRequest): Promise<string> {
     return jsonPost<string>(`${AUTH}/reset`, data);
 }
 
-/** POST /api/v1/auth/logout — Revokes refresh token */
 export function logout(data?: LogoutRequest, accessToken?: string): Promise<string> {
     return jsonPost<string>(`${AUTH}/logout`, data, accessToken);
 }
 
-/** POST /api/v1/auth/refresh — Exchanges refresh token for new tokens (rotation) */
 export function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
     return jsonPost<AuthResponse>(`${AUTH}/refresh`, data);
 }

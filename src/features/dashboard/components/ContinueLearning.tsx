@@ -16,7 +16,6 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-bold text-gray-900">Học tiếp thôi nào!</h3>
                 <div className="flex items-center gap-1.5">
@@ -43,23 +42,19 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                 </div>
             </div>
 
-            {/* Cards */}
             <div className="grid grid-cols-3 gap-4">
                 {visible.map((course) => (
                     <div
                         key={course.id}
                         className="rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
                     >
-                        {/* Thumbnail */}
                         <div className="relative h-28 bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
-                            {/* Dark placeholder pattern */}
                             <div className="absolute inset-0 opacity-30"
                                 style={{
                                     backgroundImage: 'repeating-linear-gradient(45deg, #374151 0, #374151 1px, transparent 0, transparent 50%)',
                                     backgroundSize: '8px 8px',
                                 }}
                             />
-                            {/* Play / bookmark button */}
                             <button className="absolute top-2 right-2 w-7 h-7 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                                     <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z" />
@@ -67,9 +62,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                             </button>
                         </div>
 
-                        {/* Content */}
                         <div className="p-3">
-                            {/* Category tag */}
                             <span
                                 className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2"
                                 style={{ backgroundColor: `${course.categoryColor}18`, color: course.categoryColor }}
@@ -77,18 +70,15 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                                 {course.category}
                             </span>
 
-                            {/* Title */}
                             <h4 className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 mb-2 min-h-[2.5rem]">
                                 {course.title}
                             </h4>
 
-                            {/* Next lesson */}
                             <p className="text-[10px] text-gray-400 mb-1">
                                 <span className="text-gray-500 font-medium">Tiếp tục: </span>
                                 {course.nextLesson}
                             </p>
 
-                            {/* Progress */}
                             <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
                                 <span>Tiến độ chương: {course.completed}/{course.total} bài</span>
                             </div>

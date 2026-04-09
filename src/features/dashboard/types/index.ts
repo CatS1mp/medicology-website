@@ -26,7 +26,7 @@ export interface CourseCard {
     categoryColor: string;
     title: string;
     nextLesson: string;
-    progress: number; // 0-100
+    progress: number;
     total: number;
     completed: number;
 }
