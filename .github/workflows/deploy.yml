@@ -25,19 +25,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
 
       - name: Cache Next.js build
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-${{ hashFiles('package.json') }}-
 
       # 3. Cài đặt dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # 4. Build Next.js app (Để kiểm tra lỗi compile trước khi deploy)
       - name: Build Next.js app
