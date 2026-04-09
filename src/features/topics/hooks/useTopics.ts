@@ -27,16 +27,27 @@ export const useTopics = () => {
                 const mapped: Topic[] = themes
                     .slice()
                     .sort((a, b) => a.orderIndex - b.orderIndex)
-                    .map((t) => ({
-                        id: t.id,
-                        slug: t.slug,
-                        title: t.name,
-                        description: t.description ?? '',
-                        level: 'Cơ bản',
-                        category: 'Y học Thường thức',
-                        courseCount: t.sections?.length ?? 0,
-                        imageUrl: t.iconFileName ? `${t.iconFileName}` : '/images/Others/earth.png',
-                    }));
+                    .map((t) => {
+                        const sectionCount =
+                            t.sectionCount ??
+                            t.sections?.length ??
+                            0;
+                        const lessonCount =
+                            t.lessonCount ??
+                            (t.sections?.reduce((sum, s) => sum + (s.lessons?.length ?? 0), 0) ?? 0);
+                        return {
+                            id: t.id,
+                            slug: t.slug,
+                            title: t.name,
+                            description: t.description ?? '',
+                            level: 'Cơ bản',
+                            category: 'Y học Thường thức',
+                            sectionCount,
+                            lessonCount,
+                            courseCount: lessonCount,
+                            imageUrl: t.iconFileName ? `${t.iconFileName}` : '/images/Others/earth.png',
+                        };
+                    });
                 if (!cancelled) setAllTopics(mapped);
             } catch {
                 if (!cancelled) setAllTopics([]);

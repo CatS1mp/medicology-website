@@ -31,6 +31,10 @@ export interface CourseResponse {
     iconFileName: string | null;
     colorCode: string | null;
     orderIndex: number;
+    /** Sections (chặng) count from API when sections list is omitted. */
+    sectionCount?: number;
+    /** Total lessons in course when sections list is omitted. */
+    lessonCount?: number;
     sections: SectionSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;

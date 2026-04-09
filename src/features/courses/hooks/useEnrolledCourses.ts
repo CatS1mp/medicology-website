@@ -36,10 +36,10 @@ export function useEnrolledCourses() {
                 const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
                 const mappedCourses = enrolledCourses.map((course) => {
                     const sections = course.sections ?? [];
-                    const lessonCount = sections.reduce(
-                        (sum, section) => sum + (section.lessons?.length ?? 0),
-                        0
-                    );
+                    const lessonCount =
+                        course.lessonCount ??
+                        sections.reduce((sum, section) => sum + (section.lessons?.length ?? 0), 0);
+                    const sectionCount = course.sectionCount ?? sections.length;
                     const courseProgress = progressBySlug.get(course.slug);
 
                     return {
@@ -48,7 +48,7 @@ export function useEnrolledCourses() {
                         slug: course.slug,
                         description: course.description ?? 'Khóa học đang được cá nhân hóa cho hành trình học tập của bạn.',
                         iconFileName: course.iconFileName ?? '/images/Others/earth.png',
-                        sectionCount: sections.length,
+                        sectionCount,
                         lessonCount,
                         completionPercent: courseProgress?.completionPercent ?? 0,
                         lastStudiedAt: courseProgress?.lastStudiedAt ?? null,

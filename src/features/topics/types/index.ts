@@ -8,7 +8,10 @@ export interface Topic {
     level: TopicLevel;
     category: string;
     rating?: number;
+    /** @deprecated use lessonCount for display; kept for filter buckets keyed as "courseCount" in UI */
     courseCount?: number;
+    sectionCount?: number;
+    lessonCount?: number;
     imageUrl: string;
 }
 
