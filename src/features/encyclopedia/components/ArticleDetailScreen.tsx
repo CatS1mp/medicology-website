@@ -105,11 +105,38 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
         setComments(latest.map(mapComment));
     }
 
+    function parseCommentTimestamp(input: string): number {
+        const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(input);
+        if (hasTimezone) {
+            return new Date(input).getTime();
+        }
+
+        const normalized = input.includes(' ') ? input.replace(' ', 'T') : input;
+        const utcTime = new Date(`${normalized}Z`).getTime();
+        const vnTime = new Date(`${normalized}+07:00`).getTime();
+
+        if (Number.isNaN(utcTime) && Number.isNaN(vnTime)) {
+            return new Date(input).getTime();
+        }
+
+        if (Number.isNaN(utcTime)) return vnTime;
+        if (Number.isNaN(vnTime)) return utcTime;
+
+        const now = Date.now();
+        // Prefer the interpretation closer to "now" to avoid fixed 7-hour skew.
+        return Math.abs(now - utcTime) <= Math.abs(now - vnTime) ? utcTime : vnTime;
+    }
+
     function formatRelativeTime(isoDate: string) {
-        const then = new Date(isoDate).getTime();
-        if (Number.isNaN(then)) return 'just now';
-        const diffSeconds = Math.round((then - Date.now()) / 1000);
-        const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+        const then = parseCommentTimestamp(isoDate);
+        if (Number.isNaN(then)) return 'bây giờ';
+
+        const now = Date.now();
+        const diffMs = Math.abs(now - then);
+        if (diffMs < 5 * 60 * 1000) return 'bây giờ';
+
+        const diffSeconds = Math.round((then - now) / 1000);
+        const formatter = new Intl.RelativeTimeFormat('vi', { numeric: 'auto' });
 
         const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
             ['year', 60 * 60 * 24 * 365],
@@ -127,7 +154,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
             }
         }
 
-        return 'just now';
+        return 'bây giờ';
     }
 
     function getAvatarColor(id: string) {
@@ -326,16 +353,16 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                             ))}
 
                             <div className="mb-10 overflow-x-hidden rounded-3xl border border-gray-200 bg-[#f5f5f5] p-6 md:p-8">
-                                <h2 className="mb-2 text-[34px] font-extrabold leading-none text-[#e78d14]">Discussion</h2>
-                                <p className="mb-6 text-sm text-gray-400">Share your thoughts, ask questions, or discuss this topic with the community.</p>
+                                <h2 className="mb-2 text-[34px] font-extrabold leading-none text-[#e78d14]">Thảo luận</h2>
+                                <p className="mb-6 text-sm text-gray-400">Chia sẻ suy nghĩ, đặt câu hỏi hoặc thảo luận chủ đề này cùng cộng đồng.</p>
 
                                 <div className="mb-6 flex items-start gap-3">
-                                    <div className="h-11 w-11 rounded-full bg-lime-500 text-center text-sm font-bold leading-[44px] text-white">You</div>
+                                    <div className="h-11 w-11 rounded-full bg-lime-500 text-center text-sm font-bold leading-[44px] text-white">Bạn</div>
                                     <div className="min-w-0 flex-1">
                                         <textarea
                                             value={discussionText}
                                             onChange={(event) => setDiscussionText(event.target.value)}
-                                            placeholder="Share your thoughts or ask a question..."
+                                            placeholder="Chia sẻ suy nghĩ hoặc đặt câu hỏi..."
                                             rows={4}
                                             className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-[#8cc63f]"
                                         />
@@ -346,7 +373,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                 disabled={isSubmittingComment || !discussionText.trim()}
                                                 className="rounded-xl bg-[#68d125] px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-[#57b11f] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                {isSubmittingComment ? 'Posting...' : 'Post comment'}
+                                                {isSubmittingComment ? 'Đang đăng...' : 'Đăng bình luận'}
                                             </button>
                                         </div>
                                     </div>
@@ -382,7 +409,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                 disabled={voteSubmittingId === comment.id}
                                                                 className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
                                                             >
-                                                                👍 Like
+                                                                👍 Thích
                                                             </button>
                                                             <button
                                                                 type="button"
@@ -390,14 +417,14 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                 disabled={voteSubmittingId === comment.id}
                                                                 className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
                                                             >
-                                                                👎 Dislike
+                                                                👎 Không thích
                                                             </button>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleReply(comment.id)}
                                                                 className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100"
                                                             >
-                                                                Reply {comment.replies.length > 0 ? `(${comment.replies.length})` : ''}
+                                                                Trả lời {comment.replies.length > 0 ? `(${comment.replies.length})` : ''}
                                                             </button>
                                                         </div>
 
@@ -406,7 +433,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                 <textarea
                                                                     value={replyDrafts[comment.id] ?? ''}
                                                                     onChange={(event) => setReplyDraft(comment.id, event.target.value)}
-                                                                    placeholder="Write your reply..."
+                                                                    placeholder="Viết phản hồi của bạn..."
                                                                     rows={3}
                                                                     className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-[#8cc63f]"
                                                                 />
@@ -416,7 +443,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                         onClick={() => toggleReply(comment.id)}
                                                                         className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500"
                                                                     >
-                                                                        Cancel
+                                                                        Hủy
                                                                     </button>
                                                                     <button
                                                                         type="button"
@@ -424,7 +451,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                         disabled={isReplyBusy || !(replyDrafts[comment.id] ?? '').trim()}
                                                                         className="rounded-lg bg-[#68d125] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-50"
                                                                     >
-                                                                        {isReplyBusy ? 'Sending...' : 'Reply'}
+                                                                        {isReplyBusy ? 'Đang gửi...' : 'Trả lời'}
                                                                     </button>
                                                                 </div>
                                                             </div>
