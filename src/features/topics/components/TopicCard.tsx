@@ -15,9 +15,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
 
     return (
         <div className="bg-white rounded-[24px] overflow-hidden border border-gray-100 flex flex-col h-full shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300">
-            {/* Image Container */}
             <div className="relative h-48 w-full bg-[#E5F0FF] flex items-center justify-center p-6 mix-blend-multiply">
-                {/* Level Badge */}
                 <div className="absolute top-4 right-4 z-10 bg-[#E5F0FF]/80 backdrop-blur-md text-[#4147D5] text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
                     {topic.level}
                 </div>
@@ -31,10 +29,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
                 />
             </div>
 
-            {/* Content Container */}
             <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-start gap-3 mb-2">
-                    {/* Tiny icon box */}
                     <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5 border border-green-100">
                         <div className="w-3 h-3 rounded-full border-2 border-green-400"></div>
                     </div>

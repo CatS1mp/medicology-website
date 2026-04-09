@@ -7,7 +7,6 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { slug } = await params;
-    // In real API: fetch course title by slug
     return {
         title: `Khoá học - Medicology`,
         description: `Bản đồ học tập cho khóa học ${slug}`,

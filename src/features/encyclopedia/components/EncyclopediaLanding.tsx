@@ -33,12 +33,10 @@ export const EncyclopediaLanding: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto flex items-center justify-center px-6 relative">
                 <div className="relative z-10 w-full max-w-xl text-center flex flex-col items-center">
-                        {/* Super label */}
                         <span className="text-[#1CA1F2] text-[13px] font-bold uppercase tracking-[0.18em] mb-3">
                             Bách khoa Y học
                         </span>
 
-                        {/* Title */}
                         <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight mb-3">
                             Bạn muốn học gì hôm nay?
                         </h1>
@@ -46,7 +44,6 @@ export const EncyclopediaLanding: React.FC = () => {
                             Tìm kiếm bài viết, khóa học, chủ đề và chương
                         </p>
 
-                        {/* Search box */}
                         <div className="w-full relative">
                             <div
                                 className="w-full flex items-center gap-3 border-2 border-[#1CA1F2] rounded-2xl px-5 py-4 bg-white shadow-[0_0_0_4px_rgba(28,161,242,0.1)] cursor-text transition-shadow"
@@ -72,7 +69,6 @@ export const EncyclopediaLanding: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Trending tags */}
                         <div className="mt-8 flex flex-col items-center gap-3">
                             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Xu hướng tìm kiếm:</span>
                             <div className="flex flex-wrap justify-center gap-2">

@@ -26,7 +26,6 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
     const rangeDelta = activeDataset?.totalCompletedLessons ?? data.reduce((sum, point) => sum + point.value, 0);
 
     const WIDTH = 560;
-    // Extra top space so the tooltip never gets clipped
     const TOOLTIP_SPACE = 52;
     const HEIGHT = 120 + TOOLTIP_SPACE;
     const PADDING = { top: TOOLTIP_SPACE + 4, right: 20, bottom: 30, left: 30 };
@@ -105,7 +104,6 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
             WIDTH - PADDING.right - tooltipW - tooltipEdgePadding
         )
         : 0;
-    // Always pin tooltip to top of the extra reserved space
     const tooltipY = TOOLTIP_SPACE / 2 - tooltipH / 2;
     const arrowX = hoveredPt
         ? Math.min(Math.max(hoveredPt.x, tooltipX + 10), tooltipX + tooltipW - 10)
@@ -114,7 +112,6 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm" style={{ overflow: 'visible' }}>
-            {/* Header row */}
             <div className="flex items-start justify-between mb-3">
                 <div>
                     <div className="flex items-center gap-2">
@@ -196,7 +193,6 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                         );
                     })}
 
-                    {/* SVG Tooltip — always in the reserved top zone */}
                     {hoveredIndex !== null && hoveredPt && hovered && (
                         <g style={{ pointerEvents: 'none' }}>
                             <rect x={tooltipX + 2} y={tooltipY + 2} width={tooltipW} height={tooltipH} rx="7" fill="rgba(0,0,0,0.10)" />

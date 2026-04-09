@@ -28,27 +28,20 @@ export const TopicsScreen: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-white overflow-hidden font-sans">
-            {/* Sidebar */}
             <AppSidebar />
 
-            {/* Main content area */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
                 <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
-                {/* Page body */}
                 <div className="flex-1 overflow-y-auto">
                     <div className="max-w-[1200px] mx-auto p-8 lg:p-10 min-h-full flex flex-col">
-                        {/* Page Title */}
                         <div className="mb-6">
                             <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Chủ đề Học tập</h1>
                             <p className="text-gray-500 text-base">Hành trình hiểu về cơ thể và tâm trí qua các chủ đề học tập thiết thực</p>
                         </div>
 
-                        {/* Filters */}
                         <TopicFilters filters={filters} onChange={setFilters} />
 
-                        {/* Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (
                                 <div className="col-span-full py-20 flex justify-center text-gray-500">Đang tải...</div>
@@ -66,7 +59,6 @@ export const TopicsScreen: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Pagination */}
                         {totalPages > 1 && (
                             <div className="mt-12 mb-6 flex justify-center items-center gap-2">
                                 <button 
@@ -81,7 +73,6 @@ export const TopicsScreen: React.FC = () => {
                                 
                                 {Array.from({ length: totalPages }).map((_, i) => {
                                     const pageNum = i + 1;
-                                    // Show first, last, current, and adjacent pages
                                     if (
                                         pageNum === 1 ||
                                         pageNum === totalPages ||

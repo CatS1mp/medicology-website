@@ -30,7 +30,6 @@ export function useLogin(): UseLoginReturn {
             router.push('/dashboard');
         } catch (err) {
             if (err instanceof ApiError) {
-                // Handle unverified user (usually 403 or specific error message)
                 const isUnverified = err.status === 403 && (
                     err.message.toLowerCase().includes('verify') || 
                     err.message.toLowerCase().includes('xác thực')
@@ -38,7 +37,6 @@ export function useLogin(): UseLoginReturn {
 
                 if (isUnverified) {
                     sessionStorage.setItem('pendingVerifyEmail', data.email);
-                    // Automatically trigger resend
                     void resend(data.email).catch(console.error);
                     showToast('Tài khoản chưa xác thực. Một email mới đã được gửi!', 'info');
                     router.push('/verify-email');

@@ -6,7 +6,6 @@ interface HeroBannerProps {
     userName: string;
 }
 
-// Four-pointed star sparkle shape via CSS clip/SVG
 const Sparkle = ({ size, style }: { size: number; style: React.CSSProperties }) => (
     <svg
         width={size}
@@ -23,7 +22,6 @@ const Sparkle = ({ size, style }: { size: number; style: React.CSSProperties }) 
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
     return (
-        /* Wrapper to allow mascot overflow without clipping banner corners */
         <div style={{ position: 'relative', marginBottom: '120px' }}>
             <div
                 style={{
@@ -37,16 +35,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
                     overflow: 'hidden',
                 }}
             >
-                {/* Translucent circle decorations */}
                 <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', width: 320, height: 320, top: -100, right: 310, pointerEvents: 'none' }} />
                 <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', width: 200, height: 200, bottom: -70, right: 280, pointerEvents: 'none' }} />
 
-                {/* Large sparkle stars */}
                 <Sparkle size={56} style={{ top: 16, right: 420, animation: 'twinkle 2.4s ease-in-out infinite' }} />
                 <Sparkle size={34} style={{ bottom: 18, right: 390, animation: 'twinkle 3.2s ease-in-out infinite 0.6s' }} />
                 <Sparkle size={22} style={{ top: 42, right: 370, animation: 'twinkle 1.8s ease-in-out infinite 0.2s' }} />
 
-                {/* Text content */}
                 <div style={{ position: 'relative', zIndex: 1, maxWidth: 420 }}>
                     <p style={{ color: 'rgba(219,234,254,0.95)', fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
                         KIẾN THỨC SỨC KHỎE
@@ -67,7 +62,6 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
                 </div>
             </div>
 
-            {/* Mascot — positioned absolutely on the right, overflowing below the banner */}
             <div
                 style={{
                     position: 'absolute',
