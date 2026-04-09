@@ -31,7 +31,8 @@ export function useLogout(): UseLogoutReturn {
             };
             if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
-            const res = await fetch('/api/auth/logout', {
+            const baseUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || '';
+            const res = await fetch(`${baseUrl}/api/v1/auth/logout`, {
                 method: 'POST',
                 headers,
                 body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
