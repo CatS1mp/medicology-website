@@ -79,6 +79,8 @@ Request body:
 
 Response: `200 OK`
 
+`userProfile` mirrors **UserProfile** (personal demographics). Shape aligns with frontend `UserProfile` / `GET /api/v1/profiles/me`.
+
 ```json
 {
   "accessToken": "...",
@@ -86,12 +88,43 @@ Response: `200 OK`
   "tokenType": "Bearer",
   "expiresIn": 1800,
   "userProfile": {
-    "displayName": "string",
-    "avatarUrl": "string",
-    "bio": "string"
+    "userId": "uuid",
+    "email": "user@example.com",
+    "username": "string",
+    "lastName": "string | null",
+    "firstName": "string | null",
+    "dateOfBirth": "YYYY-MM-DD | null",
+    "gender": "string | null",
+    "address": "string | null",
+    "displayName": "string | null",
+    "bio": "string | null"
   }
 }
 ```
+
+---
+
+### Current user (account only)
+
+`GET /api/v1/users/me` — **Bearer required**
+
+Returns the **account** record: identity and flags (`active`, `verified`, `admin`, `lastLoginAt`, …). Does **not** include personal fields such as `dateOfBirth` or address; those live on the profile.
+
+`PATCH /api/v1/users/me` — **Bearer required**
+
+Body (partial): account-level fields only, e.g. `username`. Personal data is updated via `PUT /api/v1/profiles/me`.
+
+---
+
+### Current profile (personal information)
+
+`GET /api/v1/profiles/me` — **Bearer required**
+
+Returns the **UserProfile** for the authenticated user: names, `dateOfBirth`, `gender`, `address`, `bio`, `displayName`, etc.
+
+`PUT /api/v1/profiles/me` — **Bearer required**
+
+Body (partial): `firstName`, `lastName`, `dateOfBirth`, `gender`, `address`, `bio`, `displayName`, etc.
 
 ---
 
