@@ -111,7 +111,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     };
 
     return (
-        <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
+        <header className="flex items-center gap-3 py-4 bg-transparent mb-6">
             <div className="flex-1 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                 <IconSearch />
                 <input

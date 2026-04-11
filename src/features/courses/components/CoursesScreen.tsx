@@ -14,20 +14,16 @@ interface CoursesScreenProps {
     slug: string;
 }
 
+import { BaseUserLayout } from '@/shared/components/BaseUserLayout';
+
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
     const { data, isLoading } = useRoadmap(slug);
     const { streakDays } = useLearningStreak();
 
-    const { handleLogout } = useLogout();
-
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-            <AppSidebar />
-
-            <div className="flex-1 flex flex-col overflow-hidden relative">
-                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
-
-                <div className="flex-1 overflow-y-auto w-full relative">
+        <BaseUserLayout streak={streakDays ?? 0} padding={0}>
+            <div className="flex-1 flex flex-col relative">
+                <div className="flex-1 w-full relative">
                     <div className="w-full max-w-4xl mx-auto px-6 py-12 lg:px-12 flex flex-col min-h-full pb-32">
                         {isLoading ? (
                             <div className="flex-1 flex justify-center items-center text-gray-500">
@@ -59,6 +55,6 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                     <ContinueLearningBar data={data.continueLesson} />
                 )}
             </div>
-        </div>
+        </BaseUserLayout>
     );
-};
+};

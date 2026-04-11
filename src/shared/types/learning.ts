@@ -1,37 +1,3 @@
-export type LessonContentBlockKind =
-    | 'RICH_TEXT'
-    | 'INFOGRAPHIC'
-    | 'QUIZ_MCQ'
-    | 'FILL_IN_THE_BLANKS'
-    | 'SHORT_ANSWER'
-    | 'FLASHCARD'
-    | 'MATCHING'
-    | 'ORDERING'
-    | 'HOTSPOT_IMAGE'
-    | 'TIMELINE';
-
-export interface LessonContentBlockResponse {
-    id: string;
-    orderIndex: number;
-    kind: LessonContentBlockKind;
-    payload: string;
-    assessmentId: string | null;
-    questionId: string | null;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export type LessonInfographicMediaType = 'image' | 'video';
-
-export interface LessonInfographicPayload {
-    title: string;
-    mediaType?: LessonInfographicMediaType;
-    imageUrl?: string;
-    videoUrl?: string;
-    posterUrl?: string;
-    caption?: string;
-}
-
 export interface LessonSummaryResponse {
     id: string;
     name: string;
@@ -42,7 +8,6 @@ export interface LessonSummaryResponse {
     difficultyLevel: string | null;
     isActive: boolean;
     content: string | null;
-    blocks: LessonContentBlockResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -98,17 +63,7 @@ export interface LessonResponse {
     difficultyLevel: string | null;
     isActive: boolean;
     content: string | null;
-    blocks: LessonContentBlockResponse[] | null;
     createdAt: string;
-    updatedAt: string;
-}
-
-export interface LessonBlockProgressResponse {
-    blockId: string;
-    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-    score: number | null;
-    maxScore: number | null;
-    completedAt: string | null;
     updatedAt: string;
 }
 
