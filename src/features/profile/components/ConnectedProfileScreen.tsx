@@ -132,7 +132,7 @@ export function ConnectedProfileScreen() {
                 const fromApiHoc = profile.lastName?.trim() ?? '';
                 const fromApiTen = profile.firstName?.trim() ?? '';
                 const fromDisplay = splitDisplayName(profile.displayName ?? '');
-                const dateParts = splitDateOfBirth(profile.dateOfBirth);
+                const dateParts = splitDateOfBirth(profile.dateOfBirth ?? user.dateOfBirth);
                 const savedGender = window.localStorage.getItem(PROFILE_GENDER_STORAGE_KEY) ?? '';
                 const apiGender = profile.gender?.trim() ?? '';
                 setPersonal({
@@ -144,7 +144,7 @@ export function ConnectedProfileScreen() {
                     birthMonth: dateParts.birthMonth,
                     birthYear: dateParts.birthYear,
                     gender: apiGender || savedGender,
-                    location: profile.address ?? '',
+                    location: user.location ?? profile.address ?? '',
                     bio: profile.bio ?? '',
                 });
                 setSettings({
@@ -180,13 +180,13 @@ export function ConnectedProfileScreen() {
             const [, nextProfile] = await Promise.all([
                 updateCurrentUser({
                     username: personal.username || undefined,
+                    dateOfBirth: nextDateOfBirth,
+                    location: personal.location || null,
                 }),
                 updateCurrentProfile({
                     lastName: personal.firstName.trim() || null,
                     firstName: personal.lastName.trim() || null,
-                    dateOfBirth: nextDateOfBirth,
                     gender: personal.gender.trim() || null,
-                    address: personal.location.trim() || null,
                     bio: personal.bio || null,
                 }),
             ]);

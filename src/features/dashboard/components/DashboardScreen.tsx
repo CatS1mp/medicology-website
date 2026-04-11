@@ -1,8 +1,6 @@
 'use client';
 
 import React from 'react';
-import { AppSidebar } from '@/shared/components/AppSidebar';
-import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { HeroBanner } from './HeroBanner';
 import { StatsCards } from './StatsCards';
@@ -15,6 +13,7 @@ import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
 import { getCourses, getLessonActivity, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
 import { ChartDataPoint, CourseCard, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
+import { BaseUserLayout } from '@/shared/components/BaseUserLayout';
 
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
@@ -141,52 +140,44 @@ export const DashboardScreen: React.FC = () => {
     const effectiveStreak = streakDays ?? 0;
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
-            <AppSidebar />
+        <BaseUserLayout streak={effectiveStreak}>
+            <div className="flex flex-col gap-8 min-h-full">
+                <HeroBanner userName={userName} />
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <AppHeader streak={effectiveStreak} onLogout={handleLogout} />
-
-                <div className="flex-1 overflow-y-auto">
-                    <div className="flex flex-col gap-5 p-5 min-h-full">
-                        <HeroBanner userName={userName} />
-
-                        <div className="flex gap-5">
-                            <div className="flex-1 min-w-0 flex flex-col gap-5">
-                                <div>
-                                    <h2 className="text-sm font-bold text-gray-800 mb-3">Thống kê</h2>
-                                    <StatsCards cards={statCards} />
-                                </div>
-
-                                <div>
-                                    <h2 className="text-sm font-bold text-gray-800 mb-3">Tiến độ bài học</h2>
-                                    <LessonProgressChart
-                                        datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
-                                            label: activeRange,
-                                            data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
-                                            totalCompletedLessons: 0,
-                                        }]}
-                                        totalLessons={totalLessons}
-                                        activeRange={activeRange}
-                                        onRangeChange={setActiveRange}
-                                        isLoading={isLessonActivityLoading}
-                                    />
-                                </div>
-
-                                <ContinueLearning courses={courseCards} />
-                            </div>
-
-                            <div className="w-72 flex-shrink-0 flex flex-col gap-4">
-                                <LearningResultsChart
-                                    data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
-                                    currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}
-                                />
-                                <LearningProgress items={learningProgress} />
-                            </div>
+                <div className="flex gap-8">
+                    <div className="flex-1 min-w-0 flex flex-col gap-8">
+                        <div>
+                            <h2 className="text-[15px] font-extrabold text-[#111827] mb-5 uppercase tracking-wider">Thống kê học tập</h2>
+                            <StatsCards cards={statCards} />
                         </div>
+
+                        <div>
+                            <h2 className="text-[15px] font-extrabold text-[#111827] mb-5 uppercase tracking-wider">Tiến độ bài học</h2>
+                            <LessonProgressChart
+                                datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
+                                    label: activeRange,
+                                    data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                                    totalCompletedLessons: 0,
+                                }]}
+                                totalLessons={totalLessons}
+                                activeRange={activeRange}
+                                onRangeChange={setActiveRange}
+                                isLoading={isLessonActivityLoading}
+                            />
+                        </div>
+
+                        <ContinueLearning courses={courseCards} />
+                    </div>
+
+                    <div className="w-80 flex-shrink-0 flex flex-col gap-6">
+                        <LearningResultsChart
+                            data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
+                            currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}
+                        />
+                        <LearningProgress items={learningProgress} />
                     </div>
                 </div>
             </div>
-        </div>
+        </BaseUserLayout>
     );
 };
