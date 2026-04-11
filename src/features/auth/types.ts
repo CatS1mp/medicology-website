@@ -59,12 +59,11 @@ export interface RegisterResponse {
     email: string;
 }
 
+/** Account-only fields from `GET/PATCH .../users/me` (no personal demographics). */
 export interface CurrentUser {
     id: string;
     email: string;
     username: string;
-    dateOfBirth: string | null;
-    location: string | null;
     active: boolean;
     verified: boolean;
     admin: boolean;
@@ -112,8 +111,6 @@ export interface UserSession {
 
 export interface UpdateCurrentUserRequest {
     username?: string;
-    dateOfBirth?: string | null;
-    location?: string | null;
 }
 
 /** Mirrors auth-service `UpdateProfileRequestDTO` (partial PUT body). */

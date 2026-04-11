@@ -4,6 +4,7 @@ import {
     CourseResponse,
     LearningApiError,
     LessonActivitySummaryResponse,
+    LessonBlockProgressResponse,
     LearningPathResponse,
     LessonResponse,
     RequestAiFeedback,
@@ -124,6 +125,20 @@ export function completeLesson(lessonId: string): Promise<void> {
             STREAK_CACHE_KEY
         );
         return result;
+    });
+}
+
+export function updateLessonBlockProgress(
+    lessonId: string,
+    blockId: string,
+    data: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; score?: number; maxScore?: number }
+): Promise<LessonBlockProgressResponse> {
+    return requestApi<LessonBlockProgressResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}/blocks/${encodeURIComponent(blockId)}/progress`, {
+        method: 'PATCH',
+        headers: buildHeaders(),
+        body: JSON.stringify(data),
+    }).catch((error: unknown) => {
+        throw normalizeLearningError(error);
     });
 }
 
