@@ -264,7 +264,7 @@ export function LessonBlockStep({ block, legacyContent, resultRevealRequested = 
     }
 
     if (normalizedKind === 'INFOGRAPHIC') {
-        const infographicPayload = payload as LessonInfographicPayload;
+        const infographicPayload = payload as unknown as LessonInfographicPayload;
         const inferredMediaType =
             infographicPayload.mediaType ??
             (infographicPayload.imageUrl ? 'image' : infographicPayload.videoUrl ? 'video' : 'image');
