@@ -265,21 +265,22 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
     }
 
     return (
-        <div className="flex h-screen bg-white overflow-hidden font-sans">
+        <div className="flex h-screen overflow-hidden bg-white font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-6xl mx-auto px-6 py-8 flex gap-8">
+                    <div className="mx-auto flex w-full max-w-[1360px] gap-6 px-4 py-6 md:px-6 lg:px-8">
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-4 mb-6">
-                                <Link href="/encyclopedia/results" className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0">
+                            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-[0_20px_56px_rgba(13,38,76,0.14)] md:px-8 md:py-7">
+                                <div className="mb-6 flex items-center gap-4">
+                                <Link href="/encyclopedia/results" className="h-9 w-9 flex-shrink-0 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition-colors">
                                     <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </Link>
-                                <div className="flex items-center gap-3 text-[13px] text-gray-400">
+                                <div className="flex items-center gap-3 text-[12px] font-medium text-gray-400 md:text-[13px]">
                                     <span>{article.viewCount.toLocaleString()} lượt xem</span>
                                     {article.lastViewed && (
                                         <>
@@ -291,21 +292,24 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 <button
                                     type="button"
                                     onClick={handleToggleBookmark}
-                                    className={`ml-auto rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors ${isBookmarked ? 'border-[#1CA1F2] bg-[#E5F0FF] text-[#1CA1F2]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                    className={`ml-auto inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[12px] font-bold uppercase tracking-wide transition-colors ${isBookmarked ? 'border-[#f39b19] bg-[#fff5e6] text-[#f39b19]' : 'border-[#f0a23a] text-[#f0a23a] hover:bg-[#fff8ee]'}`}
                                 >
-                                    {isBookmarked ? 'Đã lưu' : 'Lưu bài viết'}
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 5.5A1.5 1.5 0 016.5 4h11A1.5 1.5 0 0119 5.5v15.2a.3.3 0 01-.47.25L12 16.2l-6.53 4.75a.3.3 0 01-.47-.24V5.5z" />
+                                    </svg>
+                                    {isBookmarked ? 'ĐÃ LƯU' : 'LƯU BÀI'}
                                 </button>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 mb-6">
+                            <div className="mb-6 flex flex-wrap gap-2">
                                 {article.tags.map(tag => (
-                                    <span key={tag.slug} className="px-3 py-1 rounded-full bg-[#E5F0FF] text-[#1CA1F2] text-[12px] font-bold uppercase tracking-wider">
+                                    <span key={tag.slug} className="rounded-full border border-[#8ed0f8] bg-[#ecf8ff] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#1CA1F2]">
                                         {tag.label}
                                     </span>
                                 ))}
                             </div>
 
-                            <h1 className="text-3xl font-extrabold text-[#1CA1F2] mb-6 leading-tight">
+                            <h1 className="mb-6 text-3xl font-extrabold leading-tight text-[#1CA1F2] md:text-[44px] md:leading-[1.1]">
                                 {article.title}
                             </h1>
 
@@ -319,7 +323,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                             {article.sections.map(section => (
                                 <div key={section.id} id={section.id} className="mb-10 scroll-mt-6">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                                    <h2 className="mb-5 flex items-center gap-3 text-[34px] font-extrabold leading-tight text-[#2f3946] md:text-[40px]">
                                         <div className="w-1.5 h-6 bg-[#1CA1F2] rounded-r-md flex-shrink-0" />
                                         {section.heading}
                                     </h2>
@@ -337,7 +341,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                     )}
 
                                     {section.content && (
-                                        <div className="text-[15px] text-gray-700 leading-relaxed space-y-3">
+                                        <div className="space-y-3 text-[16px] leading-[1.95] text-[#687587]">
                                             {section.content.split('\n\n').map((para, i) => (
                                                 <p key={i} dangerouslySetInnerHTML={{
                                                     __html: para
@@ -348,23 +352,26 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                         </div>
                                     )}
 
-                                    <hr className="mt-10 border-gray-100" />
+                                    <hr className="mt-10 border-gray-200" />
                                 </div>
                             ))}
 
-                            <div className="mb-10 overflow-x-hidden rounded-3xl border border-gray-200 bg-[#f5f5f5] p-6 md:p-8">
-                                <h2 className="mb-2 text-[34px] font-extrabold leading-none text-[#e78d14]">Thảo luận</h2>
+                            <div className="mb-2 overflow-x-hidden rounded-2xl border border-gray-200 bg-[#f8f9fb] p-5 md:p-7">
+                                <h2 className="mb-2 flex items-center gap-3 text-[34px] font-extrabold leading-none text-[#e78d14] md:text-[38px]">
+                                    <span className="h-8 w-1 rounded-full bg-[#f39b19]" />
+                                    Thảo luận
+                                </h2>
                                 <p className="mb-6 text-sm text-gray-400">Chia sẻ suy nghĩ, đặt câu hỏi hoặc thảo luận chủ đề này cùng cộng đồng.</p>
 
                                 <div className="mb-6 flex items-start gap-3">
-                                    <div className="h-11 w-11 rounded-full bg-lime-500 text-center text-sm font-bold leading-[44px] text-white">Bạn</div>
+                                    <div className="h-10 w-10 rounded-full bg-lime-500 text-center text-[11px] font-bold leading-10 text-white">Bạn</div>
                                     <div className="min-w-0 flex-1">
                                         <textarea
                                             value={discussionText}
                                             onChange={(event) => setDiscussionText(event.target.value)}
                                             placeholder="Chia sẻ suy nghĩ hoặc đặt câu hỏi..."
-                                            rows={4}
-                                            className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-[#8cc63f]"
+                                            rows={3}
+                                            className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[#8cc63f]"
                                         />
                                         <div className="mt-3 flex justify-end">
                                             <button
@@ -407,7 +414,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                 type="button"
                                                                 onClick={() => handleVote(comment.id, 'UPVOTE')}
                                                                 disabled={voteSubmittingId === comment.id}
-                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
+                                                                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
                                                             >
                                                                 👍 Thích
                                                             </button>
@@ -415,14 +422,14 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                                 type="button"
                                                                 onClick={() => handleVote(comment.id, 'DOWNVOTE')}
                                                                 disabled={voteSubmittingId === comment.id}
-                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
+                                                                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed"
                                                             >
                                                                 👎 Không thích
                                                             </button>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleReply(comment.id)}
-                                                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100"
+                                                                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-100"
                                                             >
                                                                 Trả lời {comment.replies.length > 0 ? `(${comment.replies.length})` : ''}
                                                             </button>
@@ -486,19 +493,20 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </div>
                             </div>
                         </div>
+                        </div>
 
-                        <div className="w-64 flex-shrink-0 hidden lg:flex flex-col gap-6">
+                        <div className="hidden w-[280px] flex-shrink-0 lg:flex flex-col gap-6">
                             <div className="sticky top-6">
-                                <div className="bg-gray-50 rounded-2xl p-5 mb-4">
-                                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mục lục</h4>
+                                <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_6px_20px_rgba(15,23,42,0.04)]">
+                                    <h4 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#2b9de5]">MỤC LỤC</h4>
                                     <nav className="flex flex-col gap-1.5">
                                         {article.tableOfContents.map(item => (
                                             <a
                                                 key={item.id}
                                                 href={`#${item.id}`}
                                                 onClick={() => setActiveSection(item.id)}
-                                                className={`text-[13px] leading-snug transition-colors ${item.level === 2 ? 'pl-4' : ''} ${
-                                                    activeSection === item.id ? 'text-[#1CA1F2] font-medium' : 'text-gray-500 hover:text-gray-700'
+                                                className={`text-[12px] leading-snug transition-colors ${item.level === 2 ? 'pl-4' : ''} ${
+                                                    activeSection === item.id ? 'text-[#1CA1F2] font-semibold' : 'text-gray-500 hover:text-gray-700'
                                                 }`}
                                             >
                                                 {item.label}
@@ -507,14 +515,14 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                     </nav>
                                 </div>
 
-                                <div>
-                                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Bài viết liên quan</h4>
+                                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_6px_20px_rgba(15,23,42,0.04)]">
+                                    <h4 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#2b9de5]">BÀI VIẾT LIÊN QUAN</h4>
                                     <div className="flex flex-col gap-2.5">
                                         {article.relatedArticles.map(rel => (
                                             <Link
                                                 key={rel.id}
                                                 href={`/encyclopedia/${rel.slug}`}
-                                                className="bg-gray-50 rounded-xl p-3 hover:bg-[#E5F0FF] transition-colors group"
+                                                className="rounded-xl border border-gray-100 bg-[#fbfbfb] p-3 hover:bg-[#E5F0FF] transition-colors group"
                                             >
                                                 <p className="text-[14px] font-semibold text-gray-800 group-hover:text-[#1CA1F2] transition-colors leading-tight mb-0.5">
                                                     {rel.title}
@@ -537,9 +545,9 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
 function InfoCard({ label, value }: { label: string; value: number }) {
     return (
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-gray-400">{label}</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{value.toLocaleString()}</div>
+        <div className="rounded-xl border border-gray-200 bg-[#fbfcff] px-4 py-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</div>
+            <div className="mt-1 text-xl font-extrabold text-gray-900">{value.toLocaleString()}</div>
         </div>
     );
 }
