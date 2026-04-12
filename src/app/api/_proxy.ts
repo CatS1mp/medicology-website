@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AUTH_ACCESS_COOKIE } from '@/lib/auth-cookies';
 
 interface ProxyConfig {
     backendUrl: string;
     upstreamBasePath: string;
+}
+
+function validatePathSegments(segments: string[]): boolean {
+    if (segments.length > 12) return false;
+    return segments.every((seg) => {
+        if (!seg) return true;
+        return !seg.includes('..') && !seg.includes('//');
+    });
 }
 
 function buildTargetUrl(req: NextRequest, pathSegments: string[], config: ProxyConfig) {
@@ -12,18 +21,38 @@ function buildTargetUrl(req: NextRequest, pathSegments: string[], config: ProxyC
     return `${config.backendUrl}${config.upstreamBasePath}${suffix}${search}`;
 }
 
+function logProxyError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'unknown error';
+    console.error('Proxy error:', message);
+}
+
 export async function proxyToBackend(
     req: NextRequest,
     params: { path?: string[] },
     config: ProxyConfig
 ) {
-    const targetUrl = buildTargetUrl(req, params.path ?? [], config);
+    const backend = config.backendUrl?.trim();
+    if (!backend) {
+        return NextResponse.json({ message: 'Dịch vụ nền chưa được cấu hình.' }, { status: 503 });
+    }
+
+    const segments = params.path ?? [];
+    if (!validatePathSegments(segments)) {
+        return NextResponse.json({ message: 'Invalid path' }, { status: 400 });
+    }
+
+    const targetUrl = buildTargetUrl(req, segments, { ...config, backendUrl: backend });
     const headers = new Headers();
     const contentType = req.headers.get('content-type');
-    const authorization = req.headers.get('authorization');
+    const authHeader = req.headers.get('authorization');
+    const cookieAccess = req.cookies.get(AUTH_ACCESS_COOKIE)?.value;
 
     if (contentType) headers.set('content-type', contentType);
-    if (authorization) headers.set('authorization', authorization);
+    if (authHeader) {
+        headers.set('authorization', authHeader);
+    } else if (cookieAccess) {
+        headers.set('authorization', `Bearer ${cookieAccess}`);
+    }
 
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
     const body = hasBody ? await req.text() : undefined;
@@ -49,7 +78,7 @@ export async function proxyToBackend(
             },
         });
     } catch (error) {
-        console.error('Proxy error:', error);
+        logProxyError(error);
         return NextResponse.json({ message: 'Internal Server Error (Proxy)' }, { status: 500 });
     }
 }

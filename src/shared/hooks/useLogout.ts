@@ -22,19 +22,11 @@ export function useLogout(): UseLogoutReturn {
         setError(null);
         setIsLoading(true);
 
-        const accessToken = localStorage.getItem('accessToken') ?? undefined;
-        const refreshToken = localStorage.getItem('refreshToken') ?? undefined;
-
         try {
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
             const res = await fetch('/api/auth/logout', {
                 method: 'POST',
-                headers,
-                body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
             });
 
             if (!res.ok) {
