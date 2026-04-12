@@ -1,5 +1,6 @@
 'use client';
 
+import DOMPurify from 'dompurify';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -342,13 +343,19 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                                     {section.content && (
                                         <div className="space-y-3 text-[16px] leading-[1.95] text-[#687587]">
-                                            {section.content.split('\n\n').map((para, i) => (
-                                                <p key={i} dangerouslySetInnerHTML={{
-                                                    __html: para
-                                                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                                        .replace(/_(.*?)_/g, '<em>$1</em>')
-                                                }} />
-                                            ))}
+                                            {section.content.split('\n\n').map((para, i) => {
+                                                const rawHtml = para
+                                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                                    .replace(/_(.*?)_/g, '<em>$1</em>');
+                                                return (
+                                                    <p
+                                                        key={i}
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: DOMPurify.sanitize(rawHtml),
+                                                        }}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     )}
 

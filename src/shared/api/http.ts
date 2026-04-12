@@ -1,5 +1,7 @@
 'use client';
 
+import { hasRefreshSession } from '@/features/auth/session';
+
 export interface SpringApiResponse<T> {
     code?: number;
     message?: string;
@@ -33,7 +35,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function getStoredAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('accessToken');
+    return null;
 }
 
 export function buildHeaders(options?: {
@@ -130,17 +132,13 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
     });
 }
 
-function requestSentAuthorization(init?: RequestInit): boolean {
-    if (!init?.headers) return false;
-    try {
-        return new Headers(init.headers).has('Authorization');
-    } catch {
-        return false;
-    }
-}
-
 function shouldAttemptRefreshOn401(requestUrl: string): boolean {
-    const publicEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/oauth', '/api/auth/refresh'];
+    const publicEndpoints = [
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/refresh',
+        '/api/oauth/oauth',
+    ];
     return !publicEndpoints.some((p) => requestUrl.includes(p));
 }
 
@@ -164,7 +162,10 @@ export async function requestApi<T>(
     init?: RequestInit,
     options?: { unwrapData?: boolean }
 ): Promise<T> {
-    const res = await fetch(input, init);
+    const res = await fetch(input, {
+        ...init,
+        credentials: init?.credentials ?? 'include',
+    });
     if (res.ok) {
         return parseSuccessResponse<T>(res, options);
     }
@@ -173,8 +174,7 @@ export async function requestApi<T>(
         res.status === 401 &&
         typeof window !== 'undefined' &&
         shouldAttemptRefreshOn401(input) &&
-        !!localStorage.getItem('refreshToken') &&
-        (!!getStoredAccessToken() || requestSentAuthorization(init))
+        hasRefreshSession()
     ) {
         const { refreshAccessTokenWithMutex } = await import('@/features/auth/token-refresh');
         let lastRes = res;
@@ -182,6 +182,7 @@ export async function requestApi<T>(
         if (refreshed) {
             const res2 = await fetch(input, {
                 ...init,
+                credentials: init?.credentials ?? 'include',
                 headers: buildHeaders({ headers: init?.headers }),
             });
             lastRes = res2;

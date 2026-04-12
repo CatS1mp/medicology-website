@@ -1,23 +1,28 @@
-import { AuthResponse } from './types';
+import type { AuthSessionPayload } from './types';
 
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_PROFILE_KEY = 'userProfile';
 const ACCESS_TOKEN_EXPIRES_AT_KEY = 'accessTokenExpiresAt';
 
-export function persistAuthSession(session: AuthResponse) {
+export function persistAuthSession(session: AuthSessionPayload) {
     const expiresAt = Date.now() + session.expiresIn * 1000;
 
-    localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken);
     localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(session.userProfile));
     localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
     window.dispatchEvent(new Event('user-profile-updated'));
     window.dispatchEvent(new Event('auth-session-updated'));
 }
 
+export function hasRefreshSession(): boolean {
+    if (typeof window === 'undefined') return false;
+    return (
+        localStorage.getItem(USER_PROFILE_KEY) != null && localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY) != null
+    );
+}
+
+/** Refresh token lives in an httpOnly cookie; this returns a truthy placeholder when a session exists. */
 export function getStoredRefreshToken() {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (typeof window === 'undefined') return null;
+    return hasRefreshSession() ? 'cookie' : null;
 }
 
 export function getStoredAccessTokenExpiry() {
@@ -29,11 +34,15 @@ export function getStoredAccessTokenExpiry() {
 }
 
 export function clearAuthSession() {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_PROFILE_KEY);
     localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
     localStorage.removeItem('enrolledCoursesLocal');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     window.dispatchEvent(new Event('user-profile-updated'));
     window.dispatchEvent(new Event('auth-session-updated'));
+
+    if (typeof window !== 'undefined') {
+        void fetch('/api/auth/session', { method: 'DELETE', credentials: 'include' }).catch(() => undefined);
+    }
 }

@@ -1,6 +1,6 @@
 type CacheRecord<T> = {
     expiresAt: number;
-    token: string | null;
+    sessionKey: string | null;
     value: T;
 };
 
@@ -12,9 +12,16 @@ function canUseBrowserStorage() {
     return typeof window !== 'undefined';
 }
 
-function getActiveAccessToken(): string | null {
+function getSessionCacheKey(): string | null {
     if (!canUseBrowserStorage()) return null;
-    return window.localStorage.getItem('accessToken');
+    const raw = window.localStorage.getItem('userProfile');
+    if (!raw) return null;
+    try {
+        const p = JSON.parse(raw) as { userId?: string };
+        return typeof p.userId === 'string' ? p.userId : raw;
+    } catch {
+        return null;
+    }
 }
 
 function getStorageKey(key: string) {
@@ -40,20 +47,20 @@ function persistRecord<T>(key: string, record: CacheRecord<T>) {
     window.sessionStorage.setItem(getStorageKey(key), JSON.stringify(record));
 }
 
-function isRecordFresh(record: CacheRecord<unknown> | null, token: string | null) {
-    return !!record && record.expiresAt > Date.now() && record.token === token;
+function isRecordFresh(record: CacheRecord<unknown> | null, sessionKey: string | null) {
+    return !!record && record.expiresAt > Date.now() && record.sessionKey === sessionKey;
 }
 
 export function getCachedValue<T>(key: string): T | null {
-    const token = getActiveAccessToken();
+    const sessionKey = getSessionCacheKey();
     const memoryRecord = memoryCache.get(key) as CacheRecord<T> | undefined;
 
-    if (memoryRecord && isRecordFresh(memoryRecord, token)) {
+    if (memoryRecord && isRecordFresh(memoryRecord, sessionKey)) {
         return memoryRecord.value;
     }
 
     const storedRecord = readStoredRecord<T>(key);
-    if (storedRecord && isRecordFresh(storedRecord, token)) {
+    if (storedRecord && isRecordFresh(storedRecord, sessionKey)) {
         memoryCache.set(key, storedRecord);
         return storedRecord.value;
     }
@@ -85,13 +92,13 @@ export async function getOrSetCachedValue<T>(
         return pending;
     }
 
-    const token = getActiveAccessToken();
+    const sessionKey = getSessionCacheKey();
     const request = factory()
         .then((value) => {
             const record: CacheRecord<T> = {
                 value,
                 expiresAt: Date.now() + ttlMs,
-                token,
+                sessionKey,
             };
             memoryCache.set(key, record);
             persistRecord(key, record);
