@@ -39,7 +39,11 @@ jobs:
         run: npm install
 
       # 4. Build Next.js app (Để kiểm tra lỗi compile trước khi deploy)
+      # OAuth client IDs: Settings → Secrets and variables → Actions → Variables
       - name: Build Next.js app
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ vars.NEXT_PUBLIC_FACEBOOK_APP_ID }}
         run: npm run build
 
 
