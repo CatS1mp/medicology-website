@@ -41,8 +41,7 @@ jobs:
       # 4. Build Next.js app (Để kiểm tra lỗi compile trước khi deploy)
       - name: Build Next.js app
         run: npm run build
-        env:
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+
 
       # 5. Login to Azure
       - name: Azure Login
