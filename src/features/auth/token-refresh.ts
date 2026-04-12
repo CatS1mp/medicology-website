@@ -1,20 +1,8 @@
 'use client';
 
-import type { AuthResponse } from './types';
+import { isAuthSessionPayload, unwrapSpringBody } from '@/lib/auth-response';
+import type { AuthSessionPayload } from './types';
 import { getStoredRefreshToken, persistAuthSession } from './session';
-
-function unwrapSpringBody(body: unknown): unknown {
-    if (typeof body === 'object' && body !== null && 'data' in body && ('code' in body || 'message' in body)) {
-        return (body as { data: unknown }).data;
-    }
-    return body;
-}
-
-function isAuthResponse(value: unknown): value is AuthResponse {
-    if (typeof value !== 'object' || value === null) return false;
-    const o = value as Record<string, unknown>;
-    return typeof o.accessToken === 'string' && typeof o.refreshToken === 'string' && o.expiresIn != null;
-}
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -32,32 +20,34 @@ export function refreshAccessTokenWithMutex(): Promise<boolean> {
 
     const task = (async () => {
         try {
-            const refreshToken = getStoredRefreshToken();
-            if (!refreshToken) {
+            if (!getStoredRefreshToken()) {
                 return false;
             }
 
             const res = await fetch('/api/auth/refresh', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken }),
+                body: JSON.stringify({}),
             });
 
             if (!res.ok) {
                 return false;
             }
 
-            const raw = await res.json();
+            const raw: unknown = await res.json();
             const data = unwrapSpringBody(raw);
-            if (!isAuthResponse(data)) {
+            if (!isAuthSessionPayload(data)) {
                 return false;
             }
 
-            persistAuthSession({
-                ...data,
+            const payload: AuthSessionPayload = {
                 tokenType: typeof data.tokenType === 'string' ? data.tokenType : 'Bearer',
                 expiresIn: typeof data.expiresIn === 'number' ? data.expiresIn : Number(data.expiresIn),
-            });
+                userProfile: data.userProfile,
+            };
+
+            persistAuthSession(payload);
             return true;
         } catch {
             return false;

@@ -1,7 +1,7 @@
 import {
     ApiError,
     ApiErrorBody,
-    AuthResponse,
+    AuthSessionPayload,
     ChangeCurrentPasswordRequest,
     CurrentUser,
     CurrentUserProfile,
@@ -98,12 +98,12 @@ export function register(data: RegisterRequest): Promise<RegisterResponse> {
     return jsonPost<RegisterResponse>(`${AUTH}/register`, data);
 }
 
-export function login(data: LoginRequest): Promise<AuthResponse> {
-    return jsonPost<AuthResponse>(`${AUTH}/login`, data);
+export function login(data: LoginRequest): Promise<AuthSessionPayload> {
+    return jsonPost<AuthSessionPayload>(`${AUTH}/login`, data);
 }
 
-export function oauthLogin(data: OAuthLoginRequest): Promise<AuthResponse> {
-    return jsonPost<AuthResponse>(`${AUTH}/oauth`, data);
+export function oauthLogin(data: OAuthLoginRequest): Promise<AuthSessionPayload> {
+    return jsonPost<AuthSessionPayload>(`${OAUTH}/oauth`, data);
 }
 
 
@@ -141,8 +141,8 @@ export function logout(data?: LogoutRequest, accessToken?: string): Promise<stri
     return jsonPost<string>(`${AUTH}/logout`, data, accessToken);
 }
 
-export function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
-    return jsonPost<AuthResponse>(`${AUTH}/refresh`, data);
+export function refreshToken(data: RefreshTokenRequest): Promise<AuthSessionPayload> {
+    return jsonPost<AuthSessionPayload>(`${AUTH}/refresh`, data);
 }
 
 export function getCurrentUser(accessToken?: string): Promise<CurrentUser> {

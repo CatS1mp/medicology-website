@@ -55,6 +55,13 @@ export interface AuthResponse {
     userProfile: UserProfile;
 }
 
+/** Tokens are delivered via httpOnly cookies; client only receives profile + expiry metadata. */
+export interface AuthSessionPayload {
+    tokenType: string;
+    expiresIn: number;
+    userProfile: UserProfile;
+}
+
 export interface RegisterResponse {
     email: string;
 }

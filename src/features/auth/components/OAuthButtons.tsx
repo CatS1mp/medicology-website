@@ -5,7 +5,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/shared/components/Button';
 import { oauthLogin } from '../api';
-import { ApiError, AuthResponse } from '../types';
+import { ApiError, AuthSessionPayload } from '../types';
 import { persistAuthSession } from '../session';
 import { useToast } from '@/shared/contexts/ToastContext';
 
@@ -111,7 +111,7 @@ export const OAuthButtons: React.FC = () => {
     const facebookReadyRef = React.useRef(false);
 
     const completeOAuthLogin = React.useCallback(
-        async (sessionPromise: Promise<AuthResponse>) => {
+        async (sessionPromise: Promise<AuthSessionPayload>) => {
             const session = await sessionPromise;
             persistAuthSession(session);
             showToast('Đăng nhập thành công!', 'success');

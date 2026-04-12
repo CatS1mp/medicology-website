@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { resend } from '../api';
 import { ApiError } from '../types';
+import { canResendVerification, markResendVerification, resendCooldownRemainingMs } from '../resend-throttle';
 
 interface UseVerifyEmailReturn {
     handleResend: () => Promise<void>;
@@ -28,8 +29,14 @@ export function useVerifyEmail(): UseVerifyEmailReturn {
 
         setResendError(null);
         setIsResendSuccess(false);
+        if (!canResendVerification(email)) {
+            const sec = Math.ceil(resendCooldownRemainingMs(email) / 1000);
+            showToast(`Vui lòng đợi ${sec}s trước khi gửi lại.`, 'info');
+            return;
+        }
         setIsResending(true);
         try {
+            markResendVerification(email);
             await resend(email);
             setIsResendSuccess(true);
             showToast('Email xác thực đã được gửi lại!', 'success');
