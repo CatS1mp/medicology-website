@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.text();
-    const res = await fetch(`${backend}/api/v1/oauth/oauth`, {
+    const res = await fetch(`${backend}/api/v1/auth/oauth`, {
         method: 'POST',
         headers: {
             'content-type': req.headers.get('content-type') ?? 'application/json',
