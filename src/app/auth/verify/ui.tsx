@@ -83,7 +83,7 @@ export function AuthVerifyClient() {
         return () => {
             cancelled = true;
         };
-    }, [router, token]);
+    }, [router, token, showToast]);
 
     if (status === 'error') {
         const displayError = VERIFY_ERROR_MESSAGES[errorCode] ?? errorCode ?? 'Không thể xác thực email. Vui lòng thử lại.';

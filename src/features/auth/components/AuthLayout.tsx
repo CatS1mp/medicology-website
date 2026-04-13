@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -38,11 +39,14 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, topRightText, 
                             }}
                         ></div>
                         
-                        <img
+                        <Image
                             src="/images/Mascot/1.svg"
                             alt="Medicology Robot Nurse"
+                            width={500}
+                            height={500}
                             className="w-full h-full object-contain"
-                            draggable="false"
+                            draggable={false}
+                            priority
                         />
                     </div>
                 </div>

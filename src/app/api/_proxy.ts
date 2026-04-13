@@ -14,6 +14,17 @@ function validatePathSegments(segments: string[]): boolean {
     });
 }
 
+/** Ensures fetch() receives an absolute URL (env often omits https://). */
+function normalizeBackendBaseUrl(raw: string): string {
+    const t = raw.trim();
+    if (!t) return '';
+    const withoutTrailingSlash = t.replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(withoutTrailingSlash)) {
+        return withoutTrailingSlash;
+    }
+    return `https://${withoutTrailingSlash.replace(/^\/+/, '')}`;
+}
+
 function buildTargetUrl(req: NextRequest, pathSegments: string[], config: ProxyConfig) {
     const pathname = pathSegments.join('/');
     const suffix = pathname ? `/${pathname}` : '';
@@ -31,7 +42,7 @@ export async function proxyToBackend(
     params: { path?: string[] },
     config: ProxyConfig
 ) {
-    const backend = config.backendUrl?.trim();
+    const backend = normalizeBackendBaseUrl(config.backendUrl ?? '');
     if (!backend) {
         return NextResponse.json({ message: 'Dịch vụ nền chưa được cấu hình.' }, { status: 503 });
     }

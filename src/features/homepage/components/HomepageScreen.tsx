@@ -6,8 +6,10 @@ import { StarryBackground } from '@/shared/components/StarryBackground';
 
 export const HomepageScreen = () => {
     const router = useRouter();
-    const CATEGORIES = ['SINH LÝ HỌC', 'NỘI KHOA', 'DƯỢC LÝ HỌC', 'BỆNH LÝ HỌC', 'NGOẠI KHOA', 'NHI KHOA', 'DA LIỄU'];
-    const INFINITE_CATEGORIES = React.useMemo(() => Array(100).fill(CATEGORIES).flat(), [CATEGORIES]);
+    const INFINITE_CATEGORIES = React.useMemo(() => {
+        const categories = ['SINH LÝ HỌC', 'NỘI KHOA', 'DƯỢC LÝ HỌC', 'BỆNH LÝ HỌC', 'NGOẠI KHOA', 'NHI KHOA', 'DA LIỄU'];
+        return Array(100).fill(categories).flat();
+    }, []);
 
     const [activeIndex, setActiveIndex] = React.useState(Math.floor(INFINITE_CATEGORIES.length / 2));
     const categoryScrollRef = React.useRef<HTMLUListElement>(null);

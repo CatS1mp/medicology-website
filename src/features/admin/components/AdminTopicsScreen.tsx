@@ -2,8 +2,6 @@
 
 import React from 'react';
 import styles from '../admin.module.css';
-import { AdminSidebar } from './AdminSidebar';
-import { AdminHeader } from './AdminHeader';
 import { TopicCard } from './TopicCard';
 
 const topicData = [

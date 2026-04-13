@@ -15,7 +15,7 @@ function isProtectedPath(pathname: string): boolean {
     return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     if (!isProtectedPath(pathname)) {
         return NextResponse.next();
