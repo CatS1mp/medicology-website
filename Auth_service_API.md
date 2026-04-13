@@ -27,6 +27,7 @@ When an error occurs, the service returns this JSON shape:
 ```
 
 Notes:
+
 - Validation errors typically return HTTP `400`.
 - Most domain/logic errors are thrown as `IllegalArgumentException` and return HTTP `401`.
 - Unexpected errors return HTTP `500`.
@@ -125,6 +126,7 @@ Same shape as **Login**.
 Marks the user as verified if the verification token is valid and not expired.
 
 Query params:
+
 - `token` (UUID) — verification token
 
 Response: `200 OK`
@@ -144,6 +146,7 @@ Email verified successfully!
 Generates a reset token and sends a reset email.
 
 Query params:
+
 - `email` (string)
 
 Response: `200 OK`
@@ -189,6 +192,7 @@ Password has been reset successfully.
 Revokes the provided refresh token (if present).
 
 Headers:
+
 - `Authorization` is accepted but optional; current implementation only revokes by refresh token.
 
 Request body (optional):
@@ -216,6 +220,7 @@ Logged out successfully. Refresh token revoked.
 Exchanges a refresh token for a new access token and a new refresh token.
 
 Important behavior:
+
 - The old refresh token is **revoked** (refresh token rotation).
 
 Request body:

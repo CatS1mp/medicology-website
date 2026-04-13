@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
+import { adminCreateCourse, adminDeleteCourse, adminListCourses, adminUpdateCourse } from '@/shared/api/admin-learning';
+import type { CourseResponse } from '@/shared/types/learning';
 
 type CourseLevel = 'General' | 'Teen' | 'Adult';
 
 type CourseRow = {
+    id: string;
     code: string;
     name: string;
     topic: string;
@@ -16,28 +19,19 @@ type CourseRow = {
     level: CourseLevel;
 };
 
-const courseData: CourseRow[] = [
-    { code: 'SCCB', name: 'Kỹ thuật sơ cứu cơ bản', topic: 'Sơ cứu & Cấp cứu', target: 'Trẻ em', updated: '03/12/2025', order: 12, level: 'General' },
-    { code: 'DD01', name: 'Dinh dưỡng cho trẻ nhỏ', topic: 'Dinh dưỡng & Chế độ ăn', target: 'Tất cả', updated: '03/12/2025', order: 5, level: 'Teen' },
-    { code: 'DD02', name: 'Khoáng chất trong thực vật', topic: 'Dinh dưỡng & Chế độ ăn', target: 'Tất cả', updated: '03/12/2025', order: 2, level: 'General' },
-    { code: 'DD03', name: 'Dưỡng chất trong động vật', topic: 'Dinh dưỡng & Chế độ ăn', target: 'Tất cả', updated: '03/12/2025', order: 7, level: 'General' },
-    { code: 'DD04', name: 'Khoáng chất trong thực vật', topic: 'Dinh dưỡng & Chế độ ăn', target: 'Tất cả', updated: '03/12/2025', order: 4, level: 'General' },
-    { code: 'SCNC', name: 'Kỹ thuật sơ cứu nâng cao', topic: 'Sơ cứu & Cấp cứu', target: 'Tất cả', updated: '03/12/2025', order: 8, level: 'Teen' },
-    { code: 'SCNC', name: 'Kỹ thuật sơ cứu nâng cao', topic: 'Sơ cứu & Cấp cứu', target: 'Vị thành niên', updated: '03/12/2025', order: 3, level: 'General' },
-    { code: 'SCNC', name: 'Kỹ thuật sơ cứu nâng cao', topic: 'Sơ cứu & Cấp cứu', target: 'Vị thành niên', updated: '03/12/2025', order: 3, level: 'Teen' },
-    { code: 'SCNC', name: 'Kỹ thuật sơ cứu nâng cao', topic: 'Sơ cứu & Cấp cứu', target: 'Vị thành niên', updated: '03/12/2025', order: 19, level: 'General' },
-    { code: 'SCNC', name: 'Kỹ thuật sơ cứu nâng cao', topic: 'Sơ cứu & Cấp cứu', target: 'Người lớn', updated: '03/12/2025', order: 3, level: 'Adult' },
-    { code: 'TT01', name: 'Nhận biết trầm cảm', topic: 'Sức khỏe Tinh thần', target: 'Người lớn', updated: '03/12/2025', order: 3, level: 'General' },
-    { code: 'TT02', name: 'Nhận biết trầm cảm', topic: 'Sức khỏe Tinh thần', target: 'Người lớn', updated: '03/12/2025', order: 9, level: 'General' },
-    { code: 'TT03', name: 'Nhận biết trầm cảm', topic: 'Sức khỏe Tinh thần', target: 'Người lớn', updated: '03/12/2025', order: 12, level: 'General' },
-    { code: 'TT04', name: 'Nhận biết trầm cảm', topic: 'Sức khỏe Tinh thần', target: 'Người lớn', updated: '03/12/2025', order: 15, level: 'Adult' },
-    { code: 'TT05', name: 'Nhận biết trầm cảm', topic: 'Sức khỏe Tinh thần', target: 'Người lớn', updated: '03/12/2025', order: 3, level: 'General' },
-    { code: 'TM01', name: 'Chăm sóc sau đột quỵ', topic: 'Sức khỏe Tim mạch', target: 'Người lớn', updated: '03/12/2025', order: 4, level: 'General' },
-    { code: 'TM02', name: 'Chăm sóc sau đột quỵ', topic: 'Sức khỏe Tim mạch', target: 'Người lớn', updated: '03/12/2025', order: 5, level: 'General' },
-    { code: 'TM03', name: 'Chăm sóc sau đột quỵ', topic: 'Sức khỏe Tim mạch', target: 'Vị thành niên', updated: '03/12/2025', order: 8, level: 'General' },
-    { code: 'TM04', name: 'Chăm sóc sau đột quỵ', topic: 'Sức khỏe Tim mạch', target: 'Người lớn', updated: '03/12/2025', order: 3, level: 'Adult' },
-    { code: 'TM05', name: 'Chăm sóc sau đột quỵ', topic: 'Sức khỏe Tim mạch', target: 'Người lớn', updated: '03/12/2025', order: 10, level: 'Adult' },
-];
+function mapCourse(c: CourseResponse): CourseRow {
+    const updated = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('vi-VN') : '—';
+    return {
+        id: c.id,
+        code: c.slug?.slice(0, 8).toUpperCase() ?? c.id.slice(0, 8),
+        name: c.name,
+        topic: c.description?.slice(0, 40) ?? '—',
+        target: 'Tất cả',
+        updated,
+        order: c.orderIndex,
+        level: 'General',
+    };
+}
 
 function levelClass(level: CourseLevel): string {
     if (level === 'General') return styles.courseLevelGeneral;
@@ -48,7 +42,32 @@ function levelClass(level: CourseLevel): string {
 export const AdminCoursesScreen: React.FC = () => {
     const [openActionFor, setOpenActionFor] = useState<string | null>(null);
     const actionMenuRef = useRef<HTMLDivElement | null>(null);
-    const rows = useMemo(() => courseData, []);
+    const [rows, setRows] = useState<CourseRow[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const rowsWithKeys = useMemo(
+        () => rows.map((course, index) => ({ course, rowKey: `${course.id}-${index}` })),
+        [rows]
+    );
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const list = await adminListCourses();
+            setRows(list.map(mapCourse));
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Không tải được danh sách khóa học.');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void load();
+    }, [load]);
 
     useEffect(() => {
         const handleOutsideClick = (event: MouseEvent) => {
@@ -62,10 +81,53 @@ export const AdminCoursesScreen: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, []);
 
-    const handleCourseAction = (action: 'view' | 'edit' | 'delete', course: CourseRow) => {
-        // TODO: replace with real navigation/modal APIs when wired to backend.
-        console.info(`[courses] ${action}`, course.code, course.name);
-        setOpenActionFor(null);
+    const handleCourseAction = async (action: 'view' | 'edit' | 'delete', course: CourseRow) => {
+        if (action === 'view') {
+            window.alert(`Khóa học: ${course.name}\nID: ${course.id}`);
+            setOpenActionFor(null);
+            return;
+        }
+        if (action === 'edit') {
+            const name = window.prompt('Tên khóa học', course.name);
+            if (!name?.trim()) {
+                setOpenActionFor(null);
+                return;
+            }
+            try {
+                await adminUpdateCourse(course.id, { name: name.trim() });
+                await load();
+            } catch (e) {
+                window.alert(e instanceof Error ? e.message : 'Cập nhật thất bại.');
+            }
+            setOpenActionFor(null);
+            return;
+        }
+        if (action === 'delete') {
+            if (!window.confirm(`Xóa khóa học "${course.name}"?`)) {
+                setOpenActionFor(null);
+                return;
+            }
+            try {
+                await adminDeleteCourse(course.id);
+                await load();
+            } catch (e) {
+                window.alert(e instanceof Error ? e.message : 'Xóa thất bại.');
+            }
+            setOpenActionFor(null);
+        }
+    };
+
+    const handleAddCourse = async () => {
+        const name = window.prompt('Tên khóa học');
+        if (!name?.trim()) return;
+        const slug = window.prompt('Slug (URL)', name.trim().toLowerCase().replace(/\s+/g, '-')) ?? '';
+        if (!slug.trim()) return;
+        try {
+            await adminCreateCourse({ name: name.trim(), slug: slug.trim(), description: null });
+            await load();
+        } catch (e) {
+            window.alert(e instanceof Error ? e.message : 'Tạo khóa học thất bại.');
+        }
     };
 
     return (
@@ -77,10 +139,19 @@ export const AdminCoursesScreen: React.FC = () => {
                 </div>
             </section>
 
+            {error && (
+                <section className={styles.courseFilterCard} style={{ borderColor: '#fecaca', background: '#fef2f2' }}>
+                    <p style={{ margin: 0, color: '#b91c1c' }}>{error}</p>
+                    <button type="button" className={styles.coursePrimaryBtn} style={{ marginTop: 12 }} onClick={() => void load()}>
+                        Thử lại
+                    </button>
+                </section>
+            )}
+
             <section className={styles.courseFilterCard}>
                 <div className={styles.courseSortRow}>
                     <span>Sắp xếp theo:</span>
-                    <select className={styles.courseSelect}>
+                    <select className={styles.courseSelect} disabled>
                         <option>Mới cập nhật</option>
                     </select>
                 </div>
@@ -88,31 +159,57 @@ export const AdminCoursesScreen: React.FC = () => {
                 <div className={styles.courseFilterGroup}>
                     <h3>Đối tượng người dùng</h3>
                     <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>Mọi đối tượng</button>
-                        <button type="button" className={styles.courseChip}>Trẻ em</button>
-                        <button type="button" className={styles.courseChip}>Vị thành niên</button>
-                        <button type="button" className={styles.courseChip}>Người lớn</button>
+                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                            Mọi đối tượng
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Trẻ em
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Vị thành niên
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Người lớn
+                        </button>
                     </div>
                 </div>
 
                 <div className={styles.courseFilterGroup}>
                     <h3>Chủ đề Học tập</h3>
                     <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>Tất cả</button>
-                        <button type="button" className={styles.courseChip}>Sơ cứu & Cấp cứu</button>
-                        <button type="button" className={styles.courseChip}>Dinh dưỡng & Chế độ ăn</button>
-                        <button type="button" className={styles.courseChip}>Sức khỏe Tinh thần</button>
-                        <button type="button" className={styles.courseChip}>Sức khỏe Tim mạch</button>
-                        <button type="button" className={styles.courseChip}>Y học Thường thức</button>
+                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                            Tất cả
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Sơ cứu & Cấp cứu
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Dinh dưỡng & Chế độ ăn
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Sức khỏe Tinh thần
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Sức khỏe Tim mạch
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Y học Thường thức
+                        </button>
                     </div>
                 </div>
 
                 <div className={styles.courseFilterGroup}>
                     <h3>Trạng thái hiển thị</h3>
                     <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>Tất cả</button>
-                        <button type="button" className={styles.courseChip}>Đã đăng tải</button>
-                        <button type="button" className={styles.courseChip}>Bản nháp</button>
+                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                            Tất cả
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Đã đăng tải
+                        </button>
+                        <button type="button" className={styles.courseChip} disabled>
+                            Bản nháp
+                        </button>
                     </div>
                 </div>
             </section>
@@ -129,11 +226,11 @@ export const AdminCoursesScreen: React.FC = () => {
                             <circle cx="11" cy="11" r="7" stroke="#C0C4CC" strokeWidth="1.8" />
                             <path d="M20 20L16.5 16.5" stroke="#C0C4CC" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
-                        <input type="text" placeholder="Tìm kiếm" />
+                        <input type="text" placeholder="Tìm kiếm" disabled />
                     </div>
 
                     <div className={styles.courseToolbarActions}>
-                        <button type="button" className={styles.courseGhostBtn}>
+                        <button type="button" className={styles.courseGhostBtn} disabled>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M12 15V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 <path d="M8.5 9.5L12 6L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -141,7 +238,7 @@ export const AdminCoursesScreen: React.FC = () => {
                             </svg>
                             Nhập Excel
                         </button>
-                        <button type="button" className={styles.courseGhostBtn}>
+                        <button type="button" className={styles.courseGhostBtn} disabled>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M12 6V15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 <path d="M8.5 11.5L12 15L15.5 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -149,7 +246,7 @@ export const AdminCoursesScreen: React.FC = () => {
                             </svg>
                             Xuất Excel
                         </button>
-                        <button type="button" className={styles.coursePrimaryBtn}>
+                        <button type="button" className={styles.coursePrimaryBtn} onClick={() => void handleAddCourse()}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M12 5V19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 <path d="M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -159,25 +256,50 @@ export const AdminCoursesScreen: React.FC = () => {
                     </div>
                 </div>
 
+                {loading && <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Đang tải…</p>}
+                {!loading && !error && rows.length === 0 && (
+                    <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Chưa có khóa học.</p>
+                )}
+
                 <div className={styles.courseTableWrap}>
                     <table className={styles.courseTable}>
                         <thead>
                             <tr>
-                                <th><input type="checkbox" aria-label="Chọn tất cả" /></th>
-                                <th><span className={styles.courseHeadCell}>Mã</span></th>
-                                <th><span className={styles.courseHeadCell}>Tên khoá học chuyên đề</span></th>
-                                <th><span className={styles.courseHeadCell}>Chủ đề</span></th>
-                                <th><span className={styles.courseHeadCell}>Đối tượng</span></th>
-                                <th><span className={styles.courseHeadCell}>Ngày cập nhật</span></th>
-                                <th><span className={styles.courseHeadCell}>Thứ tự</span></th>
-                                <th><span className={styles.courseHeadCell}>Xếp hạng ND</span></th>
-                                <th><span className={styles.courseHeadCell}>HD</span></th>
+                                <th>
+                                    <input type="checkbox" aria-label="Chọn tất cả" disabled />
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Mã</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Tên khoá học chuyên đề</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Chủ đề</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Đối tượng</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Ngày cập nhật</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Thứ tự</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>Xếp hạng ND</span>
+                                </th>
+                                <th>
+                                    <span className={styles.courseHeadCell}>HD</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((course, index) => (
-                                <tr key={`${course.code}-${index}`}>
-                                    <td><input type="checkbox" aria-label={`Chọn ${course.code}-${index}`} /></td>
+                            {rowsWithKeys.map(({ course, rowKey }) => (
+                                <tr key={rowKey}>
+                                    <td>
+                                        <input type="checkbox" aria-label={`Chọn ${rowKey}`} disabled />
+                                    </td>
                                     <td>{course.code}</td>
                                     <td className={styles.courseNameCell}>{course.name}</td>
                                     <td>{course.topic}</td>
@@ -188,13 +310,13 @@ export const AdminCoursesScreen: React.FC = () => {
                                         <span className={`${styles.courseLevelPill} ${levelClass(course.level)}`}>{course.level}</span>
                                     </td>
                                     <td className={styles.courseActionCell}>
-                                        <div ref={openActionFor === `${course.code}-${index}` ? actionMenuRef : null}>
+                                        <div ref={openActionFor === rowKey ? actionMenuRef : null}>
                                             <button
                                                 type="button"
                                                 className={styles.courseMoreBtn}
-                                                onClick={() => setOpenActionFor((prev) => (prev === `${course.code}-${index}` ? null : `${course.code}-${index}`))}
+                                                onClick={() => setOpenActionFor((prev) => (prev === rowKey ? null : rowKey))}
                                                 aria-label={`Thao tác ${course.code}`}
-                                                aria-expanded={openActionFor === `${course.code}-${index}`}
+                                                aria-expanded={openActionFor === rowKey}
                                                 aria-haspopup="menu"
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -204,23 +326,32 @@ export const AdminCoursesScreen: React.FC = () => {
                                                 </svg>
                                             </button>
 
-                                            {openActionFor === `${course.code}-${index}` && (
+                                            {openActionFor === rowKey && (
                                                 <div className={styles.courseActionMenu} role="menu">
-                                                    <button type="button" onClick={() => handleCourseAction('view', course)}>
+                                                    <button type="button" onClick={() => void handleCourseAction('view', course)}>
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                                            <path d="M2.5 12C4.5 7.5 8 5.25 12 5.25C16 5.25 19.5 7.5 21.5 12C19.5 16.5 16 18.75 12 18.75C8 18.75 4.5 16.5 2.5 12Z" stroke="currentColor" strokeWidth="1.8" />
+                                                            <path
+                                                                d="M2.5 12C4.5 7.5 8 5.25 12 5.25C16 5.25 19.5 7.5 21.5 12C19.5 16.5 16 18.75 12 18.75C8 18.75 4.5 16.5 2.5 12Z"
+                                                                stroke="currentColor"
+                                                                strokeWidth="1.8"
+                                                            />
                                                             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
                                                         </svg>
                                                         Xem chi tiết
                                                     </button>
-                                                    <button type="button" onClick={() => handleCourseAction('edit', course)}>
+                                                    <button type="button" onClick={() => void handleCourseAction('edit', course)}>
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                                             <path d="M4 20H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                                                            <path d="M6.75 15.75L15.75 6.75L18.25 9.25L9.25 18.25L6 19L6.75 15.75Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                                                            <path
+                                                                d="M6.75 15.75L15.75 6.75L18.25 9.25L9.25 18.25L6 19L6.75 15.75Z"
+                                                                stroke="currentColor"
+                                                                strokeWidth="1.8"
+                                                                strokeLinejoin="round"
+                                                            />
                                                         </svg>
                                                         Chỉnh sửa
                                                     </button>
-                                                    <button type="button" onClick={() => handleCourseAction('delete', course)}>
+                                                    <button type="button" onClick={() => void handleCourseAction('delete', course)}>
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                                             <path d="M4.5 7.5H19.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                                             <path d="M9.5 4.5H14.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -239,15 +370,19 @@ export const AdminCoursesScreen: React.FC = () => {
                 </div>
 
                 <div className={styles.coursePagination}>
-                    <p>Hiển thị <b>1-20</b> trong tổng số <b>345</b> khoá học chuyên đề</p>
+                    <p>
+                        Hiển thị <b>1-{rows.length || 0}</b> trong tổng số <b>{rows.length}</b> khoá học chuyên đề
+                    </p>
                     <div className={styles.coursePageControls}>
-                        <button type="button">Trước</button>
-                        <button type="button" className={styles.coursePageActive}>1</button>
-                        <button type="button">2</button>
-                        <button type="button">3</button>
-                        <button type="button">...</button>
-                        <button type="button">140</button>
-                        <button type="button">Sau</button>
+                        <button type="button" disabled>
+                            Trước
+                        </button>
+                        <button type="button" className={styles.coursePageActive}>
+                            1
+                        </button>
+                        <button type="button" disabled>
+                            Sau
+                        </button>
                     </div>
                 </div>
             </section>

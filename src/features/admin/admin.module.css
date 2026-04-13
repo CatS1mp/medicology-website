@@ -1398,7 +1398,8 @@
 .studentsTableWrap {
   border: 1px solid #d1d5db;
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow visible so action dropdown is not clipped; rows use z-index when menu open */
+  overflow: visible;
 }
 
 .studentsTable {
@@ -1419,6 +1420,9 @@
   padding: 12px 10px;
   vertical-align: middle;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .studentsTable th + th {
@@ -1440,34 +1444,29 @@
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* checkbox | họ tên | email | ngày tham gia | trạng thái | HĐ */
 .studentsTable th:nth-child(1),
 .studentsTable td:nth-child(1) { width: 44px; }
 
 .studentsTable th:nth-child(2),
-.studentsTable td:nth-child(2) { width: 70px; }
+.studentsTable td:nth-child(2) { width: 22%; }
 
 .studentsTable th:nth-child(3),
-.studentsTable td:nth-child(3) { width: 180px; }
+.studentsTable td:nth-child(3) { width: 32%; }
 
 .studentsTable th:nth-child(4),
-.studentsTable td:nth-child(4) { width: 290px; }
+.studentsTable td:nth-child(4) { width: 140px; }
 
 .studentsTable th:nth-child(5),
 .studentsTable td:nth-child(5) { width: 140px; }
 
 .studentsTable th:nth-child(6),
-.studentsTable td:nth-child(6) { width: 140px; }
-
-.studentsTable th:nth-child(7),
-.studentsTable td:nth-child(7) { width: 90px; }
-
-.studentsTable th:nth-child(8),
-.studentsTable td:nth-child(8) { width: 140px; }
-
-.studentsTable th:nth-child(9),
-.studentsTable td:nth-child(9) { width: 70px; }
+.studentsTable td:nth-child(6) { width: 70px; }
 
 .studentsTable input[type='checkbox'] {
   display: block;
@@ -1513,6 +1512,11 @@
   text-align: center;
 }
 
+/* Must beat .studentsTable td { overflow: hidden } so the menu is not clipped */
+.studentsTable td.studentsActionCell {
+  overflow: visible;
+}
+
 .studentsMoreBtn {
   display: inline-flex;
   align-items: center;
@@ -1529,7 +1533,10 @@
   position: absolute;
   top: 36px;
   right: 8px;
-  z-index: 10;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 190px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -1540,7 +1547,8 @@
 
 .studentsMenu button {
   width: 100%;
-  display: inline-flex;
+  box-sizing: border-box;
+  display: flex;
   align-items: center;
   gap: 10px;
   border: none;
@@ -1558,7 +1566,11 @@
 }
 
 .studentsDeleteBtn {
-  color: #171717;
+  color: #b91c1c;
+}
+
+.studentsDeleteBtn:hover {
+  background: #fef2f2 !important;
 }
 
 .studentsPagination {
@@ -2382,5 +2394,784 @@
   .lessonPagination {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* —— Admin student profile modal —— */
+.studentModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.studentModal {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 28px 32px 24px;
+}
+
+.studentModalClose {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 22px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.studentModalClose:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.studentModalHeader {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding-right: 40px;
+  margin-bottom: 28px;
+}
+
+.studentModalAvatarWrap {
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border: 3px solid #e2e8f0;
+}
+
+.studentModalAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studentModalAvatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 32px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.studentModalHeaderText {
+  flex: 1;
+  min-width: 0;
+}
+
+.studentModalTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.studentModalName {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.studentModalBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.studentModalBadgeVerified,
+.studentModalBadgeActive,
+.studentModalBadgePending,
+.studentModalBadgeLocked {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.studentModalBadgeVerified {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.studentModalBadgeActive {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.studentModalBadgePending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.studentModalBadgeLocked {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.studentModalUsername {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.studentModalJoined {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studentModalJoinedIcon {
+  font-size: 14px;
+}
+
+.studentModalBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 32px;
+  margin-bottom: 28px;
+}
+
+.studentModalSectionTitle {
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.studentModalInfoList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.studentModalInfoList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  color: #334155;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.studentModalInfoList li:last-child {
+  border-bottom: none;
+}
+
+.studentModalInfoIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.studentModalStatCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.studentModalStatCard {
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.studentModalStatLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0369a1;
+  margin-bottom: 6px;
+}
+
+.studentModalStatValue {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0c4a6e;
+}
+
+.studentModalBio {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #475569;
+}
+
+.studentModalProfileHint {
+  margin: 0 0 12px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.studentModalProfileWarn {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #a16207;
+  font-size: 13px;
+}
+
+.studentModalBodyDimmed {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.studentModalEditForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.studentModalEditError {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.studentModalEditLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.studentModalEditLabelInline {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.studentModalEditInput,
+.studentModalEditSelect,
+.studentModalEditTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+
+.studentModalEditTextarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.55;
+}
+
+.studentModalEditInput:focus,
+.studentModalEditSelect:focus,
+.studentModalEditTextarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.studentModalEditInput:disabled,
+.studentModalEditSelect:disabled,
+.studentModalEditTextarea:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.studentModalTableSection {
+  margin-bottom: 20px;
+}
+
+.studentModalTableWrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.studentModalTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.studentModalTable thead {
+  background: #f8fafc;
+}
+
+.studentModalTable th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.studentModalTable td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.studentModalTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.studentModalTableEmpty {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 24px 16px !important;
+}
+
+.studentModalScore {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.studentModalPassed {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.studentModalFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.studentModalLastAccess {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.studentModalFooterActions {
+  display: flex;
+  gap: 10px;
+}
+
+.studentModalBtnGhost {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.studentModalBtnGhost:hover {
+  background: #f8fafc;
+}
+
+.studentModalBtnPrimary {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+
+.studentModalBtnPrimary:hover {
+  background: #1d4ed8;
+}
+
+.studentModalBtnDanger {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.studentModalBtnDanger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.studentModalBtnDanger:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.studentsTableRowClickable {
+  cursor: pointer;
+  position: relative;
+  z-index: 0;
+}
+
+.studentsTableRowMenuOpen {
+  z-index: 50;
+}
+
+.studentsTableRowClickable:hover {
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .studentModalBody {
+    grid-template-columns: 1fr;
+  }
+
+  .studentModalStatCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* —— Add student modal —— */
+.addStudentBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.addStudentModal {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+  padding: 26px 28px 0;
+}
+
+.addStudentClose {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 22px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.addStudentClose:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.addStudentHeader {
+  padding-right: 44px;
+  margin-bottom: 8px;
+}
+
+.addStudentTitle {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.addStudentSubtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.addStudentRequiredNote {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.addStudentFormError {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.addStudentGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 36px;
+  padding-bottom: 8px;
+}
+
+.addStudentColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.addStudentSectionTitle {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.addStudentSectionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.addStudentLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.addStudentInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.addStudentInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.addStudentInput::placeholder {
+  color: #cbd5e1;
+}
+
+.addStudentInputIconWrap {
+  position: relative;
+  display: block;
+}
+
+.addStudentInputIconWrap .addStudentInput {
+  padding-right: 42px;
+}
+
+.addStudentInputIcon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  display: flex;
+}
+
+.addStudentPwToggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  padding: 6px;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  border-radius: 6px;
+}
+
+.addStudentPwToggle:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.addStudentRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.addStudentSelectWrap {
+  position: relative;
+  display: block;
+}
+
+.addStudentSelect {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  padding: 11px 40px 11px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.addStudentSelect:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.addStudentSelectChevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.addStudentFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 0 22px;
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #fafbfc 0%, #f8fafc 100%);
+  margin-left: -28px;
+  margin-right: -28px;
+  padding-left: 28px;
+  padding-right: 28px;
+  border-radius: 0 0 16px 16px;
+}
+
+.addStudentBtnCancel {
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.addStudentBtnCancel:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.addStudentBtnSubmit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+
+.addStudentBtnSubmit:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.addStudentBtnSubmit:disabled,
+.addStudentBtnCancel:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+  .addStudentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .addStudentRow2 {
+    grid-template-columns: 1fr;
   }
 }

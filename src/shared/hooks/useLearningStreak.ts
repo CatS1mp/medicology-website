@@ -47,7 +47,7 @@ export function useLearningStreak() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [router, showToast]);
 
     return { streakDays, isLoading };
 }

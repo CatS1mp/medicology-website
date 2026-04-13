@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
@@ -12,19 +12,20 @@ const CATEGORIES: Array<'Tất cả' | ArticleCategory> = ['Tất cả', 'Cấp 
 const PER_PAGE_OPTIONS = [3, 5, 10] as const;
 
 export const SearchResultsScreen: React.FC = () => {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get('q') ?? '';
+    return <SearchResultsContent key={initialQuery} initialQuery={initialQuery} />;
+};
+
+type SearchResultsContentProps = { initialQuery: string };
+
+const SearchResultsContent: React.FC<SearchResultsContentProps> = ({ initialQuery }) => {
+    const router = useRouter();
 
     const { streakDays } = useLearningStreak();
 
-    const { results, filters, setFilters, search, isLoading } = useEncyclopediaSearch(initialQuery);
+    const { results, filters, setFilters, isLoading } = useEncyclopediaSearch(initialQuery);
     const [inputValue, setInputValue] = useState(initialQuery);
-
-    useEffect(() => {
-        setInputValue(initialQuery);
-        search(initialQuery);
-    }, [initialQuery]);
 
     const handleSearch = () => {
         const trimmed = inputValue.trim();
