@@ -1,5 +1,6 @@
 import { buildHeaders, requestApi } from '@/shared/api/http';
-import { getOrSetCachedValue, invalidateCachedValue } from '@/shared/api/client-cache';
+import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 import type {
     AssessmentDiscoveryResponse,
     AttemptAnswerRequest,
@@ -10,8 +11,6 @@ import type {
 } from '@/shared/types/assessment';
 
 const API = '/api/assessment';
-const MY_ATTEMPTS_CACHE_KEY = 'assessment:my-attempts';
-const MY_ATTEMPTS_TTL_MS = 30_000;
 
 function get<T>(url: string): Promise<T> {
     return requestApi<T>(url, {
@@ -30,7 +29,9 @@ function post<T>(url: string, data?: unknown): Promise<T> {
 
 export function getSectionAssessment(sectionId: string, lessonId?: string): Promise<AssessmentDiscoveryResponse | null> {
     const search = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : '';
-    return get<AssessmentDiscoveryResponse | null>(`${API}/sections/${sectionId}/assessment${search}`);
+    return cachedGet(cacheKeys.assessment.sectionAssessment(sectionId, lessonId), CACHE_TTL.MEDIUM, () =>
+        get<AssessmentDiscoveryResponse | null>(`${API}/sections/${sectionId}/assessment${search}`)
+    );
 }
 
 export function startAttempt(assessmentId: string): Promise<AttemptStartResponse> {
@@ -42,18 +43,20 @@ export function saveAttemptAnswer(attemptId: string, data: AttemptAnswerRequest)
 }
 
 export function submitAttempt(attemptId: string): Promise<AttemptResultResponse> {
-    return post<AttemptResultResponse>(`${API}/attempts/${attemptId}/submit`).then((result) => {
-        invalidateCachedValue(MY_ATTEMPTS_CACHE_KEY);
-        return result;
-    });
+    return mutateAndInvalidate(
+        () => post<AttemptResultResponse>(`${API}/attempts/${attemptId}/submit`),
+        [cacheKeys.assessment.myAttempts(), cacheKeys.assessment.attemptResult(attemptId)]
+    );
 }
 
 export function getAttemptResult(attemptId: string): Promise<AttemptResultResponse> {
-    return get<AttemptResultResponse>(`${API}/attempts/${attemptId}/result`);
+    return cachedGet(cacheKeys.assessment.attemptResult(attemptId), CACHE_TTL.LONG, () =>
+        get<AttemptResultResponse>(`${API}/attempts/${attemptId}/result`)
+    );
 }
 
 export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
-    return getOrSetCachedValue(MY_ATTEMPTS_CACHE_KEY, MY_ATTEMPTS_TTL_MS, () =>
+    return cachedGet(cacheKeys.assessment.myAttempts(), CACHE_TTL.SHORT, () =>
         get<AttemptSummaryResponse[]>(`${API}/users/me/attempts`)
     );
 }

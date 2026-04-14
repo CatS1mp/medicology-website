@@ -71,9 +71,29 @@ export function getCachedValue<T>(key: string): T | null {
 export function invalidateCachedValue(...keys: string[]) {
     for (const key of keys) {
         memoryCache.delete(key);
+        pendingRequests.delete(key);
         if (canUseBrowserStorage()) {
             window.sessionStorage.removeItem(getStorageKey(key));
         }
+    }
+}
+
+export function invalidateCachedValueByPrefix(...prefixes: string[]) {
+    if (prefixes.length === 0) return;
+
+    const keysFromMemory = Array.from(memoryCache.keys());
+    const keysFromPending = Array.from(pendingRequests.keys());
+    const keysFromStorage =
+        canUseBrowserStorage()
+            ? Object.keys(window.sessionStorage)
+                  .filter((k) => k.startsWith(STORAGE_PREFIX))
+                  .map((k) => k.slice(STORAGE_PREFIX.length))
+            : [];
+
+    const allKeys = new Set<string>([...keysFromMemory, ...keysFromPending, ...keysFromStorage]);
+    const matchedKeys = Array.from(allKeys).filter((key) => prefixes.some((prefix) => key.startsWith(prefix)));
+    if (matchedKeys.length > 0) {
+        invalidateCachedValue(...matchedKeys);
     }
 }
 

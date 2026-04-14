@@ -20,6 +20,8 @@ import {
     UserSession,
 } from './types';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
+import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 
 const AUTH = `/api/auth`;
 const USERS = `/api/users`;
@@ -27,6 +29,11 @@ const PROFILES = `/api/profiles`;
 const SETTINGS = `/api/settings`;
 const OAUTH = `/api/oauth`;
 const SESSIONS = `/api/sessions`;
+
+function authScopedKey(key: string, accessToken?: string): string {
+    if (!accessToken) return key;
+    return `${key}:token`;
+}
 
 function jsonPost<T>(url: string, data?: unknown, accessToken?: string): Promise<T> {
     return requestApi<T>(url, {
@@ -99,11 +106,11 @@ export function register(data: RegisterRequest): Promise<RegisterResponse> {
 }
 
 export function login(data: LoginRequest): Promise<AuthSessionPayload> {
-    return jsonPost<AuthSessionPayload>(`${AUTH}/login`, data);
+    return mutateAndInvalidate(() => jsonPost<AuthSessionPayload>(`${AUTH}/login`, data), [], ['auth:']);
 }
 
 export function oauthLogin(data: OAuthLoginRequest): Promise<AuthSessionPayload> {
-    return jsonPost<AuthSessionPayload>(`${OAUTH}/oauth`, data);
+    return mutateAndInvalidate(() => jsonPost<AuthSessionPayload>(`${OAUTH}/oauth`, data), [], ['auth:']);
 }
 
 
@@ -138,19 +145,24 @@ export function resetPassword(data: ResetPasswordRequest): Promise<string> {
 }
 
 export function logout(data?: LogoutRequest, accessToken?: string): Promise<string> {
-    return jsonPost<string>(`${AUTH}/logout`, data, accessToken);
+    return mutateAndInvalidate(() => jsonPost<string>(`${AUTH}/logout`, data, accessToken), [], ['auth:']);
 }
 
 export function refreshToken(data: RefreshTokenRequest): Promise<AuthSessionPayload> {
-    return jsonPost<AuthSessionPayload>(`${AUTH}/refresh`, data);
+    return mutateAndInvalidate(() => jsonPost<AuthSessionPayload>(`${AUTH}/refresh`, data), [], ['auth:']);
 }
 
 export function getCurrentUser(accessToken?: string): Promise<CurrentUser> {
-    return jsonGet<CurrentUser>(`${USERS}/me`, accessToken);
+    return cachedGet(authScopedKey(cacheKeys.auth.currentUser(), accessToken), CACHE_TTL.SHORT, () =>
+        jsonGet<CurrentUser>(`${USERS}/me`, accessToken)
+    );
 }
 
 export function updateCurrentUser(data: UpdateCurrentUserRequest, accessToken?: string): Promise<CurrentUser> {
-    return jsonPatch<CurrentUser>(`${USERS}/me`, data, accessToken);
+    return mutateAndInvalidate(
+        () => jsonPatch<CurrentUser>(`${USERS}/me`, data, accessToken),
+        [authScopedKey(cacheKeys.auth.currentUser(), accessToken), authScopedKey(cacheKeys.auth.currentProfile(), accessToken)]
+    );
 }
 
 export function changeCurrentPassword(data: ChangeCurrentPasswordRequest, accessToken?: string): Promise<void> {
@@ -158,33 +170,48 @@ export function changeCurrentPassword(data: ChangeCurrentPasswordRequest, access
 }
 
 export function getCurrentProfile(accessToken?: string): Promise<CurrentUserProfile> {
-    return jsonGet<CurrentUserProfile>(`${PROFILES}/me`, accessToken);
+    return cachedGet(authScopedKey(cacheKeys.auth.currentProfile(), accessToken), CACHE_TTL.SHORT, () =>
+        jsonGet<CurrentUserProfile>(`${PROFILES}/me`, accessToken)
+    );
 }
 
 export function updateCurrentProfile(
     data: UpdateCurrentUserProfileRequest,
     accessToken?: string
 ): Promise<CurrentUserProfile> {
-    return jsonPut<CurrentUserProfile>(`${PROFILES}/me`, data, accessToken);
+    return mutateAndInvalidate(
+        () => jsonPut<CurrentUserProfile>(`${PROFILES}/me`, data, accessToken),
+        [authScopedKey(cacheKeys.auth.currentProfile(), accessToken), authScopedKey(cacheKeys.auth.currentUser(), accessToken)]
+    );
 }
 
 export function getCurrentSettings(accessToken?: string): Promise<CurrentUserSettings> {
-    return jsonGet<CurrentUserSettings>(`${SETTINGS}/me`, accessToken);
+    return cachedGet(authScopedKey(cacheKeys.auth.currentSettings(), accessToken), CACHE_TTL.MEDIUM, () =>
+        jsonGet<CurrentUserSettings>(`${SETTINGS}/me`, accessToken)
+    );
 }
 
 export function updateCurrentSettings(
     data: UpdateCurrentUserSettingsRequest,
     accessToken?: string
 ): Promise<CurrentUserSettings> {
-    return jsonPatch<CurrentUserSettings>(`${SETTINGS}/me`, data, accessToken);
+    return mutateAndInvalidate(
+        () => jsonPatch<CurrentUserSettings>(`${SETTINGS}/me`, data, accessToken),
+        [authScopedKey(cacheKeys.auth.currentSettings(), accessToken)]
+    );
 }
 
 export function getLinkedAccounts(accessToken?: string): Promise<LinkedOAuthAccount[]> {
-    return jsonGet<LinkedOAuthAccount[]>(`${OAUTH}/linked-accounts`, accessToken);
+    return cachedGet(authScopedKey(cacheKeys.auth.linkedAccounts(), accessToken), CACHE_TTL.MEDIUM, () =>
+        jsonGet<LinkedOAuthAccount[]>(`${OAUTH}/linked-accounts`, accessToken)
+    );
 }
 
 export function unlinkLinkedAccount(provider: string, accessToken?: string): Promise<void> {
-    return jsonDelete<void>(`${OAUTH}/linked-accounts/${encodeURIComponent(provider)}`, accessToken);
+    return mutateAndInvalidate(
+        () => jsonDelete<void>(`${OAUTH}/linked-accounts/${encodeURIComponent(provider)}`, accessToken),
+        [authScopedKey(cacheKeys.auth.linkedAccounts(), accessToken)]
+    );
 }
 
 export function getSessions(accessToken?: string): Promise<UserSession[]> {
@@ -192,5 +219,9 @@ export function getSessions(accessToken?: string): Promise<UserSession[]> {
 }
 
 export function revokeSession(sessionId: string, accessToken?: string): Promise<void> {
-    return jsonDelete<void>(`${SESSIONS}/${encodeURIComponent(sessionId)}`, accessToken);
+    return mutateAndInvalidate(
+        () => jsonDelete<void>(`${SESSIONS}/${encodeURIComponent(sessionId)}`, accessToken),
+        [],
+        ['auth:']
+    );
 }

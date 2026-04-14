@@ -13,17 +13,10 @@ import {
     UserDailyStreak,
 } from '@/shared/types/learning';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
-import { getOrSetCachedValue, invalidateCachedValue } from '@/shared/api/client-cache';
+import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 
 const API = '/api/learning';
-const COURSES_CACHE_KEY = 'learning:courses';
-const ENROLLED_COURSES_CACHE_KEY = 'learning:courses:enrolled';
-const AVAILABLE_COURSES_CACHE_KEY = 'learning:courses:available';
-const PROGRESS_CACHE_KEY = 'learning:progress';
-const LESSON_ACTIVITY_CACHE_KEY = 'learning:progress:activity:';
-const STREAK_CACHE_KEY = 'learning:streak';
-const SHORT_TTL_MS = 30_000;
-const STANDARD_TTL_MS = 5 * 60_000;
 
 function notifyLearningCoursesChanged() {
     if (typeof window === 'undefined') return;
@@ -67,7 +60,7 @@ function jsonPost<T>(url: string, data?: unknown): Promise<T> {
 }
 
 export function getCourses(): Promise<CourseResponse[]> {
-    return getOrSetCachedValue(COURSES_CACHE_KEY, STANDARD_TTL_MS, () =>
+    return cachedGet(cacheKeys.learning.courses(), CACHE_TTL.LONG, () =>
         jsonGet<CourseResponse[]>(`${API}/courses`)
     );
 }
@@ -77,27 +70,33 @@ export function getThemes(): Promise<Theme[]> {
 }
 
 export function getEnrolledCourses(): Promise<CourseResponse[]> {
-    return getOrSetCachedValue(ENROLLED_COURSES_CACHE_KEY, SHORT_TTL_MS, () =>
+    return cachedGet(cacheKeys.learning.enrolledCourses(), CACHE_TTL.SHORT, () =>
         jsonGet<CourseResponse[]>(`${API}/courses/enrolled`)
     );
 }
 
 export function getAvailableStudentCourses(): Promise<CourseResponse[]> {
-    return getOrSetCachedValue(AVAILABLE_COURSES_CACHE_KEY, SHORT_TTL_MS, () =>
+    return cachedGet(cacheKeys.learning.availableCourses(), CACHE_TTL.SHORT, () =>
         jsonGet<CourseResponse[]>(`${API}/courses/student/available`)
     );
 }
 
 export function getLearningPath(): Promise<LearningPathResponse> {
-    return jsonGet<LearningPathResponse>(`${API}/courses/path`);
+    return cachedGet(cacheKeys.learning.learningPath(), CACHE_TTL.MEDIUM, () =>
+        jsonGet<LearningPathResponse>(`${API}/courses/path`)
+    );
 }
 
 export function getCourseDetail(courseId: string): Promise<CourseResponse> {
-    return jsonGet<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}`);
+    return cachedGet(cacheKeys.learning.courseDetail(courseId), CACHE_TTL.MEDIUM, () =>
+        jsonGet<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}`)
+    );
 }
 
 export function getCourseSections(courseId: string): Promise<SectionResponse[]> {
-    return jsonGet<SectionResponse[]>(`${API}/courses/${encodeURIComponent(courseId)}/sections`);
+    return cachedGet(cacheKeys.learning.courseSections(courseId), CACHE_TTL.MEDIUM, () =>
+        jsonGet<SectionResponse[]>(`${API}/courses/${encodeURIComponent(courseId)}/sections`)
+    );
 }
 
 export function getThemeSections(themeId: string): Promise<SectionResponse[]> {
@@ -105,27 +104,29 @@ export function getThemeSections(themeId: string): Promise<SectionResponse[]> {
 }
 
 export function getSectionDetail(sectionId: string): Promise<SectionResponse> {
-    return jsonGet<SectionResponse>(`${API}/sections/${encodeURIComponent(sectionId)}`);
+    return cachedGet(cacheKeys.learning.sectionDetail(sectionId), CACHE_TTL.MEDIUM, () =>
+        jsonGet<SectionResponse>(`${API}/sections/${encodeURIComponent(sectionId)}`)
+    );
 }
 
 export function getSectionLessons(sectionId: string): Promise<LessonResponse[]> {
-    return jsonGet<LessonResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/lessons`);
+    return cachedGet(cacheKeys.learning.sectionLessons(sectionId), CACHE_TTL.SHORT, () =>
+        jsonGet<LessonResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/lessons`)
+    );
 }
 
 export function getLessonDetail(lessonId: string): Promise<LessonResponse> {
-    return jsonGet<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}`);
+    return cachedGet(cacheKeys.learning.lessonDetail(lessonId), CACHE_TTL.SHORT, () =>
+        jsonGet<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}`)
+    );
 }
 
 export function completeLesson(lessonId: string): Promise<void> {
-    return jsonPost<void>(`${API}/lessons/${encodeURIComponent(lessonId)}/complete`).then((result) => {
-        invalidateCachedValue(
-            PROGRESS_CACHE_KEY,
-            `${LESSON_ACTIVITY_CACHE_KEY}7`,
-            `${LESSON_ACTIVITY_CACHE_KEY}14`,
-            STREAK_CACHE_KEY
-        );
-        return result;
-    });
+    return mutateAndInvalidate(
+        () => jsonPost<void>(`${API}/lessons/${encodeURIComponent(lessonId)}/complete`),
+        [cacheKeys.learning.progress(), cacheKeys.learning.streak(), cacheKeys.learning.lessonDetail(lessonId)],
+        [cacheKeys.learning.lessonActivityPrefix()]
+    );
 }
 
 export function updateLessonBlockProgress(
@@ -133,40 +134,53 @@ export function updateLessonBlockProgress(
     blockId: string,
     data: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; score?: number; maxScore?: number }
 ): Promise<LessonBlockProgressResponse> {
-    return requestApi<LessonBlockProgressResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}/blocks/${encodeURIComponent(blockId)}/progress`, {
-        method: 'PATCH',
-        headers: buildHeaders(),
-        body: JSON.stringify(data),
-    }).catch((error: unknown) => {
-        throw normalizeLearningError(error);
-    });
+    return mutateAndInvalidate(
+        () =>
+            requestApi<LessonBlockProgressResponse>(
+                `${API}/lessons/${encodeURIComponent(lessonId)}/blocks/${encodeURIComponent(blockId)}/progress`,
+                {
+                    method: 'PATCH',
+                    headers: buildHeaders(),
+                    body: JSON.stringify(data),
+                }
+            ).catch((error: unknown) => {
+                throw normalizeLearningError(error);
+            }),
+        [cacheKeys.learning.progress(), cacheKeys.learning.lessonDetail(lessonId)],
+        [cacheKeys.learning.lessonActivityPrefix()]
+    );
 }
 
 export function enrollCourse(courseId: string): Promise<CourseResponse> {
-    return jsonPost<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}/enroll`).then((result) => {
-        invalidateCachedValue(AVAILABLE_COURSES_CACHE_KEY, ENROLLED_COURSES_CACHE_KEY, PROGRESS_CACHE_KEY);
+    return mutateAndInvalidate(
+        () => jsonPost<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}/enroll`),
+        [
+            cacheKeys.learning.availableCourses(),
+            cacheKeys.learning.enrolledCourses(),
+            cacheKeys.learning.progress(),
+            cacheKeys.learning.courses(),
+        ]
+    ).then((result) => {
         notifyLearningCoursesChanged();
         return result;
     });
 }
 
 export function getProgress(): Promise<CourseProgressResponse[]> {
-    return getOrSetCachedValue(PROGRESS_CACHE_KEY, SHORT_TTL_MS, () =>
+    return cachedGet(cacheKeys.learning.progress(), CACHE_TTL.SHORT, () =>
         jsonGet<CourseProgressResponse[]>(`${API}/progress`)
     );
 }
 
 export function getLessonActivity(days: number = 7): Promise<LessonActivitySummaryResponse> {
     const normalizedDays = Math.max(1, days);
-    return getOrSetCachedValue(`${LESSON_ACTIVITY_CACHE_KEY}${normalizedDays}`, SHORT_TTL_MS, () =>
+    return cachedGet(cacheKeys.learning.lessonActivity(normalizedDays), CACHE_TTL.SHORT, () =>
         jsonGet<LessonActivitySummaryResponse>(`${API}/progress/activity?days=${normalizedDays}`)
     );
 }
 
 export function pingStreak(): Promise<UserDailyStreak> {
-    return getOrSetCachedValue(STREAK_CACHE_KEY, STANDARD_TTL_MS, () =>
-        jsonPost<UserDailyStreak>(`${API}/progress/streak/ping`)
-    );
+    return jsonPost<UserDailyStreak>(`${API}/progress/streak/ping`);
 }
 
 export function requestAiFeedback(data: RequestAiFeedback): Promise<AiLearningFeedback> {
