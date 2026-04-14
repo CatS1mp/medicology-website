@@ -1,5 +1,6 @@
 'use client';
 
+import DOMPurify from 'dompurify';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -325,17 +326,42 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </div>
                             )}
 
-                            {section.content && (
-                                <div className="text-[15px] text-gray-700 leading-relaxed space-y-3">
-                                    {section.content.split('\n\n').map((para, i) => (
-                                        <p key={i} dangerouslySetInnerHTML={{
-                                            __html: para
-                                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                                .replace(/_(.*?)_/g, '<em>$1</em>')
-                                        }} />
-                                    ))}
-                                </div>
-                            )}
+                            {article.sections.map(section => (
+                                <div key={section.id} id={section.id} className="mb-10 scroll-mt-6">
+                                    <h2 className="mb-5 flex items-center gap-3 text-[34px] font-extrabold leading-tight text-[#2f3946] md:text-[40px]">
+                                        <div className="w-1.5 h-6 bg-[#1CA1F2] rounded-r-md flex-shrink-0" />
+                                        {section.heading}
+                                    </h2>
+
+                                    {section.imageUrl && (
+                                        <div className="w-full mb-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                                            <Image
+                                                src={section.imageUrl}
+                                                alt={section.heading}
+                                                width={900}
+                                                height={600}
+                                                className="w-full h-auto object-contain"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {section.content && (
+                                        <div className="space-y-3 text-[16px] leading-[1.95] text-[#687587]">
+                                            {section.content.split('\n\n').map((para, i) => {
+                                                const rawHtml = para
+                                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                                    .replace(/_(.*?)_/g, '<em>$1</em>');
+                                                return (
+                                                    <p
+                                                        key={i}
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: DOMPurify.sanitize(rawHtml),
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
                             <hr className="mt-10 border-gray-100" />
                         </div>
