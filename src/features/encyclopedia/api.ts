@@ -1,4 +1,6 @@
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
+import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 
 const DICTIONARY = `/api/dictionary`;
 
@@ -93,53 +95,89 @@ function deleteJson<T>(url: string): Promise<T> {
 }
 
 export function listArticles(): Promise<DictionaryArticleResponse[]> {
-    return getJson<DictionaryArticleResponse[]>(`${DICTIONARY}/articles`);
+    return cachedGet(cacheKeys.dictionary.articles(), CACHE_TTL.MEDIUM, () =>
+        getJson<DictionaryArticleResponse[]>(`${DICTIONARY}/articles`)
+    );
 }
 
 export function getArticleBySlug(slug: string): Promise<DictionaryArticleResponse> {
-    return getJson<DictionaryArticleResponse>(`${DICTIONARY}/articles/${encodeURIComponent(slug)}`);
+    return cachedGet(cacheKeys.dictionary.articleBySlug(slug), CACHE_TTL.MEDIUM, () =>
+        getJson<DictionaryArticleResponse>(`${DICTIONARY}/articles/${encodeURIComponent(slug)}`)
+    );
 }
 
 export function recordArticleView(articleId: string): Promise<void> {
-    return postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/view`);
+    return mutateAndInvalidate(
+        () => postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/view`),
+        [cacheKeys.dictionary.articleViews(articleId), cacheKeys.dictionary.articleInteractions(articleId)]
+    );
 }
 
 export function bookmarkArticle(articleId: string): Promise<void> {
-    return postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`);
+    return mutateAndInvalidate(
+        () => postJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`),
+        [cacheKeys.dictionary.bookmarks(), cacheKeys.dictionary.articleInteractions(articleId)]
+    );
 }
 
 export function unbookmarkArticle(articleId: string): Promise<void> {
-    return deleteJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`);
+    return mutateAndInvalidate(
+        () => deleteJson<void>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/bookmark`),
+        [cacheKeys.dictionary.bookmarks(), cacheKeys.dictionary.articleInteractions(articleId)]
+    );
 }
 
 export function getInteractionSummary(articleId: string): Promise<DictionaryInteractionSummaryResponse> {
-    return getJson<DictionaryInteractionSummaryResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/interactions/summary`);
+    return cachedGet(cacheKeys.dictionary.articleInteractions(articleId), CACHE_TTL.SHORT, () =>
+        getJson<DictionaryInteractionSummaryResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/interactions/summary`)
+    );
 }
 
 export function getViewStatistics(articleId: string): Promise<DictionaryViewStatisticsResponse> {
-    return getJson<DictionaryViewStatisticsResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/views`);
+    return cachedGet(cacheKeys.dictionary.articleViews(articleId), CACHE_TTL.SHORT, () =>
+        getJson<DictionaryViewStatisticsResponse>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/views`)
+    );
 }
 
 export function getArticleComments(articleId: string): Promise<DictionaryCommentResponse[]> {
-    return getJson<DictionaryCommentResponse[]>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`);
+    return cachedGet(cacheKeys.dictionary.articleComments(articleId), CACHE_TTL.SHORT, () =>
+        getJson<DictionaryCommentResponse[]>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`)
+    );
 }
 
 export function createArticleComment(articleId: string, commentText: string): Promise<string> {
-    return postJson<string>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`, { commentText });
+    return mutateAndInvalidate(
+        () => postJson<string>(`${DICTIONARY}/articles/${encodeURIComponent(articleId)}/comments`, { commentText }),
+        [cacheKeys.dictionary.articleComments(articleId), cacheKeys.dictionary.articleInteractions(articleId)]
+    );
 }
 
 export function replyArticleComment(commentId: string, commentText: string): Promise<string> {
-    return postJson<string>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/reply`, { commentText });
+    return mutateAndInvalidate(
+        () => postJson<string>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/reply`, { commentText }),
+        [],
+        [cacheKeys.dictionary.articlePrefix()]
+    );
 }
 
 export function approveArticleComment(commentId: string): Promise<void> {
-    return postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/approve`);
+    return mutateAndInvalidate(
+        () => postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/approve`),
+        [],
+        [cacheKeys.dictionary.articlePrefix()]
+    );
 }
 
 export function voteComment(commentId: string, voteType: 'UPVOTE' | 'DOWNVOTE'): Promise<void> {
-    return postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/vote`, { voteType });
+    return mutateAndInvalidate(
+        () => postJson<void>(`${DICTIONARY}/comments/${encodeURIComponent(commentId)}/vote`, { voteType }),
+        [],
+        [cacheKeys.dictionary.articlePrefix()]
+    );
 }
 
 export function listBookmarkedArticles(): Promise<DictionaryBookmarkArticleResponse[]> {
-    return getJson<DictionaryBookmarkArticleResponse[]>(`${DICTIONARY}/users/me/bookmarks`);
+    return cachedGet(cacheKeys.dictionary.bookmarks(), CACHE_TTL.SHORT, () =>
+        getJson<DictionaryBookmarkArticleResponse[]>(`${DICTIONARY}/users/me/bookmarks`)
+    );
 }

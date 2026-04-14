@@ -6,6 +6,8 @@ import {
     normalizeSpringListPayload,
     splitVietnameseFullName,
 } from '@/shared/types/admin';
+import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 
 const API_ADMIN = '/api/admin';
 const API_PROFILES = '/api/profiles';
@@ -17,42 +19,51 @@ export async function fetchAdminUsers(params?: { page?: number; size?: number })
     const q = search.toString();
     const url = `${API_ADMIN}/users${q ? `?${q}` : ''}`;
 
-    const rawBody = await requestApi<unknown>(
-        url,
-        {
-            method: 'GET',
-            headers: buildHeaders({ includeJsonContentType: false }),
-        },
-        { unwrapData: false }
-    );
-    const data = unwrapSpringData<unknown>(rawBody);
-    const normalized = normalizeSpringListPayload<AuthUserResponseDTO>(data);
-    const items = normalized.items.map((u) => mapAuthUserResponseToRecord(u));
-    return { items, total: normalized.total };
+    return cachedGet(cacheKeys.admin.users(params?.page, params?.size), CACHE_TTL.SHORT, async () => {
+        const rawBody = await requestApi<unknown>(
+            url,
+            {
+                method: 'GET',
+                headers: buildHeaders({ includeJsonContentType: false }),
+            },
+            { unwrapData: false }
+        );
+        const data = unwrapSpringData<unknown>(rawBody);
+        const normalized = normalizeSpringListPayload<AuthUserResponseDTO>(data);
+        const items = normalized.items.map((u) => mapAuthUserResponseToRecord(u));
+        return { items, total: normalized.total };
+    });
 }
 
 /** GET /api/v1/admin/users/{id} — auth-service `AdminUserDetailResponseDTO` (user + profile + …). */
 export async function fetchAdminUserProfile(userId: string): Promise<AdminUserApiRecord> {
-    const rawBody = await requestApi<unknown>(
-        `${API_ADMIN}/users/${encodeURIComponent(userId)}`,
-        {
-            method: 'GET',
-            headers: buildHeaders({ includeJsonContentType: false }),
-        },
-        { unwrapData: false }
-    );
-    const data = unwrapSpringData<unknown>(rawBody) as AuthAdminUserDetailResponse;
-    return mapAuthAdminUserDetailToRecord(data);
+    return cachedGet(cacheKeys.admin.userDetail(userId), CACHE_TTL.SHORT, async () => {
+        const rawBody = await requestApi<unknown>(
+            `${API_ADMIN}/users/${encodeURIComponent(userId)}`,
+            {
+                method: 'GET',
+                headers: buildHeaders({ includeJsonContentType: false }),
+            },
+            { unwrapData: false }
+        );
+        const data = unwrapSpringData<unknown>(rawBody) as AuthAdminUserDetailResponse;
+        return mapAuthAdminUserDetailToRecord(data);
+    });
 }
 
 /** PATCH /api/v1/admin/users/{id}/status — body `{ active: boolean }` on auth-service. */
 export async function patchAdminUserStatus(userId: string, status: 'ACTIVE' | 'LOCKED' | 'PENDING_VERIFICATION'): Promise<void> {
     const active = status !== 'LOCKED';
-    await requestApi<unknown>(`${API_ADMIN}/users/${encodeURIComponent(userId)}/status`, {
-        method: 'PATCH',
-        headers: buildHeaders(),
-        body: JSON.stringify({ active }),
-    });
+    await mutateAndInvalidate(
+        () =>
+            requestApi<unknown>(`${API_ADMIN}/users/${encodeURIComponent(userId)}/status`, {
+                method: 'PATCH',
+                headers: buildHeaders(),
+                body: JSON.stringify({ active }),
+            }),
+        [],
+        [cacheKeys.admin.usersPrefix()]
+    );
 }
 
 /** Payload for admin-created student — field names align with common Spring DTOs; backend may map synonyms. */
@@ -67,18 +78,28 @@ export interface AdminCreateStudentPayload {
 }
 
 export async function createAdminStudent(payload: AdminCreateStudentPayload): Promise<void> {
-    await requestApi<unknown>(`${API_ADMIN}/users`, {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify(payload),
-    });
+    await mutateAndInvalidate(
+        () =>
+            requestApi<unknown>(`${API_ADMIN}/users`, {
+                method: 'POST',
+                headers: buildHeaders(),
+                body: JSON.stringify(payload),
+            }),
+        [],
+        [cacheKeys.admin.usersPrefix()]
+    );
 }
 
 export async function deleteAdminUser(userId: string): Promise<void> {
-    await requestApi<unknown>(`${API_ADMIN}/users/${encodeURIComponent(userId)}`, {
-        method: 'DELETE',
-        headers: buildHeaders({ includeJsonContentType: false }),
-    });
+    await mutateAndInvalidate(
+        () =>
+            requestApi<unknown>(`${API_ADMIN}/users/${encodeURIComponent(userId)}`, {
+                method: 'DELETE',
+                headers: buildHeaders({ includeJsonContentType: false }),
+            }),
+        [],
+        [cacheKeys.admin.usersPrefix()]
+    );
 }
 
 /** Maps to auth-service `UpdateProfileRequestDTO` — PUT /api/v1/profiles/{userId}. */
@@ -120,9 +141,14 @@ export async function updateAdminUser(userId: string, payload: AdminUpdateUserPa
         dto.bio = payload.bio.trim();
     }
 
-    await requestApi<unknown>(`${API_PROFILES}/${encodeURIComponent(userId)}`, {
-        method: 'PUT',
-        headers: buildHeaders(),
-        body: JSON.stringify(dto),
-    });
+    await mutateAndInvalidate(
+        () =>
+            requestApi<unknown>(`${API_PROFILES}/${encodeURIComponent(userId)}`, {
+                method: 'PUT',
+                headers: buildHeaders(),
+                body: JSON.stringify(dto),
+            }),
+        [],
+        [cacheKeys.admin.usersPrefix()]
+    );
 }

@@ -1,21 +1,73 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from '../admin.module.css';
 import { TopicCard } from './TopicCard';
-
-const topicData = [
-    { status: 'published' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-    { status: 'draft' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-    { status: 'published' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-    { status: 'published' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-    { status: 'published' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-    { status: 'published' as const, level: 'Cơ bản', title: 'Tâm thần học – Psychiatry', desc: 'Nghiên cứu về sức khỏe tâm thần, rối loạn tâm lý, trầm cảm, lo âu,...', metrics: { courses: 12, lessons: 24, exercises: 25 }, createdDate: '2024-01-20', rating: 4.8 },
-];
+import { adminListCourses } from '@/shared/api/admin-learning';
+import type { CourseResponse } from '@/shared/types/learning';
 
 import { BaseAdminLayout } from './BaseAdminLayout';
 
+type TopicCardVm = {
+    status: 'published' | 'draft';
+    level: string;
+    title: string;
+    desc: string;
+    metrics: {
+        courses: number;
+        lessons: number;
+        exercises: number;
+    };
+    createdDate: string;
+    rating: number;
+};
+
+function mapCourseToTopicCard(course: CourseResponse): TopicCardVm {
+    const lessonCountFromSections = Array.isArray(course.sections)
+        ? course.sections.reduce((sum, section) => sum + (section.lessons?.length ?? 0), 0)
+        : 0;
+    const lessonCount = course.lessonCount ?? lessonCountFromSections;
+
+    return {
+        status: 'published',
+        level: 'Cơ bản',
+        title: course.name,
+        desc: course.description?.trim() || 'Chưa có mô tả.',
+        metrics: {
+            courses: 1,
+            lessons: lessonCount,
+            exercises: 0,
+        },
+        createdDate: course.createdAt ? new Date(course.createdAt).toLocaleDateString('vi-VN') : '—',
+        rating: 0,
+    };
+}
+
 export const AdminTopicsScreen: React.FC = () => {
+    const [courses, setCourses] = useState<CourseResponse[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadCourses = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const list = await adminListCourses();
+            setCourses(list);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Không tải được danh sách khóa học.');
+            setCourses([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadCourses();
+    }, [loadCourses]);
+
+    const topicData = useMemo(() => courses.map(mapCourseToTopicCard), [courses]);
+
     return (
         <BaseAdminLayout>
             <section className={styles.reportHeader}>
@@ -71,7 +123,23 @@ export const AdminTopicsScreen: React.FC = () => {
                     <span style={{ fontSize: 18 }}>+</span> Thêm chủ đề
                 </button>
             </div>
-            
+
+            {error && (
+                <section className={styles.filterSection} style={{ borderColor: '#fecaca', background: '#fef2f2', marginTop: 12 }}>
+                    <p style={{ margin: 0, color: '#b91c1c' }}>{error}</p>
+                    <button
+                        type="button"
+                        className={styles.btnPrimary}
+                        style={{ marginTop: 12, borderRadius: 10 }}
+                        onClick={() => void loadCourses()}
+                    >
+                        Thử lại
+                    </button>
+                </section>
+            )}
+            {loading && <p style={{ color: '#64748b', margin: '12px 0 0' }}>Đang tải danh sách môn học…</p>}
+            {!loading && !error && topicData.length === 0 && <p style={{ color: '#64748b', margin: '12px 0 0' }}>Chưa có môn học.</p>}
+
             <div className={styles.topicsGrid}>
                 {topicData.map((topic, i) => (
                     <TopicCard key={i} {...topic} />
@@ -80,7 +148,7 @@ export const AdminTopicsScreen: React.FC = () => {
             
             <div className={styles.pagination}>
                 <div className={styles.pageInfo}>
-                    Hiển thị <b>1-6</b> trong tổng số <b>200</b> chủ đề
+                    Hiển thị <b>{topicData.length ? `1-${topicData.length}` : '0-0'}</b> trong tổng số <b>{topicData.length}</b> chủ đề
                 </div>
                 <div className={styles.pageControls}>
                     <span className={styles.pageBtnInert}>Trước</span>
