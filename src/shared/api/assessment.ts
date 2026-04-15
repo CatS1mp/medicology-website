@@ -5,6 +5,7 @@ import type {
     AssessmentDiscoveryResponse,
     AttemptAnswerRequest,
     AttemptAnswerResponse,
+    AttemptReviewResponse,
     AttemptResultResponse,
     AttemptStartResponse,
     AttemptSummaryResponse,
@@ -59,4 +60,8 @@ export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
     return cachedGet(cacheKeys.assessment.myAttempts(), CACHE_TTL.SHORT, () =>
         get<AttemptSummaryResponse[]>(`${API}/users/me/attempts`)
     );
+}
+
+export function getAttemptReview(attemptId: string): Promise<AttemptReviewResponse> {
+    return get<AttemptReviewResponse>(`${API}/attempts/${attemptId}/review`);
 }

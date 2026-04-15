@@ -108,6 +108,8 @@ export interface LessonBlockProgressResponse {
     status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
     score: number | null;
     maxScore: number | null;
+    attemptId: string | null;
+    gradingStatus: 'NOT_GRADED' | 'PENDING_REVIEW' | 'FINALIZED';
     completedAt: string | null;
     updatedAt: string;
 }

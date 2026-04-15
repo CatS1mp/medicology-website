@@ -121,6 +121,12 @@ export function getLessonDetail(lessonId: string): Promise<LessonResponse> {
     );
 }
 
+export function getLessonBlockProgress(lessonId: string): Promise<LessonBlockProgressResponse[]> {
+    return cachedGet(cacheKeys.learning.lessonBlockProgress(lessonId), CACHE_TTL.SHORT, () =>
+        jsonGet<LessonBlockProgressResponse[]>(`${API}/lessons/${encodeURIComponent(lessonId)}/blocks/progress`)
+    );
+}
+
 export function completeLesson(lessonId: string): Promise<void> {
     return mutateAndInvalidate(
         () => jsonPost<void>(`${API}/lessons/${encodeURIComponent(lessonId)}/complete`),
@@ -132,7 +138,7 @@ export function completeLesson(lessonId: string): Promise<void> {
 export function updateLessonBlockProgress(
     lessonId: string,
     blockId: string,
-    data: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; score?: number; maxScore?: number }
+    data: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; attemptId?: string }
 ): Promise<LessonBlockProgressResponse> {
     return mutateAndInvalidate(
         () =>
@@ -146,7 +152,7 @@ export function updateLessonBlockProgress(
             ).catch((error: unknown) => {
                 throw normalizeLearningError(error);
             }),
-        [cacheKeys.learning.progress(), cacheKeys.learning.lessonDetail(lessonId)],
+        [cacheKeys.learning.progress(), cacheKeys.learning.lessonDetail(lessonId), cacheKeys.learning.lessonBlockProgress(lessonId)],
         [cacheKeys.learning.lessonActivityPrefix()]
     );
 }

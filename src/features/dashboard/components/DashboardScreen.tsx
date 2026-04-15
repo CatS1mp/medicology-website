@@ -50,8 +50,9 @@ export const DashboardScreen: React.FC = () => {
                 if (cancelled) return;
 
                 const name = profile?.displayName || user?.username || 'Bạn';
-                const averageScore = attempts.filter((item) => item.score !== null).length
-                    ? attempts.filter((item) => item.score !== null).reduce((sum, item) => sum + Number(item.score ?? 0), 0) / attempts.filter((item) => item.score !== null).length
+                const finalizedAttempts = attempts.filter((item) => item.status === 'FINALIZED' && item.score !== null);
+                const averageScore = finalizedAttempts.length
+                    ? finalizedAttempts.reduce((sum, item) => sum + Number(item.score ?? 0), 0) / finalizedAttempts.length
                     : 0;
                 const sortedCourses = courses.slice().sort((a, b) => a.orderIndex - b.orderIndex);
                 const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
@@ -76,7 +77,7 @@ export const DashboardScreen: React.FC = () => {
                         completed,
                     };
                 }));
-                setLearningResults(attempts.slice(-6).map((attempt) => ({
+                setLearningResults(finalizedAttempts.slice(-6).map((attempt) => ({
                     label: new Date(attempt.submittedAt ?? attempt.startedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
                     actual: Math.max(0, Math.min(10, Number(attempt.score ?? 0))),
                     target: 8,

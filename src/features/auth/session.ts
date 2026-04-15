@@ -1,4 +1,5 @@
 import type { AuthSessionPayload } from './types';
+import type { UserProfile } from './types';
 
 const USER_PROFILE_KEY = 'userProfile';
 const ACCESS_TOKEN_EXPIRES_AT_KEY = 'accessTokenExpiresAt';
@@ -10,6 +11,43 @@ export function persistAuthSession(session: AuthSessionPayload) {
     localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
     window.dispatchEvent(new Event('user-profile-updated'));
     window.dispatchEvent(new Event('auth-session-updated'));
+}
+
+function getEmptyUserProfile(): UserProfile {
+    return {
+        userId: '',
+        email: '',
+        username: '',
+        lastName: null,
+        firstName: null,
+        dateOfBirth: null,
+        gender: null,
+        address: null,
+        displayName: null,
+        bio: null,
+    };
+}
+
+export function getCachedUserProfile(): UserProfile | null {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem(USER_PROFILE_KEY);
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw) as UserProfile;
+    } catch {
+        return null;
+    }
+}
+
+export function upsertCachedUserProfile(partial: Partial<UserProfile>) {
+    if (typeof window === 'undefined') return;
+    const current = getCachedUserProfile() ?? getEmptyUserProfile();
+    const next: UserProfile = {
+        ...current,
+        ...partial,
+    };
+    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event('user-profile-updated'));
 }
 
 export function hasRefreshSession(): boolean {

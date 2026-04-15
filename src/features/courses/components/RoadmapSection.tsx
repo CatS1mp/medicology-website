@@ -1,12 +1,13 @@
 import React from 'react';
-import { CourseSection as SectionModel } from '../types';
+import { CourseSection as SectionModel, LessonNode } from '../types';
 import { LessonNodeCard } from './LessonNodeCard';
 
 interface RoadmapSectionProps {
     section: SectionModel;
+    onLessonSelect?: (node: LessonNode) => void;
 }
 
-export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section }) => {
+export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section, onLessonSelect }) => {
     return (
         <div className="mb-10 relative">
             <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
@@ -19,7 +20,8 @@ export const RoadmapSection: React.FC<RoadmapSectionProps> = ({ section }) => {
                     <LessonNodeCard 
                         key={node.id} 
                         node={node} 
-                        isLastInSection={index === section.nodes.length - 1} 
+                        isLastInSection={index === section.nodes.length - 1}
+                        onSelect={onLessonSelect}
                     />
                 ))}
             </div>

@@ -1,756 +1,473 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LessonContentBlockResponse, LessonInfographicPayload } from '@/shared/types/learning';
+import { LessonContentBlockResponse } from '@/shared/types/learning';
+import { AttemptReviewAnswerResponse } from '@/shared/types/assessment';
 
 type BlockProgressStatus = 'IN_PROGRESS' | 'COMPLETED';
+const gradableKinds = new Set(['QUIZ_MCQ', 'FILL_IN_THE_BLANKS', 'SHORT_ANSWER', 'MATCHING', 'ORDERING', 'HOTSPOT_IMAGE']);
 
 export interface LessonBlockStepProgress {
     status: BlockProgressStatus;
-    score?: number;
-    maxScore?: number;
+    userAnswer?: string;
 }
 
 interface LessonBlockStepProps {
     block: LessonContentBlockResponse | null;
     legacyContent?: string | null;
     resultRevealRequested?: boolean;
-    onStateChange: (state: { canContinue: boolean; progress: LessonBlockStepProgress; actionMode?: 'check' | 'continue' }) => void;
-}
-
-interface QuizPayload {
-    question?: string;
-    prompt?: string;
-    options?: string[];
-    correctOptionIndex?: number;
-    explanation?: string;
-}
-
-interface FillInTheBlanksPayload {
-    template?: string;
-    answers?: string[];
-    options?: string[];
-}
-
-interface ShortAnswerPayload {
-    prompt?: string;
-    question?: string;
-    sampleAnswer?: string;
-}
-
-interface FlashcardPayload {
-    front?: string;
-    back?: string;
-}
-
-interface MatchingPairItem {
-    left: string;
-    right: string;
-}
-
-interface MatchingPayload {
-    prompt?: string;
-    pairs?: Array<{ left?: string; right?: string; term?: string; definition?: string }>;
-}
-
-interface OrderingPayload {
-    prompt?: string;
-    items?: Array<string | { text?: string; label?: string }>;
-    correctOrder?: string[];
-}
-
-interface HotspotPayload {
-    imageUrl?: string;
-    title?: string;
-    hotspots?: Array<{ label?: string; description?: string; isCorrect?: boolean }>;
-    correctHotspotIndex?: number;
-}
-
-interface TimelinePayload {
-    title?: string;
-    events?: Array<{ title?: string; description?: string; time?: string; date?: string }>;
+    readOnly?: boolean;
+    reviewAnswer?: AttemptReviewAnswerResponse | null;
+    onStateChange: (state: { canContinue: boolean; progress: LessonBlockStepProgress }) => void;
 }
 
 const baseCardClassName = 'rounded-2xl border border-gray-200 bg-white p-5';
+type GenericPayload = Record<string, unknown>;
+type MatchingPair = { left: string; right: string };
+type OrderingItem = { id: string; label: string };
+type HotspotOption = { id: string; label: string };
 
-export function LessonBlockStep({ block, legacyContent, resultRevealRequested = false, onStateChange }: LessonBlockStepProps) {
-    const normalizedKind = normalizeBlockKind(block?.kind);
+export function LessonBlockStep({
+    block,
+    legacyContent,
+    resultRevealRequested = false,
+    readOnly = false,
+    reviewAnswer = null,
+    onStateChange,
+}: LessonBlockStepProps) {
+    const kind = normalizeBlockKind(block?.kind);
     const payload = useMemo(() => parsePayload(block?.payload), [block?.payload]);
-    const initialAnswerCount = useMemo(() => {
-        if (normalizedKind !== 'FILL_IN_THE_BLANKS') {
-            return 0;
-        }
-        const fillPayload = payload as FillInTheBlanksPayload;
-        return Array.isArray(fillPayload.answers) ? fillPayload.answers.length : 0;
-    }, [normalizedKind, payload]);
+    const matchingPairs = useMemo(() => parseMatchingPairs(payload), [payload]);
+    const matchingOptions = useMemo(() => uniqueStrings(matchingPairs.map((pair) => pair.right)), [matchingPairs]);
+    const hotspotOptions = useMemo(() => parseHotspots(payload), [payload]);
 
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
+    const [shortAnswer, setShortAnswer] = useState('');
+    const [blankAnswer, setBlankAnswer] = useState('');
+    const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({});
+    const [orderingItems, setOrderingItems] = useState<OrderingItem[]>(() => parseOrderingItems(payload));
+    const [draggingOrderIndex, setDraggingOrderIndex] = useState<number | null>(null);
+    const [hotspotAnswer, setHotspotAnswer] = useState('');
+    const [isHotspotImageBroken, setIsHotspotImageBroken] = useState(false);
 
-    const [activeBlankIndex, setActiveBlankIndex] = useState(0);
-    const [blankValues, setBlankValues] = useState<string[]>(() => new Array(initialAnswerCount).fill(''));
-    const [shortAnswerText, setShortAnswerText] = useState('');
-    const [flashcardFlipped, setFlashcardFlipped] = useState(false);
-    const [selectedHotspotIndex, setSelectedHotspotIndex] = useState<number | null>(null);
+    useEffect(() => {
+        setOrderingItems(parseOrderingItems(payload));
+    }, [payload]);
 
-    const matchingPairs = useMemo(() => parseMatchingPairs(payload as MatchingPayload), [payload]);
-    const [matchingSelections, setMatchingSelections] = useState<string[]>(() => new Array(matchingPairs.length).fill(''));
+    useEffect(() => {
+        setIsHotspotImageBroken(false);
+    }, [block?.id]);
 
-    const orderingBaseItems = useMemo(() => parseOrderingItems(payload as OrderingPayload), [payload]);
-    const [orderingItems, setOrderingItems] = useState<string[]>(orderingBaseItems);
+    useEffect(() => {
+        if (!readOnly) return;
+        const userAnswer = reviewAnswer?.userAnswer ?? '';
+        if (!userAnswer) return;
+
+        if (kind === 'QUIZ_MCQ') {
+            const options = parseOptions(payload);
+            const selected = options.findIndex((option) => normalize(option) === normalize(userAnswer));
+            setSelectedOption(selected >= 0 ? selected : null);
+            return;
+        }
+
+        if (kind === 'SHORT_ANSWER') {
+            setShortAnswer(userAnswer);
+            return;
+        }
+
+        if (kind === 'FILL_IN_THE_BLANKS') {
+            setBlankAnswer(userAnswer);
+            return;
+        }
+
+        if (kind === 'MATCHING') {
+            setMatchingSelections(parseMatchingAnswer(userAnswer));
+            return;
+        }
+
+        if (kind === 'ORDERING') {
+            const baseItems = parseOrderingItems(payload);
+            const orderedIds = parseOrderingAnswer(userAnswer);
+            if (orderedIds.length === 0) {
+                setOrderingItems(baseItems);
+                return;
+            }
+            setOrderingItems(reorderByIds(baseItems, orderedIds));
+            return;
+        }
+
+        if (kind === 'HOTSPOT_IMAGE') {
+            setHotspotAnswer(userAnswer);
+        }
+    }, [kind, payload, readOnly, reviewAnswer?.userAnswer]);
 
     useEffect(() => {
         if (!block) {
-            onStateChange({
-                canContinue: true,
-                progress: { status: 'IN_PROGRESS' },
-            });
+            onStateChange({ canContinue: true, progress: { status: 'IN_PROGRESS' } });
+            return;
+        }
+        if (!gradableKinds.has(kind)) {
+            onStateChange({ canContinue: true, progress: { status: 'COMPLETED' } });
             return;
         }
 
-        if (normalizedKind === 'QUIZ_MCQ') {
-            const quizPayload = payload as QuizPayload;
-            const hasAnswer = selectedOption !== null;
-            const correctIndex = Number(quizPayload.correctOptionIndex ?? -1);
-            const isCorrect = selectedOption === correctIndex;
-            const checked = resultRevealRequested && hasAnswer;
-            onStateChange({
-                canContinue: true,
-                actionMode: checked ? 'continue' : 'check',
-                progress: {
-                    status: checked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: checked ? (isCorrect ? 1 : 0) : undefined,
-                    maxScore: checked ? 1 : undefined,
-                },
-            });
-            return;
+        let userAnswer = '';
+        if (kind === 'QUIZ_MCQ') {
+            const options = parseOptions(payload);
+            userAnswer = selectedOption === null ? '' : String(options[selectedOption] ?? '');
+        } else if (kind === 'SHORT_ANSWER') {
+            userAnswer = shortAnswer.trim();
+        } else if (kind === 'FILL_IN_THE_BLANKS') {
+            userAnswer = blankAnswer.trim();
+        } else if (kind === 'MATCHING') {
+            const hasMappedAll = matchingPairs.length > 0
+                && matchingPairs.every((pair) => (matchingSelections[pair.left] ?? '').trim().length > 0);
+            userAnswer = hasMappedAll
+                ? JSON.stringify(matchingPairs.map((pair) => ({
+                    left: pair.left,
+                    right: matchingSelections[pair.left],
+                })))
+                : '';
+        } else if (kind === 'ORDERING') {
+            userAnswer = orderingItems.length > 0
+                ? JSON.stringify(orderingItems.map((item) => item.id))
+                : '';
+        } else if (kind === 'HOTSPOT_IMAGE') {
+            userAnswer = hotspotAnswer.trim();
         }
 
-        if (normalizedKind === 'FILL_IN_THE_BLANKS') {
-            const fillPayload = payload as FillInTheBlanksPayload;
-            const answers = Array.isArray(fillPayload.answers) ? fillPayload.answers : [];
-            const allFilled = answers.length > 0 && blankValues.length === answers.length && blankValues.every((value) => value.trim() !== '');
-            const checked = resultRevealRequested && allFilled;
-            let score: number | undefined;
-            if (allFilled) {
-                score = answers.reduce((total, answer, index) => {
-                    return total + (normalizeText(answer) === normalizeText(blankValues[index] ?? '') ? 1 : 0);
-                }, 0);
-            }
-            onStateChange({
-                canContinue: true,
-                actionMode: checked ? 'continue' : 'check',
-                progress: {
-                    status: checked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: checked ? score : undefined,
-                    maxScore: checked && answers.length > 0 ? answers.length : undefined,
-                },
-            });
-            return;
-        }
-
-        if (normalizedKind === 'SHORT_ANSWER') {
-            const hasAnswer = shortAnswerText.trim().length > 0;
-            const shortAnswerPayload = payload as ShortAnswerPayload;
-            const sampleAnswer = String(shortAnswerPayload.sampleAnswer ?? '').trim();
-            const isCorrect = sampleAnswer ? normalizeText(shortAnswerText) === normalizeText(sampleAnswer) : undefined;
-            const checked = resultRevealRequested && hasAnswer;
-            onStateChange({
-                canContinue: true,
-                actionMode: checked ? 'continue' : 'check',
-                progress: {
-                    status: checked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: checked && isCorrect !== undefined ? (isCorrect ? 1 : 0) : undefined,
-                    maxScore: checked && isCorrect !== undefined ? 1 : undefined,
-                },
-            });
-            return;
-        }
-
-        if (normalizedKind === 'MATCHING') {
-            const allSelected =
-                matchingPairs.length > 0 &&
-                matchingSelections.length === matchingPairs.length &&
-                matchingSelections.every((value) => value.trim().length > 0);
-            const matchingChecked = resultRevealRequested && allSelected;
-            const score = matchingPairs.reduce((total, pair, index) => {
-                return total + (normalizeText(matchingSelections[index] ?? '') === normalizeText(pair.right) ? 1 : 0);
-            }, 0);
-
-            onStateChange({
-                canContinue: true,
-                actionMode: matchingChecked ? 'continue' : 'check',
-                progress: {
-                    status: allSelected && matchingChecked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: allSelected && matchingChecked ? score : undefined,
-                    maxScore: allSelected && matchingChecked && matchingPairs.length > 0 ? matchingPairs.length : undefined,
-                },
-            });
-            return;
-        }
-
-        if (normalizedKind === 'ORDERING') {
-            const orderingPayload = payload as OrderingPayload;
-            const expectedOrder = parseOrderingExpectedOrder(orderingPayload, orderingBaseItems);
-            const hasExpectedOrder = expectedOrder.length === orderingItems.length && expectedOrder.length > 0;
-            const isCorrectOrder = hasExpectedOrder && orderingItems.every((item, index) => normalizeText(item) === normalizeText(expectedOrder[index]));
-            const orderingChecked = resultRevealRequested;
-            onStateChange({
-                canContinue: true,
-                actionMode: orderingChecked ? 'continue' : 'check',
-                progress: {
-                    status: orderingChecked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: orderingChecked && hasExpectedOrder ? (isCorrectOrder ? 1 : 0) : undefined,
-                    maxScore: orderingChecked && hasExpectedOrder ? 1 : undefined,
-                },
-            });
-            return;
-        }
-
-        if (normalizedKind === 'HOTSPOT_IMAGE') {
-            const hasPickedHotspot = selectedHotspotIndex !== null;
-            const hotspotPayload = payload as HotspotPayload;
-            const correctIndex = getHotspotCorrectIndex(hotspotPayload, Array.isArray(hotspotPayload.hotspots) ? hotspotPayload.hotspots.length : 0);
-            const isCorrect = correctIndex !== null && selectedHotspotIndex === correctIndex;
-            const checked = resultRevealRequested && hasPickedHotspot;
-            onStateChange({
-                canContinue: true,
-                actionMode: checked ? 'continue' : 'check',
-                progress: {
-                    status: checked ? 'COMPLETED' : 'IN_PROGRESS',
-                    score: checked && correctIndex !== null ? (isCorrect ? 1 : 0) : undefined,
-                    maxScore: checked && correctIndex !== null ? 1 : undefined,
-                },
-            });
-            return;
-        }
-
+        const hasAnswer = userAnswer.length > 0 || readOnly;
         onStateChange({
-            canContinue: true,
-            progress: { status: 'COMPLETED' },
+            canContinue: readOnly ? true : hasAnswer,
+            progress: {
+                status: hasAnswer ? 'COMPLETED' : 'IN_PROGRESS',
+                userAnswer,
+            },
         });
     }, [
-        blankValues,
         block,
+        kind,
+        onStateChange,
+        payload,
+        resultRevealRequested,
+        selectedOption,
+        shortAnswer,
+        blankAnswer,
         matchingPairs,
         matchingSelections,
-        resultRevealRequested,
-        normalizedKind,
-        onStateChange,
-        orderingBaseItems,
         orderingItems,
-        payload,
-        selectedHotspotIndex,
-        selectedOption,
-        shortAnswerText,
+        hotspotAnswer,
+        readOnly,
     ]);
+
+    const reviewTone = getReviewTone(reviewAnswer);
+    const reviewBadge = readOnly ? (
+        <div className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${reviewTone.className}`}>
+            {reviewTone.label}
+        </div>
+    ) : null;
 
     if (!block) {
         return (
             <section className={baseCardClassName}>
-                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
-                    {legacyContent || 'Nội dung bài học hiện chưa có trong service.'}
+                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">{legacyContent || 'Nội dung bài học hiện chưa có trong service.'}</p>
+            </section>
+        );
+    }
+
+    if (kind === 'QUIZ_MCQ') {
+        const options = parseOptions(payload);
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['question', 'prompt'], 'Câu hỏi trắc nghiệm')}</h3>
+                {reviewBadge}
+                <div className="mt-4 grid gap-3">
+                    {options.map((option, index) => (
+                        <button
+                            key={`${option}-${index}`}
+                            type="button"
+                            onClick={() => {
+                                if (readOnly) return;
+                                setSelectedOption(index);
+                            }}
+                            disabled={readOnly}
+                            className={`rounded-xl border px-4 py-3 text-left text-sm ${selectedOption === index
+                                ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
+                                : 'border-gray-200 bg-white text-gray-700'} ${readOnly ? 'cursor-not-allowed opacity-90' : ''
+                                }`}
+                        >
+                            {String(option)}
+                        </button>
+                    ))}
+                </div>
+                {resultRevealRequested && selectedOption !== null ? <p className="mt-3 text-sm font-semibold text-[#126b98]">Đã lưu đáp án để backend chấm.</p> : null}
+            </section>
+        );
+    }
+
+    if (kind === 'SHORT_ANSWER') {
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'question'], 'Nhập câu trả lời ngắn')}</h3>
+                {reviewBadge}
+                <textarea
+                    value={shortAnswer}
+                    onChange={(event) => {
+                        if (readOnly) return;
+                        setShortAnswer(event.target.value);
+                    }}
+                    disabled={readOnly}
+                    className="mt-4 min-h-[120px] w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#2aa4e8]"
+                    placeholder="Nhập câu trả lời của bạn..."
+                />
+                {resultRevealRequested && shortAnswer.trim() ? <p className="mt-3 text-sm font-semibold text-[#126b98]">Đã gửi câu trả lời để hệ thống AI chấm.</p> : null}
+            </section>
+        );
+    }
+
+    if (kind === 'FILL_IN_THE_BLANKS') {
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'template'], 'Điền đáp án')}</h3>
+                {reviewBadge}
+                <input
+                    value={blankAnswer}
+                    onChange={(event) => {
+                        if (readOnly) return;
+                        setBlankAnswer(event.target.value);
+                    }}
+                    disabled={readOnly}
+                    className="mt-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#2aa4e8]"
+                    placeholder="Nhập câu trả lời (ví dụ: đáp án1|đáp án2)"
+                />
+            </section>
+        );
+    }
+
+    if (kind === 'MATCHING') {
+        const showMissing = resultRevealRequested && matchingPairs.some((pair) => !(matchingSelections[pair.left] ?? '').trim());
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt'], 'Ghép cặp')}</h3>
+                {reviewBadge}
+                <div className="mt-4 space-y-3">
+                    {matchingPairs.map((pair, index) => (
+                        <div key={`matching-${index}`} className="grid gap-2 rounded-xl border border-gray-200 p-3 md:grid-cols-[1fr_1fr] md:items-center">
+                            <p className="text-sm font-semibold text-gray-800">{pair.left}</p>
+                            <select
+                                value={matchingSelections[pair.left] ?? ''}
+                                onChange={(event) => {
+                                    if (readOnly) return;
+                                    setMatchingSelections((prev) => {
+                                        const next = { ...prev };
+                                        next[pair.left] = event.target.value;
+                                        return next;
+                                    });
+                                }}
+                                disabled={readOnly}
+                                className={`rounded-lg border px-3 py-2 text-sm text-gray-700 outline-none ${showMissing && !(matchingSelections[pair.left] ?? '').trim()
+                                    ? 'border-red-400 bg-red-50'
+                                    : 'border-gray-300 bg-white focus:border-[#2aa4e8]'
+                                    }`}
+                            >
+                                <option value="">Chọn đáp án tương ứng</option>
+                                {matchingOptions.map((option) => (
+                                    <option key={`${option}-${index}`} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ))}
+                </div>
+                {showMissing ? (
+                    <p className="mt-3 text-sm font-semibold text-red-600">Vui lòng ghép đầy đủ tất cả cặp trước khi tiếp tục.</p>
+                ) : null}
+            </section>
+        );
+    }
+
+    if (kind === 'ORDERING') {
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt'], 'Sắp xếp thứ tự')}</h3>
+                {reviewBadge}
+                <p className="mt-2 text-sm text-gray-600">{readOnly ? 'Đây là thứ tự bạn đã nộp.' : 'Kéo-thả để sắp xếp đúng thứ tự.'}</p>
+                <div className="mt-4 space-y-2">
+                    {orderingItems.map((item, index) => (
+                        <div
+                            key={item.id}
+                            draggable={!readOnly}
+                            onDragStart={() => {
+                                if (readOnly) return;
+                                setDraggingOrderIndex(index);
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={() => {
+                                if (readOnly) return;
+                                if (draggingOrderIndex === null || draggingOrderIndex === index) {
+                                    setDraggingOrderIndex(null);
+                                    return;
+                                }
+                                setOrderingItems((prev) => reorderItems(prev, draggingOrderIndex, index));
+                                setDraggingOrderIndex(null);
+                            }}
+                            onDragEnd={() => setDraggingOrderIndex(null)}
+                            className={`flex items-center gap-3 rounded-xl border px-3 py-3 text-sm text-gray-800 ${draggingOrderIndex === index
+                                ? 'border-[#2aa4e8] bg-[#f3fbff]'
+                                : 'border-gray-200 bg-white'} ${readOnly ? 'cursor-default' : 'cursor-grab'
+                                }`}
+                        >
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{index + 1}</span>
+                            <span className="flex-1 font-medium">{item.label}</span>
+                            <span className="text-gray-400">⠿</span>
+                        </div>
+                    ))}
+                </div>
+            </section>
+        );
+    }
+
+    if (kind === 'HOTSPOT_IMAGE') {
+        const imageUrl = readText(payload, ['imageUrl', 'image', 'imageSrc', 'url'], '');
+        return (
+            <section className={baseCardClassName}>
+                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['title', 'prompt'], 'Hotspot image')}</h3>
+                {reviewBadge}
+                {imageUrl && !isHotspotImageBroken ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={imageUrl}
+                        alt={readText(payload, ['title', 'prompt'], 'Hotspot image')}
+                        className="mt-4 h-[280px] w-full rounded-xl border border-gray-100 bg-gray-50 object-contain"
+                        onError={() => setIsHotspotImageBroken(true)}
+                    />
+                ) : null}
+                {isHotspotImageBroken ? (
+                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                        Không tải được ảnh hotspot. Bạn vẫn có thể chọn đáp án bên dưới.
+                    </p>
+                ) : null}
+                <div className="mt-4 grid gap-2">
+                    {hotspotOptions.length === 0 ? (
+                        <input
+                            value={hotspotAnswer}
+                            onChange={(event) => {
+                                if (readOnly) return;
+                                setHotspotAnswer(event.target.value);
+                            }}
+                            disabled={readOnly}
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#2aa4e8]"
+                            placeholder="Nhập hotspot đã chọn"
+                        />
+                    ) : (
+                        hotspotOptions.map((option) => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => {
+                                    if (readOnly) return;
+                                    setHotspotAnswer(option.label);
+                                }}
+                                disabled={readOnly}
+                                className={`rounded-xl border px-4 py-3 text-left text-sm ${hotspotAnswer === option.label
+                                    ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
+                                    : 'border-gray-200 bg-white text-gray-700'} ${readOnly ? 'cursor-not-allowed opacity-90' : ''
+                                    }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))
+                    )}
+                </div>
+            </section>
+        );
+    }
+
+    if (kind === 'INFOGRAPHIC') {
+        const title = readText(payload, ['title'], 'Infographic');
+        const caption = readText(payload, ['caption', 'content'], '');
+        const imageUrl = readText(payload, ['imageUrl'], '');
+        const videoUrl = readText(payload, ['videoUrl'], '');
+        const mediaType = readText(payload, ['mediaType'], imageUrl ? 'image' : videoUrl ? 'video' : '');
+
+        return (
+            <section className="rounded-2xl border border-[#bfe6fb] bg-[#f3fbff] p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Infographic</p>
+                <h3 className="mt-2 text-lg font-bold text-[#126b98]">{title}</h3>
+                {mediaType === 'video' && videoUrl ? (
+                    <video controls src={videoUrl} className="mt-4 max-h-[420px] w-full rounded-xl bg-black/90" />
+                ) : imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageUrl} alt={title} className="mt-4 h-[320px] w-full rounded-xl border border-white bg-white object-contain" />
+                ) : (
+                    <p className="mt-4 text-sm text-[#126b98]">Không có media để hiển thị.</p>
+                )}
+                {caption ? <p className="mt-3 text-sm text-[#126b98]">{caption}</p> : null}
+            </section>
+        );
+    }
+
+    if (kind === 'RICH_TEXT') {
+        return (
+            <section className={baseCardClassName}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Learn</p>
+                <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['title'], 'Nội dung học')}</h3>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                    {readText(payload, ['body', 'content', 'description'], 'Nội dung chưa có.')}
                 </p>
             </section>
         );
     }
 
-    if (normalizedKind === 'RICH_TEXT') {
-        const content = String(payload.body ?? payload.content ?? payload.description ?? '');
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Learn</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(payload.title ?? 'Nội dung học')}</h3>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-700">{content}</p>
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'INFOGRAPHIC') {
-        const infographicPayload = payload as unknown as LessonInfographicPayload;
-        const inferredMediaType =
-            infographicPayload.mediaType ??
-            (infographicPayload.imageUrl ? 'image' : infographicPayload.videoUrl ? 'video' : 'image');
-
-        return (
-            <section className="rounded-2xl border border-[#bfe6fb] bg-[#f3fbff] p-5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Infographic</p>
-                <h3 className="mt-2 text-lg font-bold text-[#126b98]">{String(infographicPayload.title ?? 'Infographic')}</h3>
-                {inferredMediaType === 'video' && infographicPayload.videoUrl ? (
-                    <video
-                        controls
-                        poster={infographicPayload.posterUrl}
-                        src={infographicPayload.videoUrl}
-                        className="mt-4 max-h-[420px] w-full rounded-xl bg-black/90"
-                    />
-                ) : infographicPayload.imageUrl ? (
-                    <div
-                        role="img"
-                        aria-label={infographicPayload.title || 'Infographic image'}
-                        className="mt-4 h-[320px] w-full rounded-xl bg-white bg-contain bg-center bg-no-repeat"
-                        style={{ backgroundImage: `url(${infographicPayload.imageUrl})` }}
-                    />
-                ) : null}
-                {infographicPayload.caption ? (
-                    <p className="mt-3 text-sm text-[#126b98]">{infographicPayload.caption}</p>
-                ) : null}
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'QUIZ_MCQ') {
-        const quizPayload = payload as QuizPayload;
-        const options = Array.isArray(quizPayload.options) ? quizPayload.options : [];
-        const correctIndex = Number(quizPayload.correctOptionIndex ?? -1);
-        const showMissing = resultRevealRequested && selectedOption === null;
-        const showFeedback = resultRevealRequested && selectedOption !== null;
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Quiz</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(quizPayload.question ?? quizPayload.prompt ?? 'Câu hỏi trắc nghiệm')}</h3>
-                <div className="mt-4 grid gap-3">
-                    {options.map((option, index) => {
-                        const isSelected = selectedOption === index;
-                        const isCorrectOption = index === correctIndex;
-                        const isWrongSelected = showFeedback && isSelected && !isCorrectOption;
-                        const isGreen = showFeedback && isCorrectOption;
-                        const isBlueSelected = !showFeedback && isSelected;
-
-                        const optionClassName = isGreen
-                            ? 'border-green-500 bg-green-50 text-green-700'
-                            : isWrongSelected
-                                ? 'border-red-500 bg-red-50 text-red-700'
-                                : isBlueSelected
-                                    ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300';
-
-                        const bulletClassName = isGreen
-                            ? 'border-green-500 bg-green-500 text-white'
-                            : isWrongSelected
-                                ? 'border-red-500 bg-red-500 text-white'
-                                : isBlueSelected
-                                    ? 'border-[#2aa4e8] bg-[#2aa4e8] text-white'
-                                    : 'border-gray-300 bg-white text-gray-500';
-
-                        return (
-                            <button
-                                key={`${option}-${index}`}
-                                type="button"
-                                onClick={() => setSelectedOption(index)}
-                                className={`rounded-2xl border px-4 py-4 text-left text-sm transition ${optionClassName}`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <span
-                                        className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg font-bold ${bulletClassName}`}
-                                    >
-                                        {String.fromCharCode(65 + index)}
-                                    </span>
-                                    <span className="text-sm font-semibold uppercase tracking-[0.08em]">{option}</span>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-                <div className="mt-4 flex items-center gap-3">
-                    {showFeedback ? (
-                        <p className={`text-sm font-semibold ${selectedOption === correctIndex ? 'text-green-600' : 'text-red-600'}`}>
-                            {selectedOption === correctIndex ? 'Chính xác' : 'Chưa đúng'}
-                        </p>
-                    ) : null}
-                    {showMissing ? <p className="text-sm font-semibold text-red-600">Vui lòng chọn một đáp án.</p> : null}
-                </div>
-                {showFeedback && quizPayload.explanation ? (
-                    <p className="mt-3 text-sm text-gray-600">{quizPayload.explanation}</p>
-                ) : null}
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'FILL_IN_THE_BLANKS') {
-        const fillPayload = payload as FillInTheBlanksPayload;
-        const template = String(fillPayload.template ?? payload.questionTemplate ?? '');
-        const answers = Array.isArray(fillPayload.answers) ? fillPayload.answers : [];
-        const options = (Array.isArray(fillPayload.options) && fillPayload.options.length > 0
-            ? fillPayload.options
-            : answers
-        ).map((item) => String(item));
-        const segments = template.split('___');
-        const allFilled = answers.length > 0 && blankValues.length === answers.length && blankValues.every((value) => value.trim() !== '');
-        const showScore = resultRevealRequested && allFilled && answers.length > 0;
-        const showMissing = resultRevealRequested && !allFilled;
-        const score = answers.reduce((total, answer, index) => {
-            return total + (normalizeText(answer) === normalizeText(blankValues[index] ?? '') ? 1 : 0);
-        }, 0);
-
-        const valueClassName = (value: string, answer: string, missing: boolean) => {
-            if (!resultRevealRequested) {
-                return 'border-gray-200 bg-gray-50 text-gray-700';
-            }
-            if (missing) {
-                return 'border-red-500 bg-red-50 text-red-700';
-            }
-            return normalizeText(value) === normalizeText(answer)
-                ? 'border-green-500 bg-green-50 text-green-700'
-                : 'border-red-500 bg-red-50 text-red-700';
-        };
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Fill in the blanks</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-700">
-                    {segments.map((segment, segmentIndex) => (
-                        <React.Fragment key={`segment-${segmentIndex}`}>
-                            {segment}
-                            {segmentIndex < segments.length - 1 ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveBlankIndex(segmentIndex)}
-                                    className={`min-w-[120px] rounded-lg border px-3 py-1.5 text-left ${
-                                        resultRevealRequested
-                                            ? valueClassName(
-                                                blankValues[segmentIndex] ?? '',
-                                                answers[segmentIndex] ?? '',
-                                                !(blankValues[segmentIndex] ?? '').trim()
-                                            )
-                                            : activeBlankIndex === segmentIndex
-                                                ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
-                                                : 'border-gray-200 bg-gray-50 text-gray-700'
-                                    }`}
-                                >
-                                    {blankValues[segmentIndex] || `Chỗ trống ${segmentIndex + 1}`}
-                                </button>
-                            ) : null}
-                        </React.Fragment>
-                    ))}
-                </div>
-                {options.length > 0 ? (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {options.map((option, index) => (
-                            <button
-                                key={`${option}-${index}`}
-                                type="button"
-                                onClick={() => {
-                                    setBlankValues((previous) => {
-                                        const next = [...previous];
-                                        next[activeBlankIndex] = option;
-                                        return next;
-                                    });
-                                }}
-                                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-gray-300"
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
-                <div className="mt-4 flex items-center gap-3">
-                    {showScore ? (
-                        <p className={`text-sm font-semibold ${score === answers.length ? 'text-green-600' : 'text-red-600'}`}>
-                            {score}/{answers.length} đúng
-                        </p>
-                    ) : null}
-                    {showMissing ? <p className="text-sm font-semibold text-red-600">Vui lòng điền tất cả ô trống.</p> : null}
-                </div>
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'SHORT_ANSWER') {
-        const shortAnswerPayload = payload as ShortAnswerPayload;
-        const prompt = String(shortAnswerPayload.prompt ?? shortAnswerPayload.question ?? 'Nhập câu trả lời ngắn');
-        const sampleAnswer = String(shortAnswerPayload.sampleAnswer ?? '').trim();
-        const hasAnswer = shortAnswerText.trim().length > 0;
-        const showMissing = resultRevealRequested && !hasAnswer;
-        const isCorrect = sampleAnswer ? normalizeText(shortAnswerText) === normalizeText(sampleAnswer) : null;
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Short answer</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{prompt}</h3>
-                <textarea
-                    value={shortAnswerText}
-                    onChange={(event) => setShortAnswerText(event.target.value)}
-                    className={`mt-4 min-h-[120px] w-full rounded-xl border px-4 py-3 text-sm text-gray-700 outline-none ${
-                        showMissing ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-[#2aa4e8]'
-                    }`}
-                    placeholder="Nhập câu trả lời của bạn..."
-                />
-                <div className="mt-3 flex items-center gap-3">
-                    {resultRevealRequested && hasAnswer && isCorrect !== null ? (
-                        <p className={`text-sm font-semibold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                            {isCorrect ? 'Chính xác' : 'Chưa đúng'}
-                        </p>
-                    ) : null}
-                    {showMissing ? <p className="text-sm font-semibold text-red-600">Vui lòng nhập câu trả lời.</p> : null}
-                </div>
-                {shortAnswerPayload.sampleAnswer ? (
-                    <p className={`mt-3 text-xs ${resultRevealRequested ? 'text-gray-700' : 'text-gray-500'}`}>Đáp án tham chiếu: {shortAnswerPayload.sampleAnswer}</p>
-                ) : null}
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'FLASHCARD') {
-        const flashcardPayload = payload as FlashcardPayload;
-        const front = String(flashcardPayload.front ?? 'Mặt trước');
-        const back = String(flashcardPayload.back ?? 'Mặt sau');
-
+    if (kind === 'FLASHCARD') {
         return (
             <section className={baseCardClassName}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Flashcard</p>
                 <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{flashcardFlipped ? 'Back' : 'Front'}</p>
-                    <p className="mt-3 whitespace-pre-wrap text-lg font-semibold text-gray-900">{flashcardFlipped ? back : front}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Front</p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">{readText(payload, ['front'], 'Mặt trước')}</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setFlashcardFlipped((previous) => !previous)}
-                    className="mt-4 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-                >
-                    {flashcardFlipped ? 'Xem mặt trước' : 'Lật thẻ'}
-                </button>
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'MATCHING') {
-        const matchingPayload = payload as MatchingPayload;
-        const rightOptions = uniqueStrings(matchingPairs.map((item) => item.right));
-        const allSelected =
-            matchingPairs.length > 0 &&
-            matchingSelections.length === matchingPairs.length &&
-            matchingSelections.every((value) => value.trim().length > 0);
-        const matchingChecked = resultRevealRequested && allSelected;
-        const showMissing = resultRevealRequested && !allSelected;
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Matching</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(matchingPayload.prompt ?? 'Ghép cặp nội dung tương ứng')}</h3>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Kéo hoặc chạm để thả vào ô trống</p>
-                <div className="mt-4 grid gap-3">
-                    {matchingPairs.map((pair, index) => (
-                        <div key={`${pair.left}-${index}`} className="grid gap-2 rounded-xl border border-gray-200 p-3 md:grid-cols-[1fr_1fr] md:items-center">
-                            <p className="text-sm font-semibold text-gray-800">{pair.left}</p>
-                            <div
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                    event.preventDefault();
-                                    const dropped = event.dataTransfer.getData('text/plain');
-                                    if (!dropped) return;
-                                    setMatchingSelections((previous) => {
-                                        const next = [...previous];
-                                        next[index] = dropped;
-                                        return next;
-                                    });
-                                }}
-                                className={`min-h-[40px] rounded-lg border px-3 py-2 text-sm ${
-                                    matchingChecked
-                                        ? normalizeText(matchingSelections[index] ?? '') === normalizeText(pair.right)
-                                            ? 'border-green-500 bg-green-50 text-green-700'
-                                            : 'border-red-500 bg-red-50 text-red-700'
-                                        : showMissing && (matchingSelections[index] ?? '').trim() === ''
-                                            ? 'border-red-500 bg-red-50 text-red-700'
-                                        : 'border-dashed border-gray-300 bg-gray-50 text-gray-700'
-                                }`}
-                            >
-                                {matchingSelections[index] || 'Thả đáp án vào đây'}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {rightOptions.map((option) => (
-                        <button
-                            key={option}
-                            type="button"
-                            draggable
-                            onDragStart={(event) => {
-                                event.dataTransfer.setData('text/plain', option);
-                            }}
-                            onClick={() => {
-                                const firstEmptyIndex = matchingSelections.findIndex((value) => value.trim() === '');
-                                if (firstEmptyIndex === -1) return;
-                                setMatchingSelections((previous) => {
-                                    const next = [...previous];
-                                    next[firstEmptyIndex] = option;
-                                    return next;
-                                });
-                            }}
-                            className="cursor-grab rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 active:cursor-grabbing"
-                        >
-                            {option}
-                        </button>
-                    ))}
-                </div>
-                {showMissing ? <p className="mt-3 text-sm font-semibold text-red-600">Vui lòng ghép đủ tất cả cặp.</p> : null}
-                {matchingChecked ? (
-                    <p className="mt-3 text-sm font-semibold text-gray-700">
-                        {matchingPairs.every((pair, index) => normalizeText(matchingSelections[index] ?? '') === normalizeText(pair.right))
-                            ? <span className="text-green-600">Kết quả: Chính xác</span>
-                            : <span className="text-red-600">Kết quả: Chưa đúng</span>}
-                    </p>
-                ) : null}
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'ORDERING') {
-        const orderingPayload = payload as OrderingPayload;
-        const expectedOrder = parseOrderingExpectedOrder(orderingPayload, orderingBaseItems);
-        const hasExpectedOrder = expectedOrder.length === orderingItems.length && expectedOrder.length > 0;
-        const isCorrectOrder = hasExpectedOrder && orderingItems.every((item, index) => normalizeText(item) === normalizeText(expectedOrder[index]));
-        const orderingChecked = resultRevealRequested;
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Ordering</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(orderingPayload.prompt ?? 'Sắp xếp theo đúng thứ tự')}</h3>
-                <div className="mt-4 grid gap-2">
-                    {orderingItems.map((item, index) => (
-                        <div
-                            key={`${item}-${index}`}
-                            className={`flex items-center justify-between rounded-xl border px-3 py-2 ${
-                                orderingChecked
-                                    ? hasExpectedOrder && normalizeText(item) === normalizeText(expectedOrder[index] ?? '')
-                                        ? 'border-green-500 bg-green-50'
-                                        : hasExpectedOrder
-                                            ? 'border-red-500 bg-red-50'
-                                            : 'border-gray-200'
-                                    : 'border-gray-200'
-                            }`}
-                        >
-                            <p className="text-sm font-semibold text-gray-800">
-                                {index + 1}. {item}
-                            </p>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    disabled={index === 0}
-                                    onClick={() => setOrderingItems((previous) => moveItem(previous, index, index - 1))}
-                                    className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 disabled:opacity-50"
-                                >
-                                    Lên
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={index === orderingItems.length - 1}
-                                    onClick={() => setOrderingItems((previous) => moveItem(previous, index, index + 1))}
-                                    className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 disabled:opacity-50"
-                                >
-                                    Xuống
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-4 flex items-center gap-3">
-                    {orderingChecked && hasExpectedOrder ? (
-                        <p className={`text-sm font-semibold ${isCorrectOrder ? 'text-green-600' : 'text-red-600'}`}>
-                            {isCorrectOrder ? 'Thứ tự chính xác' : 'Thứ tự chưa đúng'}
-                        </p>
-                    ) : null}
-                    {orderingChecked && !hasExpectedOrder ? (
-                        <p className="text-sm font-semibold text-red-600">Chưa có đáp án chuẩn để đối chiếu thứ tự.</p>
-                    ) : null}
+                <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Back</p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">{readText(payload, ['back'], 'Mặt sau')}</p>
                 </div>
             </section>
         );
     }
 
-    if (normalizedKind === 'HOTSPOT_IMAGE') {
-        const hotspotPayload = payload as HotspotPayload;
-        const hotspots = Array.isArray(hotspotPayload.hotspots) ? hotspotPayload.hotspots : [];
-        const selectedHotspot = selectedHotspotIndex !== null ? hotspots[selectedHotspotIndex] : null;
-        const correctIndex = getHotspotCorrectIndex(hotspotPayload, hotspots.length);
-        const showMissing = resultRevealRequested && selectedHotspotIndex === null;
-        const hotspotChecked = resultRevealRequested && selectedHotspotIndex !== null;
-        const isCorrectSelection = correctIndex !== null && selectedHotspotIndex === correctIndex;
-
-        return (
-            <section className={baseCardClassName}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Hotspot image</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(hotspotPayload.title ?? 'Chọn điểm mô tả phù hợp')}</h3>
-                {hotspotPayload.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={hotspotPayload.imageUrl}
-                        alt={hotspotPayload.title || 'Hotspot image'}
-                        className="mt-4 h-[320px] w-full rounded-xl border border-gray-100 bg-gray-50 object-contain"
-                    />
-                ) : (
-                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                        Thiếu `imageUrl` trong payload HOTSPOT_IMAGE.
-                    </div>
-                )}
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {hotspots.map((hotspot, index) => (
-                        <button
-                            key={`${hotspot.label ?? 'hotspot'}-${index}`}
-                            type="button"
-                            onClick={() => setSelectedHotspotIndex(index)}
-                            className={`rounded-full border px-3 py-1.5 text-sm ${
-                                hotspotChecked && correctIndex !== null
-                                    ? index === correctIndex
-                                        ? 'border-green-500 bg-green-50 text-green-700'
-                                        : selectedHotspotIndex === index
-                                            ? 'border-red-500 bg-red-50 text-red-700'
-                                            : 'border-gray-200 bg-white text-gray-700'
-                                    : selectedHotspotIndex === index
-                                        ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
-                                        : 'border-gray-200 bg-white text-gray-700'
-                            }`}
-                        >
-                            {hotspot.label || `Điểm ${index + 1}`}
-                        </button>
-                    ))}
-                </div>
-                <div className="mt-4 flex items-center gap-3">
-                    {hotspotChecked && correctIndex !== null ? (
-                        <p className={`text-sm font-semibold ${isCorrectSelection ? 'text-green-600' : 'text-red-600'}`}>
-                            {isCorrectSelection ? 'Chính xác' : 'Chưa đúng'}
-                        </p>
-                    ) : null}
-                    {hotspotChecked && correctIndex === null ? (
-                        <p className="text-sm font-semibold text-red-600">Chưa có đáp án chuẩn cho hotspot này.</p>
-                    ) : null}
-                    {showMissing ? <p className="text-sm font-semibold text-red-600">Vui lòng chọn một hotspot.</p> : null}
-                </div>
-                {selectedHotspot?.description ? (
-                    <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">{selectedHotspot.description}</p>
-                ) : null}
-            </section>
-        );
-    }
-
-    if (normalizedKind === 'TIMELINE') {
-        const timelinePayload = payload as TimelinePayload;
-        const events = Array.isArray(timelinePayload.events) ? timelinePayload.events : [];
-
+    if (kind === 'TIMELINE') {
+        const events = Array.isArray(payload.events) ? payload.events : [];
         return (
             <section className={baseCardClassName}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">Timeline</p>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{String(timelinePayload.title ?? 'Dòng thời gian')}</h3>
+                <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['title'], 'Dòng thời gian')}</h3>
                 <div className="mt-4 space-y-4">
-                    {events.map((event, index) => (
-                        <div key={`${event.title ?? 'event'}-${index}`} className="relative border-l-2 border-[#bfe6fb] pl-4">
-                            <span className="absolute -left-[7px] top-1 h-3 w-3 rounded-full bg-[#2aa4e8]" />
-                            <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">{event.time ?? event.date ?? `Mốc ${index + 1}`}</p>
-                            <p className="mt-1 text-sm font-semibold text-gray-900">{event.title || `Sự kiện ${index + 1}`}</p>
-                            {event.description ? <p className="mt-1 text-sm text-gray-700">{event.description}</p> : null}
-                        </div>
-                    ))}
+                    {events.length === 0 ? (
+                        <p className="text-sm text-gray-600">Chưa có mốc sự kiện.</p>
+                    ) : (
+                        events.map((event, index) => {
+                            const item = (event ?? {}) as GenericPayload;
+                            return (
+                                <div key={`timeline-${index}`} className="relative border-l-2 border-[#bfe6fb] pl-4">
+                                    <span className="absolute -left-[7px] top-1 h-3 w-3 rounded-full bg-[#2aa4e8]" />
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">
+                                        {readText(item, ['time', 'date'], `Mốc ${index + 1}`)}
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-900">{readText(item, ['title'], `Sự kiện ${index + 1}`)}</p>
+                                    <p className="mt-1 text-sm text-gray-700">{readText(item, ['description'], '')}</p>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </section>
         );
     }
 
-    const genericTitle = String(payload.title ?? payload.question ?? payload.prompt ?? block.kind);
-    const genericBody = String(payload.body ?? payload.content ?? payload.description ?? '');
-
     return (
         <section className={baseCardClassName}>
-            <h3 className="text-base font-bold text-gray-900">{genericTitle}</h3>
-            {genericBody ? (
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-gray-700">{genericBody}</p>
+            <h3 className="text-base font-bold text-gray-900">{readText(payload, ['title', 'question', 'prompt'], block.kind)}</h3>
+            {readText(payload, ['content', 'description', 'body'], '') ? (
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-gray-700">{readText(payload, ['content', 'description', 'body'], '')}</p>
             ) : (
                 <pre className="mt-2 overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-600">{JSON.stringify(payload, null, 2)}</pre>
             )}
@@ -759,9 +476,7 @@ export function LessonBlockStep({ block, legacyContent, resultRevealRequested = 
 }
 
 function parsePayload(payload?: string) {
-    if (!payload) {
-        return {};
-    }
+    if (!payload) return {};
     try {
         return JSON.parse(payload) as Record<string, unknown>;
     } catch {
@@ -769,82 +484,134 @@ function parsePayload(payload?: string) {
     }
 }
 
-function normalizeText(value: string) {
-    return value.trim().toLowerCase();
-}
-
 function normalizeBlockKind(kind?: string) {
     const value = String(kind ?? '').trim().toUpperCase();
-    if (value === 'RICH_TEXT' || value === 'LEARN' || value === 'LEARNING') {
-        return 'RICH_TEXT';
-    }
-    if (value === 'INFOGRAPHIC' || value === 'INFO') {
-        return 'INFOGRAPHIC';
-    }
-    if (value === 'QUIZ_MCQ' || value === 'QUIZ' || value === 'MCQ') {
-        return 'QUIZ_MCQ';
-    }
-    if (value === 'FILL_IN_THE_BLANKS' || value === 'FILL_BLANKS' || value === 'FILL_IN_BLANKS') {
-        return 'FILL_IN_THE_BLANKS';
-    }
+    if (value === 'QUIZ' || value === 'MCQ') return 'QUIZ_MCQ';
+    if (value === 'FILL_BLANKS' || value === 'FILL_IN_BLANKS') return 'FILL_IN_THE_BLANKS';
+    if (value === 'LEARNING' || value === 'LEARN') return 'RICH_TEXT';
     return value;
 }
 
-function parseMatchingPairs(payload: MatchingPayload): MatchingPairItem[] {
-    if (!Array.isArray(payload.pairs)) {
-        return [];
+function readText(payload: GenericPayload, keys: string[], fallback: string): string {
+    for (const key of keys) {
+        const value = payload[key];
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return value;
+        }
     }
-    return payload.pairs
+    return fallback;
+}
+
+function parseOptions(payload: GenericPayload): string[] {
+    const raw = payload.options;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((option) => {
+        if (typeof option === 'string') return option;
+        const item = (option ?? {}) as GenericPayload;
+        return readText(item, ['label', 'text', 'value', 'content'], JSON.stringify(item));
+    });
+}
+
+function parseMatchingPairs(payload: GenericPayload): MatchingPair[] {
+    const raw = payload.pairs;
+    if (!Array.isArray(raw)) return [];
+    return raw
         .map((pair) => {
-            const left = String(pair.left ?? pair.term ?? '').trim();
-            const right = String(pair.right ?? pair.definition ?? '').trim();
-            return { left, right };
+            const item = (pair ?? {}) as GenericPayload;
+            return {
+                left: readText(item, ['left', 'term'], ''),
+                right: readText(item, ['right', 'definition'], ''),
+            };
         })
         .filter((pair) => pair.left.length > 0 && pair.right.length > 0);
 }
 
-function parseOrderingItems(payload: OrderingPayload): string[] {
-    if (!Array.isArray(payload.items)) {
-        return [];
-    }
-    return payload.items
-        .map((item) => {
+function uniqueStrings(values: string[]): string[] {
+    return Array.from(new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)));
+}
+
+function parseOrderingItems(payload: GenericPayload): OrderingItem[] {
+    const raw = payload.items;
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((item, index) => {
             if (typeof item === 'string') {
-                return item.trim();
+                return { id: item.trim() || `item-${index + 1}`, label: item.trim() || `Item ${index + 1}` };
             }
-            return String(item.text ?? item.label ?? '').trim();
+            const data = (item ?? {}) as GenericPayload;
+            const label = readText(data, ['text', 'label', 'content'], `Item ${index + 1}`);
+            const stableKey = readText(data, ['stableKey', 'key', 'id'], '');
+            return { id: stableKey || label, label };
         })
-        .filter((item) => item.length > 0);
+        .filter((item) => item.label.length > 0);
 }
 
-function parseOrderingExpectedOrder(payload: OrderingPayload, fallbackOrder: string[]) {
-    if (Array.isArray(payload.correctOrder) && payload.correctOrder.length > 0) {
-        return payload.correctOrder.map((item) => String(item));
-    }
-    return [...fallbackOrder];
-}
-
-function moveItem(items: string[], fromIndex: number, toIndex: number) {
+function reorderItems(items: OrderingItem[], fromIndex: number, toIndex: number): OrderingItem[] {
     const next = [...items];
     const [moved] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, moved);
     return next;
 }
 
-function uniqueStrings(values: string[]) {
-    return Array.from(new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)));
+function parseHotspots(payload: GenericPayload): HotspotOption[] {
+    const raw = payload.hotspots;
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((item, index) => {
+            if (typeof item === 'string') {
+                return { id: `hotspot-${index + 1}`, label: item };
+            }
+            const data = (item ?? {}) as GenericPayload;
+            const label = readText(data, ['label', 'name', 'text'], '');
+            const id = readText(data, ['id', 'key', 'stableKey'], `hotspot-${index + 1}`);
+            return { id, label };
+        })
+        .filter((item) => item.label.length > 0);
 }
 
-function getHotspotCorrectIndex(payload: HotspotPayload, hotspotCount: number): number | null {
-    if (typeof payload.correctHotspotIndex === 'number' && Number.isInteger(payload.correctHotspotIndex)) {
-        return payload.correctHotspotIndex;
+function parseMatchingAnswer(value: string): Record<string, string> {
+    try {
+        const parsed = JSON.parse(value) as Array<{ left?: string; right?: string }>;
+        if (!Array.isArray(parsed)) return {};
+        return parsed.reduce<Record<string, string>>((acc, item) => {
+            const left = String(item.left ?? '').trim();
+            const right = String(item.right ?? '').trim();
+            if (left && right) acc[left] = right;
+            return acc;
+        }, {});
+    } catch {
+        return {};
     }
-    if (!Array.isArray(payload.hotspots)) {
-        return hotspotCount === 1 ? 0 : null;
+}
+
+function parseOrderingAnswer(value: string): string[] {
+    try {
+        const parsed = JSON.parse(value) as string[];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((item) => String(item).trim()).filter((item) => item.length > 0);
+    } catch {
+        return [];
     }
-    const index = payload.hotspots.findIndex((item) => item?.isCorrect === true);
-    if (index >= 0) {
-        return index;
+}
+
+function reorderByIds(items: OrderingItem[], orderedIds: string[]): OrderingItem[] {
+    const map = new Map(items.map((item) => [item.id, item]));
+    const picked = orderedIds.map((id) => map.get(id)).filter((item): item is OrderingItem => Boolean(item));
+    const pickedIds = new Set(picked.map((item) => item.id));
+    const remaining = items.filter((item) => !pickedIds.has(item.id));
+    return [...picked, ...remaining];
+}
+
+function getReviewTone(answer: AttemptReviewAnswerResponse | null) {
+    if (!answer || answer.gradingStatus !== 'FINALIZED' || answer.correct === null) {
+        return { className: 'border-amber-200 bg-amber-50 text-amber-700', label: 'Đang chờ chấm điểm' };
     }
-    return payload.hotspots.length === 1 ? 0 : null;
+    if (answer.correct) {
+        return { className: 'border-green-200 bg-green-50 text-green-700', label: 'Đúng' };
+    }
+    return { className: 'border-red-200 bg-red-50 text-red-700', label: 'Sai' };
+}
+
+function normalize(value: string): string {
+    return value.trim().toLowerCase();
 }

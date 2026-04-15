@@ -5,9 +5,10 @@ import { LessonNode, LessonStatus } from '../types';
 interface LessonNodeCardProps {
     node: LessonNode;
     isLastInSection: boolean;
+    onSelect?: (node: LessonNode) => void;
 }
 
-export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSection }) => {
+export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSection, onSelect }) => {
     
     const statusStyles: Record<LessonStatus, {
         border: string;
@@ -137,6 +138,14 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             </div>
         </div>
     );
+
+    if (node.href && node.status !== 'locked' && onSelect) {
+        return (
+            <button type="button" onClick={() => onSelect(node)} className="w-full text-left">
+                {content}
+            </button>
+        );
+    }
 
     if (node.href && node.status !== 'locked') {
         return <Link href={node.href}>{content}</Link>;

@@ -30,6 +30,7 @@ export const cacheKeys = {
         sectionDetail: (sectionId: string) => prefixed('learner', 'learning', 'section', sectionId),
         sectionLessons: (sectionId: string) => prefixed('learner', 'learning', 'section', sectionId, 'lessons'),
         lessonDetail: (lessonId: string) => prefixed('learner', 'learning', 'lesson', lessonId),
+        lessonBlockProgress: (lessonId: string) => prefixed('learner', 'learning', 'lesson', lessonId, 'block-progress'),
     },
     assessment: {
         myAttempts: () => prefixed('learner', 'assessment', 'my-attempts'),
