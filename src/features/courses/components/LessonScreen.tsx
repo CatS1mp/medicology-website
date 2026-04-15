@@ -2,12 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { completeLesson, getCourses, updateLessonBlockProgress } from '@/shared/api/learning';
+import { completeLesson, getCourses, getLessonBlockProgress, updateLessonBlockProgress } from '@/shared/api/learning';
+import { getAttemptReview, getMyAttempts, saveAttemptAnswer, startAttempt, submitAttempt } from '@/shared/api/assessment';
+import { AttemptReviewAnswerResponse } from '@/shared/types/assessment';
 import { LessonContentBlockResponse } from '@/shared/types/learning';
 import { LessonBlockStep, LessonBlockStepProgress } from '@/features/courses/components/lesson/LessonBlockStep';
 import { LessonStepBreadcrumb } from '@/features/courses/components/lesson/LessonStepBreadcrumb';
@@ -16,16 +18,18 @@ import { LessonStepProgress } from '@/features/courses/components/lesson/LessonS
 
 export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
+    const isReviewMode = searchParams.get('mode') === 'review';
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState('');
     const [stepIndex, setStepIndex] = useState(0);
     const [canContinue, setCanContinue] = useState(true);
-    const [actionMode, setActionMode] = useState<'check' | 'continue'>('continue');
-    const [resultRevealRequested, setResultRevealRequested] = useState(false);
     const [blockProgress, setBlockProgress] = useState<LessonBlockStepProgress>({ status: 'IN_PROGRESS' });
+    const [attemptId, setAttemptId] = useState<string | null>(null);
+    const [reviewByQuestionId, setReviewByQuestionId] = useState<Record<string, AttemptReviewAnswerResponse>>({});
     const [lesson, setLesson] = useState<null | {
         id: string;
         courseName: string;
@@ -58,7 +62,51 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                         slug: lessonItem.slug,
                     }))
                 ).find((item) => item.slug === lessonSlug);
-                if (!cancelled) setLesson(match ?? null);
+                if (cancelled) return;
+                setLesson(match ?? null);
+
+                if (!match || !isReviewMode) {
+                    setReviewByQuestionId({});
+                    return;
+                }
+
+                const lessonAssessmentIds = Array.from(
+                    new Set(
+                        (match.blocks ?? [])
+                            .map((item) => item.assessmentId)
+                            .filter((value): value is string => Boolean(value))
+                    )
+                );
+                const submittedAttempts = lessonAssessmentIds.length > 0
+                    ? (await getMyAttempts()).filter((item) =>
+                        lessonAssessmentIds.includes(item.assessmentId) && item.submittedAt
+                    )
+                    : [];
+                const latestSubmitted = [...submittedAttempts].sort(
+                    (left, right) => new Date(right.submittedAt ?? '').getTime() - new Date(left.submittedAt ?? '').getTime()
+                )[0];
+
+                const blockProgressItems = await getLessonBlockProgress(match.id).catch(() => []);
+                const latestAttempt = [...blockProgressItems]
+                    .filter((item) => item.attemptId)
+                    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())[0];
+
+                const selectedAttemptId = latestSubmitted?.attemptId ?? latestAttempt?.attemptId ?? null;
+
+                if (!selectedAttemptId) {
+                    setMessage('Bài học này chưa có kết quả để xem lại.');
+                    setReviewByQuestionId({});
+                    return;
+                }
+
+                setAttemptId(selectedAttemptId);
+                const review = await getAttemptReview(selectedAttemptId);
+                setReviewByQuestionId(
+                    review.answers.reduce<Record<string, AttemptReviewAnswerResponse>>((acc, answer) => {
+                        acc[answer.questionId] = answer;
+                        return acc;
+                    }, {})
+                );
             } catch (error) {
                 if (!cancelled) setMessage(error instanceof Error ? error.message : 'Không thể tải bài học.');
             } finally {
@@ -67,7 +115,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
         run();
         return () => { cancelled = true; };
-    }, [courseSlug, lessonSlug]);
+    }, [courseSlug, isReviewMode, lessonSlug]);
 
     const sortedBlocks = useMemo(() => {
         if (!lesson?.blocks || lesson.blocks.length === 0) {
@@ -78,13 +126,12 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
 
     const totalSteps = sortedBlocks.length > 0 ? sortedBlocks.length : 1;
     const currentBlock = sortedBlocks[stepIndex] ?? null;
+    const currentReviewAnswer = currentBlock?.questionId ? reviewByQuestionId[currentBlock.questionId] : undefined;
     const isLastStep = stepIndex === totalSteps - 1;
     const canGoBack = stepIndex > 0;
 
     useEffect(() => {
         setStepIndex(0);
-        setActionMode('continue');
-        setResultRevealRequested(false);
     }, [lesson?.id]);
 
     useEffect(() => {
@@ -93,53 +140,78 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
     }, [stepIndex, totalSteps]);
 
-    const handleBlockStateChange = useCallback((state: { canContinue: boolean; progress: LessonBlockStepProgress; actionMode?: 'check' | 'continue' }) => {
+    const handleBlockStateChange = useCallback((state: { canContinue: boolean; progress: LessonBlockStepProgress }) => {
+        if (isReviewMode) {
+            setCanContinue(true);
+            setBlockProgress({ status: 'COMPLETED', userAnswer: currentReviewAnswer?.userAnswer ?? '' });
+            return;
+        }
         setCanContinue(state.canContinue);
         setBlockProgress(state.progress);
-        setActionMode(state.actionMode ?? 'continue');
-    }, []);
+    }, [currentReviewAnswer?.userAnswer, isReviewMode]);
 
     const saveCurrentBlockProgress = useCallback(async () => {
         if (!lesson || !currentBlock) {
             return;
         }
         try {
+            let currentAttemptId = attemptId;
+            if (currentBlock.questionId && currentBlock.assessmentId && blockProgress.userAnswer) {
+                if (!currentAttemptId) {
+                    const started = await startAttempt(currentBlock.assessmentId);
+                    currentAttemptId = started.attemptId;
+                    setAttemptId(currentAttemptId);
+                }
+                await saveAttemptAnswer(currentAttemptId, {
+                    questionId: currentBlock.questionId,
+                    userAnswer: blockProgress.userAnswer,
+                });
+            }
             await updateLessonBlockProgress(lesson.id, currentBlock.id, {
                 status: blockProgress.status,
-                score: blockProgress.score,
-                maxScore: blockProgress.maxScore,
+                attemptId: currentAttemptId ?? undefined,
             });
         } catch (error) {
             setMessage(error instanceof Error ? error.message : 'Không thể cập nhật tiến độ block.');
         }
-    }, [blockProgress.maxScore, blockProgress.score, blockProgress.status, currentBlock, lesson]);
+    }, [attemptId, blockProgress.status, blockProgress.userAnswer, currentBlock, lesson]);
 
     const handleContinue = useCallback(async () => {
         if (!lesson) {
             return;
         }
+        if (isReviewMode) {
+            if (!isLastStep) {
+                setStepIndex((previous) => previous + 1);
+                return;
+            }
+            router.push(`/courses/${courseSlug}`);
+            return;
+        }
         setMessage('');
         setSubmitting(true);
         try {
-            if (actionMode === 'check') {
-                setResultRevealRequested(true);
-                return;
-            }
             await saveCurrentBlockProgress();
             if (!isLastStep) {
                 setStepIndex((previous) => previous + 1);
-                setResultRevealRequested(false);
                 return;
+            }
+            if (attemptId) {
+                await submitAttempt(attemptId);
             }
             await completeLesson(lesson.id);
             setMessage('Đã hoàn thành bài học.');
-            router.push(`/courses/${courseSlug}`);
+            if (attemptId) {
+                router.push(`/attempts/${attemptId}/result`);
+            } else {
+                router.push(`/courses/${courseSlug}`);
+            }
         } catch (error) {
             setMessage(error instanceof Error ? error.message : 'Không thể tiếp tục bài học.');
         } finally {
             setSubmitting(false);
         }
-    }, [actionMode, courseSlug, isLastStep, lesson, router, saveCurrentBlockProgress]);
+    }, [attemptId, courseSlug, isLastStep, isReviewMode, lesson, router, saveCurrentBlockProgress]);
 
     const handleBack = useCallback(() => {
         if (!canGoBack || submitting) {
@@ -147,10 +219,9 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
         setMessage('');
         setStepIndex((previous) => Math.max(previous - 1, 0));
-        setResultRevealRequested(false);
     }, [canGoBack, submitting]);
 
-    const continueLabel = actionMode === 'check' ? 'Xem kết quả' : isLastStep ? 'Hoàn thành' : 'Tiếp tục';
+    const continueLabel = isReviewMode ? (isLastStep ? 'Quay lại lộ trình' : 'Tiếp theo') : isLastStep ? 'Hoàn thành' : 'Tiếp tục';
 
     if (loading) {
         return (
@@ -195,6 +266,11 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                                 {!!message && <div className="rounded-2xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">{message}</div>}
 
                                 <article className="rounded-3xl border border-gray-200 px-6 py-6">
+                                    {isReviewMode ? (
+                                        <div className="mb-4 rounded-xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">
+                                            Chế độ xem kết quả: các lựa chọn đã được khóa. Màu trạng thái: xanh = đúng, đỏ = sai, vàng = đang chờ chấm.
+                                        </div>
+                                    ) : null}
                                     <LessonStepBreadcrumb
                                         courseName={lesson.courseName}
                                         sectionName={lesson.sectionName}
@@ -205,7 +281,8 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                                         key={`lesson-step-${currentBlock?.id ?? 'legacy'}`}
                                         block={currentBlock}
                                         legacyContent={lesson.content}
-                                        resultRevealRequested={resultRevealRequested}
+                                        readOnly={isReviewMode}
+                                        reviewAnswer={currentReviewAnswer}
                                         onStateChange={handleBlockStateChange}
                                     />
                                     <LessonStepFooter

@@ -22,20 +22,7 @@ const BellIcon = () => (
 );
 
 const TopicsIcon = () => (
-    <SidebarIconImage src="/images/Icons/streamline-color_global-learning.svg" alt="Quản lý chủ đề" />
-);
-
-const BookIcon = () => (
-    <SidebarIconImage src="/images/Icons/streamline-color_open-book.svg" alt="Quản lý khoá học" />
-);
-
-const LessonsIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="5.3" cy="4.4" r="2.25" stroke={ICON_COLOR} strokeWidth="1.7" />
-        <path d="M2.8 10.8C2.8 8.68 4.52 6.95 6.65 6.95H10.1L9.6 9.05H7.45L6.75 16.9H4.1L3.62 11.05H2.8V10.8Z" stroke={ICON_COLOR} strokeWidth="1.7" strokeLinejoin="round" />
-        <rect x="9.6" y="3" width="7.9" height="7.8" rx="1.5" stroke={ICON_COLOR} strokeWidth="1.7" />
-        <path d="M12.1 6.9H15.2" stroke={ICON_COLOR} strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
+    <SidebarIconImage src="/images/Icons/streamline-color_open-book.svg" alt="Quản lý khóa học" />
 );
 
 const TestsIcon = () => (
@@ -89,9 +76,7 @@ const navSections = [
     {
         title: 'QUẢN LÝ HỌC TẬP',
         items: [
-            { icon: <TopicsIcon />, label: 'Quản lý chủ đề', href: '/admin/topics' },
-            { icon: <BookIcon />, label: 'Quản lý khoá học', href: '/admin/courses' },
-            { icon: <LessonsIcon />, label: 'Quản lý bài học', href: '/admin/lessons' },
+            { icon: <TopicsIcon />, label: 'Quản lý khóa học', href: '/admin/topics' },
             { icon: <TestsIcon />, label: 'Quản lý bài kiểm tra', href: '/admin/tests' },
             { icon: <DictionaryIcon />, label: 'Quản lý từ điển', href: '/admin/dictionary' },
         ]

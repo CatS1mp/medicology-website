@@ -72,8 +72,8 @@ export const AdminTopicsScreen: React.FC = () => {
         <BaseAdminLayout>
             <section className={styles.reportHeader}>
                 <div className={styles.reportTitleGroup}>
-                    <h1>Quản lý Chủ đề học tập</h1>
-                    <p>Hành trình hiểu về cơ thể và tâm trí qua các chủ đề học tập thiết thực</p>
+                    <h1>Quản lý Khóa học</h1>
+                    <p>Quản lý danh sách khóa học và thông tin hiển thị trên hệ thống</p>
                 </div>
             </section>
             
@@ -97,7 +97,7 @@ export const AdminTopicsScreen: React.FC = () => {
                 </div>
                 
                 <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Chủ đề học tập</span>
+                    <span className={styles.filterLabel}>Khóa học</span>
                     <div className={styles.chipGroup}>
                         <button className={`${styles.chip} ${styles.chipActive}`}>Tất cả</button>
                         <button className={styles.chip}>Sơ cứu & Cấp cứu</button>
@@ -120,7 +120,7 @@ export const AdminTopicsScreen: React.FC = () => {
             
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className={styles.btnPrimary} style={{ borderRadius: 12 }}>
-                    <span style={{ fontSize: 18 }}>+</span> Thêm chủ đề
+                    <span style={{ fontSize: 18 }}>+</span> Thêm khóa học
                 </button>
             </div>
 
@@ -148,7 +148,7 @@ export const AdminTopicsScreen: React.FC = () => {
             
             <div className={styles.pagination}>
                 <div className={styles.pageInfo}>
-                    Hiển thị <b>{topicData.length ? `1-${topicData.length}` : '0-0'}</b> trong tổng số <b>{topicData.length}</b> chủ đề
+                    Hiển thị <b>{topicData.length ? `1-${topicData.length}` : '0-0'}</b> trong tổng số <b>{topicData.length}</b> khóa học
                 </div>
                 <div className={styles.pageControls}>
                     <span className={styles.pageBtnInert}>Trước</span>

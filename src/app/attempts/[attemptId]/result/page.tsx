@@ -18,6 +18,8 @@ export default function AttemptResultPage() {
         totalQuestions: number;
         passed: boolean;
         completedAt: string;
+        resultStatus: 'PROVISIONAL' | 'FINAL';
+        pendingManualReviews: number;
     }>(null);
 
     useEffect(() => {
@@ -48,14 +50,28 @@ export default function AttemptResultPage() {
                         ) : result && (
                             <>
                                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#2aa4e8]">Kết quả bài kiểm tra</p>
-                                <h1 className="mt-3 text-3xl font-extrabold text-gray-900">{result.passed ? 'Bạn đã vượt qua bài kiểm tra' : 'Bạn chưa vượt qua bài kiểm tra'}</h1>
+                                <h1 className="mt-3 text-3xl font-extrabold text-gray-900">
+                                    {result.resultStatus === 'PROVISIONAL'
+                                        ? 'Bài làm đang chờ duyệt thủ công'
+                                        : result.passed
+                                            ? 'Bạn đã vượt qua bài kiểm tra'
+                                            : 'Bạn chưa vượt qua bài kiểm tra'}
+                                </h1>
                                 <p className="mt-3 text-sm text-gray-600">Hoàn thành lúc {new Date(result.completedAt).toLocaleString('vi-VN')}</p>
+                                {result.resultStatus === 'PROVISIONAL' ? (
+                                    <p className="mt-2 text-sm font-semibold text-amber-600">
+                                        Còn {result.pendingManualReviews} câu cần manual review.
+                                    </p>
+                                ) : null}
                                 <div className="mt-6 grid gap-4 md:grid-cols-4">
                                     <Card label="Điểm" value={result.score} />
                                     <Card label="Điểm tối đa" value={result.maxScore} />
                                     <Card label="Đúng" value={result.correctAnswers} />
                                     <Card label="Tổng câu" value={result.totalQuestions} />
                                 </div>
+                                <Link href={`/attempts/${params.attemptId}/review`} className="mt-5 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
+                                    Xem lại bài làm
+                                </Link>
                             </>
                         )}
                         <Link href="/dashboard" className="mt-6 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">

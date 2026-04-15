@@ -1,11 +1,11 @@
-import { AdminCoursesScreen } from '@/features/admin';
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
     title: 'Manage Courses | Medicology Admin',
-    description: 'Quản lý khoá học Medicology',
+    description: 'Điều hướng sang màn hình quản lý khóa học thống nhất',
 };
 
 export default function AdminCoursesPage() {
-    return <AdminCoursesScreen />;
+    redirect('/admin/topics');
 }

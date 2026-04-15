@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
@@ -9,16 +10,40 @@ import { RoadmapHeader } from './RoadmapHeader';
 import { RoadmapSection } from './RoadmapSection';
 import { ContinueLearningBar } from './ContinueLearningBar';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { LessonNode } from '../types';
 
 interface CoursesScreenProps {
     slug: string;
 }
 
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
+    const router = useRouter();
     const { data, isLoading } = useRoadmap(slug);
     const { streakDays } = useLearningStreak();
+    const [selectedCompletedLesson, setSelectedCompletedLesson] = useState<LessonNode | null>(null);
 
     const { handleLogout } = useLogout();
+
+    const handleLessonSelect = useCallback((node: LessonNode) => {
+        if (!node.href) return;
+        if (node.status === 'completed') {
+            setSelectedCompletedLesson(node);
+            return;
+        }
+        router.push(node.href);
+    }, [router]);
+
+    const handleRetryLesson = useCallback(() => {
+        if (!selectedCompletedLesson?.href) return;
+        router.push(selectedCompletedLesson.href);
+        setSelectedCompletedLesson(null);
+    }, [router, selectedCompletedLesson]);
+
+    const handleViewResult = useCallback(() => {
+        if (!selectedCompletedLesson?.href) return;
+        router.push(`${selectedCompletedLesson.href}?mode=review`);
+        setSelectedCompletedLesson(null);
+    }, [router, selectedCompletedLesson]);
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
@@ -47,7 +72,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
 
                                 <div className="mt-8">
                                     {data.sections.map((section) => (
-                                        <RoadmapSection key={section.id} section={section} />
+                                        <RoadmapSection key={section.id} section={section} onLessonSelect={handleLessonSelect} />
                                     ))}
                                 </div>
                             </>
@@ -59,6 +84,38 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                     <ContinueLearningBar data={data.continueLesson} />
                 )}
             </div>
+
+            {selectedCompletedLesson ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <h3 className="text-lg font-bold text-gray-900">Bài học đã hoàn thành</h3>
+                        <p className="mt-2 text-sm text-gray-600">Bạn muốn làm lại bài học hay xem lại kết quả đã chấm?</p>
+                        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={handleRetryLesson}
+                                className="rounded-xl border border-[#2aa4e8] bg-[#f3fbff] px-4 py-2.5 text-sm font-semibold text-[#126b98]"
+                            >
+                                Làm lại
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleViewResult}
+                                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
+                            >
+                                Xem kết quả
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedCompletedLesson(null)}
+                            className="mt-4 w-full rounded-xl px-4 py-2 text-sm text-gray-500 hover:bg-gray-50"
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 };

@@ -132,7 +132,7 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
     });
 }
 
-function shouldAttemptRefreshOn401(requestUrl: string): boolean {
+function shouldAttemptAuthRefresh(requestUrl: string): boolean {
     const publicEndpoints = [
         '/api/auth/login',
         '/api/auth/register',
@@ -170,10 +170,11 @@ export async function requestApi<T>(
         return parseSuccessResponse<T>(res, options);
     }
 
+    const shouldHandleAuthRefresh = res.status === 401;
     if (
-        res.status === 401 &&
+        shouldHandleAuthRefresh &&
         typeof window !== 'undefined' &&
-        shouldAttemptRefreshOn401(input) &&
+        shouldAttemptAuthRefresh(input) &&
         hasRefreshSession()
     ) {
         const { refreshAccessTokenWithMutex } = await import('@/features/auth/token-refresh');

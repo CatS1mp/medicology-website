@@ -22,6 +22,7 @@ import {
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
+import { upsertCachedUserProfile } from './session';
 
 const AUTH = `/api/auth`;
 const USERS = `/api/users`;
@@ -154,13 +155,27 @@ export function refreshToken(data: RefreshTokenRequest): Promise<AuthSessionPayl
 
 export function getCurrentUser(accessToken?: string): Promise<CurrentUser> {
     return cachedGet(authScopedKey(cacheKeys.auth.currentUser(), accessToken), CACHE_TTL.SHORT, () =>
-        jsonGet<CurrentUser>(`${USERS}/me`, accessToken)
+        jsonGet<CurrentUser>(`${USERS}/me`, accessToken).then((user) => {
+            upsertCachedUserProfile({
+                userId: user.id,
+                email: user.email,
+                username: user.username,
+            });
+            return user;
+        })
     );
 }
 
 export function updateCurrentUser(data: UpdateCurrentUserRequest, accessToken?: string): Promise<CurrentUser> {
     return mutateAndInvalidate(
-        () => jsonPatch<CurrentUser>(`${USERS}/me`, data, accessToken),
+        () => jsonPatch<CurrentUser>(`${USERS}/me`, data, accessToken).then((user) => {
+            upsertCachedUserProfile({
+                userId: user.id,
+                email: user.email,
+                username: user.username,
+            });
+            return user;
+        }),
         [authScopedKey(cacheKeys.auth.currentUser(), accessToken), authScopedKey(cacheKeys.auth.currentProfile(), accessToken)]
     );
 }
@@ -171,7 +186,10 @@ export function changeCurrentPassword(data: ChangeCurrentPasswordRequest, access
 
 export function getCurrentProfile(accessToken?: string): Promise<CurrentUserProfile> {
     return cachedGet(authScopedKey(cacheKeys.auth.currentProfile(), accessToken), CACHE_TTL.SHORT, () =>
-        jsonGet<CurrentUserProfile>(`${PROFILES}/me`, accessToken)
+        jsonGet<CurrentUserProfile>(`${PROFILES}/me`, accessToken).then((profile) => {
+            upsertCachedUserProfile(profile);
+            return profile;
+        })
     );
 }
 
@@ -180,7 +198,10 @@ export function updateCurrentProfile(
     accessToken?: string
 ): Promise<CurrentUserProfile> {
     return mutateAndInvalidate(
-        () => jsonPut<CurrentUserProfile>(`${PROFILES}/me`, data, accessToken),
+        () => jsonPut<CurrentUserProfile>(`${PROFILES}/me`, data, accessToken).then((profile) => {
+            upsertCachedUserProfile(profile);
+            return profile;
+        }),
         [authScopedKey(cacheKeys.auth.currentProfile(), accessToken), authScopedKey(cacheKeys.auth.currentUser(), accessToken)]
     );
 }

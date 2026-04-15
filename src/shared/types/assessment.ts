@@ -11,20 +11,14 @@ export interface AssessmentDiscoveryResponse {
     active: boolean;
 }
 
-export interface AttemptQuestionOptionResponse {
-    id: string;
-    content: string;
-    displayOrder: number;
-}
-
 export interface AttemptQuestionResponse {
     id: string;
     content: string;
-    explanation: string | null;
     type: string;
     displayOrder: number;
     points: number;
-    options: AttemptQuestionOptionResponse[];
+    payload: string;
+    version: number;
 }
 
 export interface AttemptStartResponse {
@@ -38,13 +32,14 @@ export interface AttemptStartResponse {
 
 export interface AttemptAnswerRequest {
     questionId: string;
-    selectedOptionId: string;
+    userAnswer: string;
 }
 
 export interface AttemptAnswerResponse {
     attemptId: string;
     questionId: string;
-    selectedOptionId: string;
+    userAnswer: string;
+    gradingStatus: 'PENDING' | 'MANUAL_REVIEW' | 'FINALIZED';
     answeredAt: string;
 }
 
@@ -57,6 +52,9 @@ export interface AttemptResultResponse {
     totalQuestions: number;
     passed: boolean;
     completedAt: string;
+    resultStatus: 'PROVISIONAL' | 'FINAL';
+    attemptStatus: 'IN_PROGRESS' | 'SUBMITTED' | 'PENDING_REVIEW' | 'FINALIZED';
+    pendingManualReviews: number;
 }
 
 export interface AttemptSummaryResponse {
@@ -68,4 +66,26 @@ export interface AttemptSummaryResponse {
     submittedAt: string | null;
     score: number | null;
     passed: boolean | null;
+}
+
+export interface AttemptReviewAnswerResponse {
+    questionId: string;
+    questionContent: string;
+    questionType: 'SINGLE_CHOICE' | 'FILL_IN_THE_BLANKS' | 'SHORT_ANSWER' | 'MATCHING' | 'ORDERING' | 'HOTSPOT_IMAGE';
+    displayOrder: number;
+    points: number;
+    payload: string;
+    userAnswer: string | null;
+    correct: boolean | null;
+    awardedPoints: number;
+    gradingStatus: 'PENDING' | 'MANUAL_REVIEW' | 'FINALIZED';
+    gradingSource: 'RULE' | 'AI' | 'MANUAL' | null;
+    confidence: number | null;
+    explanation: string | null;
+    aiModel: string | null;
+}
+
+export interface AttemptReviewResponse extends AttemptResultResponse {
+    assessmentTitle: string;
+    answers: AttemptReviewAnswerResponse[];
 }
