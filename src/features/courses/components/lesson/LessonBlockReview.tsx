@@ -56,7 +56,6 @@ export function LessonBlockReview({ answer }: LessonBlockReviewProps) {
                 </p>
                 <p className="text-gray-700">Nguồn chấm: {answer.gradingSource ?? 'N/A'}</p>
                 <p className="text-gray-700">Điểm đạt: {answer.awardedPoints ?? 0}</p>
-                {answer.confidence !== null ? <p className="text-gray-700">Độ tin cậy: {Math.round(answer.confidence * 100)}%</p> : null}
                 {answer.aiModel ? <p className="text-gray-700">Model: {answer.aiModel}</p> : null}
                 {answer.correct !== null ? (
                     <p className={`font-semibold ${answer.correct ? 'text-green-600' : 'text-red-600'}`}>
