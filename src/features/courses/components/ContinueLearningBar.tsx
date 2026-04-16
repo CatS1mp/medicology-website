@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { sanitizeAppHref } from '@/shared/utils/navigation';
 
 interface ContinueLearningBarProps {
     data: {
@@ -12,6 +13,7 @@ interface ContinueLearningBarProps {
 
 export const ContinueLearningBar: React.FC<ContinueLearningBarProps> = ({ data }) => {
     if (!data) return null;
+    const safeHref = sanitizeAppHref(data.link);
 
     return (
         <div className="sticky bottom-0 z-40 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] w-full py-4 px-6 md:px-12 flex justify-center">
@@ -29,7 +31,7 @@ export const ContinueLearningBar: React.FC<ContinueLearningBarProps> = ({ data }
                 </div>
                 
                 <Link 
-                    href={data.link}
+                    href={safeHref}
                     className="flex-shrink-0 w-12 h-12 bg-[#1CA1F2] hover:bg-[#188bd4] rounded-full flex items-center justify-center text-white shadow-md transition-transform hover:scale-105"
                 >
                     <svg className="w-5 h-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

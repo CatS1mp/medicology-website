@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { LessonNode, LessonStatus } from '../types';
+import { sanitizeAppHref } from '@/shared/utils/navigation';
 
 interface LessonNodeCardProps {
     node: LessonNode;
@@ -9,6 +10,7 @@ interface LessonNodeCardProps {
 }
 
 export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSection, onSelect }) => {
+    const safeHref = node.href ? sanitizeAppHref(node.href) : null;
     
     const statusStyles: Record<LessonStatus, {
         border: string;
@@ -99,7 +101,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                 <div className="absolute left-[29px] sm:left-[45px] top-[60px] bottom-[-16px] w-[2px] bg-gray-200" />
             )}
 
-            <div className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm transition-transform hover:-translate-y-0.5 ${node.href ? 'cursor-pointer' : ''} ${style.border} ${style.bg}`}>
+            <div className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm transition-transform hover:-translate-y-0.5 ${safeHref ? 'cursor-pointer' : ''} ${style.border} ${style.bg}`}>
                 
                 <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${style.iconBg} ${style.iconText}`}>
@@ -139,16 +141,16 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
         </div>
     );
 
-    if (node.href && node.status !== 'locked' && onSelect) {
+    if (safeHref && node.status !== 'locked' && onSelect) {
         return (
-            <button type="button" onClick={() => onSelect(node)} className="w-full text-left">
+            <button type="button" onClick={() => onSelect({ ...node, href: safeHref })} className="w-full text-left">
                 {content}
             </button>
         );
     }
 
-    if (node.href && node.status !== 'locked') {
-        return <Link href={node.href}>{content}</Link>;
+    if (safeHref && node.status !== 'locked') {
+        return <Link href={safeHref}>{content}</Link>;
     }
 
     return content;

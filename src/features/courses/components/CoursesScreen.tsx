@@ -11,6 +11,7 @@ import { RoadmapSection } from './RoadmapSection';
 import { ContinueLearningBar } from './ContinueLearningBar';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { LessonNode } from '../types';
+import { sanitizeAppHref } from '@/shared/utils/navigation';
 
 interface CoursesScreenProps {
     slug: string;
@@ -30,20 +31,21 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
             setSelectedCompletedLesson(node);
             return;
         }
-        router.push(node.href);
-    }, [router]);
+        router.push(sanitizeAppHref(node.href, `/courses/${slug}`));
+    }, [router, slug]);
 
     const handleRetryLesson = useCallback(() => {
         if (!selectedCompletedLesson?.href) return;
-        router.push(selectedCompletedLesson.href);
+        router.push(sanitizeAppHref(selectedCompletedLesson.href, `/courses/${slug}`));
         setSelectedCompletedLesson(null);
-    }, [router, selectedCompletedLesson]);
+    }, [router, selectedCompletedLesson, slug]);
 
     const handleViewResult = useCallback(() => {
         if (!selectedCompletedLesson?.href) return;
-        router.push(`${selectedCompletedLesson.href}?mode=review`);
+        const safeHref = sanitizeAppHref(selectedCompletedLesson.href, `/courses/${slug}`);
+        router.push(`${safeHref}?mode=review`);
         setSelectedCompletedLesson(null);
-    }, [router, selectedCompletedLesson]);
+    }, [router, selectedCompletedLesson, slug]);
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">

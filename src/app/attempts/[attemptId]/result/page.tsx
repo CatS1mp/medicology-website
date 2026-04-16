@@ -69,14 +69,16 @@ export default function AttemptResultPage() {
                                     <Card label="Đúng" value={result.correctAnswers} />
                                     <Card label="Tổng câu" value={result.totalQuestions} />
                                 </div>
-                                <Link href={`/attempts/${params.attemptId}/review`} className="mt-5 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
-                                    Xem lại bài làm
-                                </Link>
+                                <div className="mt-5 flex flex-wrap items-center gap-4">
+                                    <Link href={`/attempts/${params.attemptId}/review`} className="inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
+                                        Xem lại bài làm
+                                    </Link>
+                                    <Link href="/dashboard" className="inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
+                                        Quay lại dashboard
+                                    </Link>
+                                </div>
                             </>
                         )}
-                        <Link href="/dashboard" className="mt-6 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
-                            Quay lại dashboard
-                        </Link>
                     </div>
                 </div>
             </div>
