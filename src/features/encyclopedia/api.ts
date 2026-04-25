@@ -12,16 +12,40 @@ export interface DictionaryTagResponse {
 
 export interface DictionaryArticleResponse {
     id: string;
-    themeId: string;
     name: string;
     slug: string;
-    contentMarkdown: string;
+    contentJson?: string | null;
+    contentVersion?: number | null;
+    contentMarkdown?: string | null;
     authorAdminId: string;
     isPublished: boolean;
     publishedAt: string | null;
     createdAt: string;
     updatedAt: string;
     tags?: DictionaryTagResponse[] | null;
+}
+
+export interface DictionaryArticleTemplateResponse {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    defaultContentJson?: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface DictionaryComponentDefinitionResponse {
+    id: string;
+    code: string;
+    name: string;
+    componentType: string;
+    schemaJson?: string | null;
+    defaultDataJson?: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface DictionaryCommentResponse {
@@ -98,6 +122,10 @@ export function listArticles(): Promise<DictionaryArticleResponse[]> {
     return cachedGet(cacheKeys.dictionary.articles(), CACHE_TTL.MEDIUM, () =>
         getJson<DictionaryArticleResponse[]>(`${DICTIONARY}/articles`)
     );
+}
+
+export function listTermArticles(): Promise<DictionaryArticleResponse[]> {
+    return listArticles();
 }
 
 export function getArticleBySlug(slug: string): Promise<DictionaryArticleResponse> {
