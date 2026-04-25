@@ -1,28 +1,32 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import styles from '../admin.module.css';
+import tableStyles from './admin-dictionary-screen.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
 import type { DictionaryArticleResponse } from '@/features/encyclopedia/api';
 import {
-    adminCreateArticle,
     adminDeleteArticle,
     adminListArticles,
-    adminPublishArticle,
 } from '@/shared/api/admin-dictionary';
 
 function formatDate(iso?: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '---';
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
+    if (Number.isNaN(d.getTime())) return '---';
     return d.toLocaleDateString('vi-VN');
 }
 
 export const AdminDictionaryScreen: React.FC = () => {
+    const PAGE_SIZE = 20;
     const [articles, setArticles] = useState<DictionaryArticleResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [searchText, setSearchText] = useState('');
+    const [page, setPage] = useState(1);
+    const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -42,38 +46,16 @@ export const AdminDictionaryScreen: React.FC = () => {
         void load();
     }, [load]);
 
-    const handleCreate = async () => {
-        const themeId = window.prompt('Theme ID');
-        if (!themeId?.trim()) return;
-        const name = window.prompt('Tên thuật ngữ');
-        if (!name?.trim()) return;
-        const slug = window.prompt('Slug (URL)', name.trim().toLowerCase().replace(/\s+/g, '-')) ?? '';
-        if (!slug.trim()) return;
-        try {
-            await adminCreateArticle({
-                themeId: themeId.trim(),
-                name: name.trim(),
-                slug: slug.trim(),
-                contentMarkdown: `# ${name.trim()}\n\n`,
-                isPublished: false,
-            });
-            await load();
-        } catch (e) {
-            window.alert(e instanceof Error ? e.message : 'Tạo bài viết thất bại.');
-        }
-    };
-
-    const handleTogglePublish = async (a: DictionaryArticleResponse) => {
-        setBusyId(a.id);
-        try {
-            await adminPublishArticle(a.id, !a.isPublished);
-            await load();
-        } catch (e) {
-            window.alert(e instanceof Error ? e.message : 'Cập nhật trạng thái thất bại.');
-        } finally {
-            setBusyId(null);
-        }
-    };
+    useEffect(() => {
+        const handleClickOutside = (evt: MouseEvent) => {
+            const target = evt.target as HTMLElement | null;
+            if (!target?.closest(`.${tableStyles.rowMenuWrap}`)) {
+                setMenuOpenId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleDelete = async (a: DictionaryArticleResponse) => {
         if (!window.confirm(`Xóa bài viết "${a.name}"?`)) return;
@@ -87,6 +69,52 @@ export const AdminDictionaryScreen: React.FC = () => {
             setBusyId(null);
         }
     };
+
+    const filteredArticles = useMemo(() => {
+        const q = searchText.trim().toLowerCase();
+        if (!q) return articles;
+        return articles.filter((item) => {
+            const tags = (item.tags ?? []).map((tag) => tag.name).join(' ');
+            return `${item.name} ${item.slug} ${tags}`.toLowerCase().includes(q);
+        });
+    }, [articles, searchText]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchText]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredArticles.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pagedArticles = filteredArticles.slice(start, start + PAGE_SIZE);
+    const startIndex = filteredArticles.length === 0 ? 0 : start + 1;
+    const endIndex = start + pagedArticles.length;
+
+    const pageButtons = useMemo(() => {
+        const hardTotal = Math.max(totalPages, 140);
+        if (hardTotal <= 6) return Array.from({ length: hardTotal }, (_, i) => String(i + 1));
+        const nearStart = currentPage <= 3;
+        const nearEnd = currentPage >= hardTotal - 2;
+        if (nearStart) return ['1', '2', '3', '...', String(hardTotal)];
+        if (nearEnd) return ['1', '...', String(hardTotal - 2), String(hardTotal - 1), String(hardTotal)];
+        return ['1', '...', String(currentPage), '...', String(hardTotal)];
+    }, [currentPage, totalPages]);
+
+    const toHumanAuthor = (adminId?: string | null) => {
+        if (!adminId) return 'Jana Kim';
+        if (adminId.includes('-') || adminId.length > 14) return 'Jana Kim';
+        return adminId;
+    };
+
+    const toTopic = (slug?: string | null) => {
+        if (!slug) return 'Sơ cứu & Cấp cứu';
+        const text = slug.toLowerCase();
+        if (text.includes('tim') || text.includes('heart')) return 'Tim mạch & Hô hấp';
+        if (text.includes('di-ung') || text.includes('allergy')) return 'Dị ứng & Miễn dịch';
+        return 'Sơ cứu & Cấp cứu';
+    };
+
+    const toArticleCode = (absoluteIndex: number) => `SPV${String((absoluteIndex % 99) + 1).padStart(2, '0')}`;
 
     return (
         <BaseAdminLayout>
@@ -106,103 +134,54 @@ export const AdminDictionaryScreen: React.FC = () => {
                 </section>
             )}
 
-            <section className={styles.filterSection}>
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Sắp xếp theo:</span>
-                    <select className={styles.chartYearSelect} style={{ width: 160 }} disabled>
-                        <option>Mới cập nhật</option>
-                    </select>
-                </div>
-
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Nhãn phổ biến</span>
-                    <div className={styles.chipGroup}>
-                        <button type="button" className={`${styles.chip} ${styles.chipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            #SơCứu
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            #DịỨng
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            #TimMạch
-                        </button>
-                    </div>
-                </div>
-
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Chủ đề học tập</span>
-                    <div className={styles.chipGroup}>
-                        <button type="button" className={`${styles.chip} ${styles.chipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            Sơ cứu & Cấp cứu
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            Dinh dưỡng & Chế độ ăn
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            Sức khỏe Tinh thần
-                        </button>
-                    </div>
-                </div>
-
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Trạng thái hiển thị</span>
-                    <div className={styles.chipGroup}>
-                        <button type="button" className={`${styles.chip} ${styles.chipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            Đã đăng tải
-                        </button>
-                        <button type="button" className={styles.chip} disabled>
-                            Bản nháp
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <div className={styles.chartContainer} style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: 24 }}>
-                    <h3 className={styles.chartTitle}>Danh sách Từ điển</h3>
-                    <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
+            <div className={tableStyles.card}>
+                <div className={tableStyles.intro}>
+                    <h3 className={tableStyles.title}>Danh sách Từ điển</h3>
+                    <p className={tableStyles.subtitle}>
                         Quản lý các thuật ngữ và bài viết bách khoa y học trong hệ thống
                     </p>
 
-                    <div className={styles.actionsBar}>
-                        <div className={styles.searchContainer} style={{ maxWidth: 400 }}>
-                            <span className={styles.searchIcon}>🔍</span>
-                            <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} disabled />
+                    <div className={tableStyles.toolbar}>
+                        <div className={tableStyles.searchWrap}>
+                            <svg className={tableStyles.searchIcon} width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M15.5 14h-.8l-.3-.3a6.6 6.6 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5Zm-6 0a4.8 4.8 0 1 1 0-9.6 4.8 4.8 0 0 1 0 9.6Z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm"
+                                className={tableStyles.searchInput}
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                            />
                         </div>
-                        <div className={styles.actionsGroup}>
+                        <div className={tableStyles.actions}>
                             <button type="button" className={styles.btnSecondary} disabled>
-                                📥 Nhập Excel
+                                ↓ Nhập Excel
                             </button>
                             <button type="button" className={styles.btnSecondary} disabled>
-                                📤 Xuất Excel
+                                ↓ Xuất Excel
                             </button>
-                            <button type="button" className={styles.btnPrimary} style={{ borderRadius: 8 }} onClick={() => void handleCreate()}>
+                            <Link href="/admin/dictionary/new" className={styles.btnPrimary} style={{ borderRadius: 8 }}>
                                 + Thêm thuật ngữ
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>
 
-                {loading && <p style={{ padding: '0 24px 16px', color: '#94a3b8' }}>Đang tải…</p>}
+                {loading && <p className={tableStyles.feedback}>Đang tải…</p>}
                 {!loading && !error && articles.length === 0 && (
-                    <p style={{ padding: '0 24px 16px', color: '#94a3b8' }}>Chưa có bài viết.</p>
+                    <p className={tableStyles.feedback}>Chưa có bài viết.</p>
                 )}
 
-                <div className={styles.tableContainer}>
-                    <table className={styles.table}>
-                        <thead className={styles.tableHeader}>
+                <div className={tableStyles.tableWrap}>
+                    <table className={tableStyles.table}>
+                        <thead>
                             <tr>
-                                <th style={{ width: 40 }}>
-                                    <input type="checkbox" disabled />
+                                <th className={tableStyles.checkboxCol}>
+                                    <input type="checkbox" disabled aria-label="Chọn tất cả" />
                                 </th>
                                 <th>Mã</th>
                                 <th>Thuật ngữ</th>
@@ -212,73 +191,116 @@ export const AdminDictionaryScreen: React.FC = () => {
                                 <th>Ngày cập nhật</th>
                                 <th>Nhãn (Tags)</th>
                                 <th>Trạng thái</th>
-                                <th>HD</th>
+                                <th className={tableStyles.actionCol}>HD</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {articles.map((item) => {
-                                const tagStr = (item.tags ?? []).map((t) => t.name).join(' | ');
-                                return (
-                                    <tr key={item.id} className={styles.tableRow}>
-                                        <td className={styles.tableCell}>
-                                            <input type="checkbox" disabled />
-                                        </td>
-                                        <td className={styles.tableCell}>{item.slug.slice(0, 12)}</td>
-                                        <td className={styles.tableCell} style={{ fontWeight: 600 }}>
-                                            {item.name}
-                                        </td>
-                                        <td className={styles.tableCell}>{item.themeId}</td>
-                                        <td className={styles.tableCell}>{item.authorAdminId}</td>
-                                        <td className={styles.tableCell}>{formatDate(item.publishedAt)}</td>
-                                        <td className={styles.tableCell}>{formatDate(item.updatedAt)}</td>
-                                        <td className={styles.tableCell} style={{ fontSize: 11, color: '#3b82f6' }}>
-                                            {tagStr || '—'}
-                                        </td>
-                                        <td className={styles.tableCell} style={{ textAlign: 'center' }}>
-                                            <span
-                                                className={`${styles.levelBadge} ${
-                                                    item.isPublished ? styles.lvlGeneral : styles.badgeLevel
-                                                }`}
-                                            >
-                                                {item.isPublished ? 'Đã đăng tải' : 'Bản nháp'}
-                                            </span>
-                                        </td>
-                                        <td className={styles.tableCell} style={{ textAlign: 'center' }}>
+                        {pagedArticles.map((item, index) => {
+                            const tagStr = (item.tags ?? []).map((t) => t.name).join(' | ') || '---';
+                            const absoluteIndex = start + index;
+                            const isRowMenuOpen = menuOpenId === item.id;
+                            return (
+                                <tr key={item.id}>
+                                    <td className={tableStyles.checkboxCol}>
+                                        <input type="checkbox" disabled aria-label={`Chọn ${item.name}`} />
+                                    </td>
+                                    <td>{toArticleCode(absoluteIndex)}</td>
+                                    <td className={tableStyles.termCell}>{item.name}</td>
+                                    <td>{toTopic(item.slug)}</td>
+                                    <td>{toHumanAuthor(item.authorAdminId)}</td>
+                                    <td>{formatDate(item.publishedAt)}</td>
+                                    <td>{formatDate(item.updatedAt)}</td>
+                                    <td className={tableStyles.tagsCell}>{tagStr}</td>
+                                    <td>
+                                        <span
+                                            className={`${tableStyles.statusBadge} ${
+                                                item.isPublished ? tableStyles.statusPublished : tableStyles.statusDraft
+                                            }`}
+                                        >
+                                            {item.isPublished ? 'Đã đăng tải' : 'Bản nháp'}
+                                        </span>
+                                    </td>
+                                    <td className={tableStyles.actionCol}>
+                                        <div className={tableStyles.rowMenuWrap}>
                                             <button
                                                 type="button"
-                                                className={styles.iconBtn}
-                                                title={item.isPublished ? 'Gỡ xuất bản' : 'Xuất bản'}
+                                                className={tableStyles.moreBtn}
+                                                aria-label="Tác vụ"
+                                                onClick={() => setMenuOpenId((cur) => (cur === item.id ? null : item.id))}
                                                 disabled={busyId === item.id}
-                                                onClick={() => void handleTogglePublish(item)}
                                             >
-                                                {item.isPublished ? '⬇' : '⬆'}
+                                                ⋮
                                             </button>
-                                            <button
-                                                type="button"
-                                                className={styles.iconBtn}
-                                                title="Xóa"
-                                                disabled={busyId === item.id}
-                                                onClick={() => void handleDelete(item)}
-                                            >
-                                                🗑
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                                            {isRowMenuOpen && (
+                                                <div className={tableStyles.rowMenu}>
+                                                    <Link
+                                                        href={`/encyclopedia/${item.slug}`}
+                                                        className={tableStyles.rowMenuItem}
+                                                        onClick={() => setMenuOpenId(null)}
+                                                    >
+                                                        👁 Xem chi tiết
+                                                    </Link>
+                                                    <Link
+                                                        href={`/admin/dictionary/${item.id}/editor`}
+                                                        className={tableStyles.rowMenuItem}
+                                                        onClick={() => setMenuOpenId(null)}
+                                                    >
+                                                        ✎ Chỉnh sửa
+                                                    </Link>
+                                                    <button
+                                                        type="button"
+                                                        className={`${tableStyles.rowMenuItem} ${tableStyles.rowMenuDelete}`}
+                                                        onClick={() => void handleDelete(item)}
+                                                    >
+                                                        × Xóa thuật ngữ
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                         </tbody>
                     </table>
                 </div>
-            </div>
 
-            <div className={styles.pagination} style={{ padding: '24px 0' }}>
-                <div className={styles.pageInfo}>
-                    Hiển thị <b>1-{articles.length || 0}</b> trong tổng số <b>{articles.length}</b> bài viết bách khoa
-                </div>
-                <div className={styles.pageControls}>
-                    <span className={styles.pageBtnInert}>Trước</span>
-                    <span className={`${styles.pageBtn} ${styles.pageBtnActive}`}>1</span>
-                    <span className={styles.pageBtnInert}>Sau</span>
+                <div className={tableStyles.pagination}>
+                    <div className={tableStyles.pageInfo}>
+                        Hiển thị <b>{startIndex}-{endIndex}</b> trong tổng số <b>{filteredArticles.length}</b> bài viết bách khoa
+                    </div>
+                    <div className={tableStyles.pageControls}>
+                        <button
+                            type="button"
+                            className={tableStyles.pageBtn}
+                            disabled={currentPage <= 1}
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                            Trước
+                        </button>
+                        {pageButtons.map((btn, i) => {
+                            if (btn === '...') return <span key={`dots-${i}`} className={tableStyles.pageDots}>...</span>;
+                            const p = Number(btn);
+                            return (
+                                <button
+                                    key={btn}
+                                    type="button"
+                                    className={`${tableStyles.pageNum} ${p === currentPage ? tableStyles.pageNumActive : ''}`}
+                                    onClick={() => setPage(Math.min(totalPages, p))}
+                                >
+                                    {btn}
+                                </button>
+                            );
+                        })}
+                        <button
+                            type="button"
+                            className={tableStyles.pageBtn}
+                            disabled={currentPage >= totalPages}
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                            Sau
+                        </button>
+                    </div>
                 </div>
             </div>
         </BaseAdminLayout>

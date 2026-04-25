@@ -65,7 +65,10 @@ export const cacheKeys = {
         assessmentDetail: (assessmentId: string) => prefixed('admin', 'assessment', 'assessment', assessmentId),
         assessmentPrefix: () => prefixed('admin', 'assessment'),
         dictionaryArticles: () => prefixed('admin', 'dictionary', 'articles'),
+        dictionaryArticleDetail: (articleId: string) => prefixed('admin', 'dictionary', 'article', articleId),
         dictionaryTags: () => prefixed('admin', 'dictionary', 'tags'),
+        dictionaryTemplates: (activeOnly = true) => prefixed('admin', 'dictionary', 'templates', activeOnly ? 'active' : 'all'),
+        dictionaryComponents: (activeOnly = true) => prefixed('admin', 'dictionary', 'components', activeOnly ? 'active' : 'all'),
         dictionaryPrefix: () => prefixed('admin', 'dictionary'),
     },
 } as const;
