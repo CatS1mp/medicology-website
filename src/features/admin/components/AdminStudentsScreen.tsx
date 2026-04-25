@@ -33,6 +33,7 @@ export const AdminStudentsScreen: React.FC = () => {
     const [addStudentOpen, setAddStudentOpen] = useState(false);
     const [profileDetailLoading, setProfileDetailLoading] = useState(false);
     const [profileDetailError, setProfileDetailError] = useState<string | null>(null);
+    const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
     const load = useCallback(async (): Promise<AdminUserApiRecord[]> => {
         setLoading(true);
@@ -157,71 +158,85 @@ export const AdminStudentsScreen: React.FC = () => {
             )}
 
             <section className={styles.studentsFilterCard}>
-                <div className={styles.studentsSortRow}>
-                    <span>Sắp xếp theo:</span>
-                    <select className={styles.studentsSelect} disabled>
-                        <option>Mới nhất</option>
-                        <option>Cũ nhất</option>
-                    </select>
-                    <select className={styles.studentsSelect} disabled>
-                        <option>Ngày tham gia</option>
-                        <option>Chuỗi học tập</option>
-                    </select>
+                <div className={styles.studentsFilterHead}>
+                    <strong>Bộ lọc</strong>
+                    <button
+                        type="button"
+                        className={styles.studentsFilterToggle}
+                        onClick={() => setFiltersCollapsed((prev) => !prev)}
+                    >
+                        {filtersCollapsed ? 'Mở bộ lọc' : 'Thu gọn bộ lọc'}
+                    </button>
                 </div>
+                {!filtersCollapsed && (
+                    <div className={styles.studentsFilterBody}>
+                        <div className={styles.studentsSortRow}>
+                            <span>Sắp xếp theo:</span>
+                            <select className={styles.studentsSelect} disabled>
+                                <option>Mới nhất</option>
+                                <option>Cũ nhất</option>
+                            </select>
+                            <select className={styles.studentsSelect} disabled>
+                                <option>Ngày tham gia</option>
+                                <option>Chuỗi học tập</option>
+                            </select>
+                        </div>
 
-                <div className={styles.studentsFilterBlock}>
-                    <h3>Đối tượng</h3>
-                    <div className={styles.studentsChipRow}>
-                        <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
-                            Mọi đối tượng
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Trẻ em
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Vị thành niên
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Người lớn
-                        </button>
-                    </div>
-                </div>
+                        <div className={styles.studentsFilterBlock}>
+                            <h3>Đối tượng</h3>
+                            <div className={styles.studentsChipRow}>
+                                <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
+                                    Mọi đối tượng
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Trẻ em
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Vị thành niên
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Người lớn
+                                </button>
+                            </div>
+                        </div>
 
-                <div className={styles.studentsFilterBlock}>
-                    <h3>Trạng thái tài khoản</h3>
-                    <div className={styles.studentsChipRow}>
-                        <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Hoạt động
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Chờ xác thực
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            Đã khóa
-                        </button>
-                    </div>
-                </div>
+                        <div className={styles.studentsFilterBlock}>
+                            <h3>Trạng thái tài khoản</h3>
+                            <div className={styles.studentsChipRow}>
+                                <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
+                                    Tất cả
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Hoạt động
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Chờ xác thực
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    Đã khóa
+                                </button>
+                            </div>
+                        </div>
 
-                <div className={styles.studentsFilterBlock}>
-                    <h3>Chuỗi học tập</h3>
-                    <div className={styles.studentsChipRow}>
-                        <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            0 ngày
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            1-7 ngày
-                        </button>
-                        <button type="button" className={styles.studentsChip} disabled>
-                            +8 ngày
-                        </button>
+                        <div className={styles.studentsFilterBlock}>
+                            <h3>Chuỗi học tập</h3>
+                            <div className={styles.studentsChipRow}>
+                                <button type="button" className={`${styles.studentsChip} ${styles.studentsChipActive}`}>
+                                    Tất cả
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    0 ngày
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    1-7 ngày
+                                </button>
+                                <button type="button" className={styles.studentsChip} disabled>
+                                    +8 ngày
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
 
             <section className={styles.studentsTableCard}>

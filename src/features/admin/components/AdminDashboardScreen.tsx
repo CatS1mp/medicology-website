@@ -5,7 +5,6 @@ import styles from '../admin.module.css';
 import { AdminGrowthChart } from './AdminGrowthChart';
 import { BaseAdminLayout } from './BaseAdminLayout';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
-import { listAssessmentsAdmin } from '@/shared/api/admin-assessment';
 import { adminListCourses } from '@/shared/api/admin-learning';
 import { adminListArticles } from '@/shared/api/admin-dictionary';
 import { getLessonActivity } from '@/shared/api/learning';
@@ -13,7 +12,6 @@ import { getLessonActivity } from '@/shared/api/learning';
 export const AdminDashboardScreen: React.FC = () => {
     const [userTotal, setUserTotal] = useState<number | null>(null);
     const [courseCount, setCourseCount] = useState<number | null>(null);
-    const [assessmentCount, setAssessmentCount] = useState<number | null>(null);
     const [lessonDone, setLessonDone] = useState<number | null>(null);
     const [dictCount, setDictCount] = useState<number | null>(null);
     const [errors, setErrors] = useState<string[]>([]);
@@ -24,7 +22,6 @@ export const AdminDashboardScreen: React.FC = () => {
             const results = await Promise.allSettled([
                 fetchAdminUsers({ page: 0, size: 1 }),
                 adminListCourses(),
-                listAssessmentsAdmin(),
                 getLessonActivity(7),
                 adminListArticles(),
             ]);
@@ -34,11 +31,9 @@ export const AdminDashboardScreen: React.FC = () => {
             else errs.push('Người dùng');
             if (results[1].status === 'fulfilled') setCourseCount(results[1].value.length);
             else errs.push('Khóa học');
-            if (results[2].status === 'fulfilled') setAssessmentCount(results[2].value.length);
-            else errs.push('Bài kiểm tra');
-            if (results[3].status === 'fulfilled') setLessonDone(results[3].value.totalCompletedLessons);
+            if (results[2].status === 'fulfilled') setLessonDone(results[2].value.totalCompletedLessons);
             else errs.push('Hoạt động học');
-            if (results[4].status === 'fulfilled') setDictCount(results[4].value.length);
+            if (results[3].status === 'fulfilled') setDictCount(results[3].value.length);
             else errs.push('Từ điển');
             setErrors(errs);
         })();
@@ -63,13 +58,13 @@ export const AdminDashboardScreen: React.FC = () => {
             type: 'green' as const,
         },
         {
-            label: 'Bài kiểm tra',
-            value: fmt(assessmentCount),
-            change: errors.includes('Bài kiểm tra') ? 'Không tải được' : 'Assessment service',
+            label: 'Bài viết từ điển',
+            value: fmt(dictCount),
+            change: errors.includes('Từ điển') ? 'Không tải được' : 'Dictionary service',
             type: 'orange' as const,
         },
         {
-            label: 'Bài học hoàn thành (7 ngày)',
+            label: 'Tỉ lệ bài học hoàn thành',
             value: fmt(lessonDone),
             change: errors.includes('Hoạt động học') ? 'Không tải được' : 'Learning progress',
             type: 'purple' as const,
@@ -77,11 +72,6 @@ export const AdminDashboardScreen: React.FC = () => {
     ];
 
     const statusStats = [
-        {
-            label: 'Bài viết từ điển',
-            value: fmt(dictCount),
-            subtitle: errors.includes('Từ điển') ? 'Không tải được dictionary' : 'Số bài trong hệ thống',
-        },
         {
             label: 'Trạng thái tổng hợp',
             value: errors.length ? 'Một phần lỗi' : 'OK',
@@ -165,7 +155,7 @@ export const AdminDashboardScreen: React.FC = () => {
 
             <section className={styles.bottomGrid}>
                 {statusStats.map((stat, i) => (
-                    <div key={i} className={styles.statusCard}>
+                    <div key={i} className={`${styles.statusCard} ${styles.statusCardCompact}`}>
                         <h4 className={styles.statusLabel}>{stat.label}</h4>
                         <div className={styles.statusValue}>{stat.value}</div>
                         <p className={styles.statusSubtitle}>{stat.subtitle}</p>

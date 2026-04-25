@@ -3,6 +3,7 @@ export * from './components/BaseAdminLayout';
 export * from './components/AdminReportScreen';
 export * from './components/AdminTopicsScreen';
 export * from './components/AdminCoursesScreen';
+export * from './components/AdminCourseCurriculumScreen';
 export * from './components/AdminLessonsScreen';
 export * from './components/AdminDictionaryScreen';
 export * from './components/AdminTestsScreen';
