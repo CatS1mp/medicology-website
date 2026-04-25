@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
-import { adminCreateCourse, adminDeleteCourse, adminListCourses, adminUpdateCourse } from '@/shared/api/admin-learning';
+import { AdminAddCourseModal } from './AdminAddCourseModal';
+import { adminDeleteCourse, adminListCourses } from '@/shared/api/admin-learning';
 import type { CourseResponse } from '@/shared/types/learning';
 
 type CourseLevel = 'General' | 'Teen' | 'Adult';
@@ -40,6 +42,9 @@ function levelClass(level: CourseLevel): string {
 }
 
 export const AdminCoursesScreen: React.FC = () => {
+    const router = useRouter();
+    const [addCourseOpen, setAddCourseOpen] = useState(false);
+    const [filtersCollapsed, setFiltersCollapsed] = useState(false);
     const [openActionFor, setOpenActionFor] = useState<string | null>(null);
     const actionMenuRef = useRef<HTMLDivElement | null>(null);
     const [rows, setRows] = useState<CourseRow[]>([]);
@@ -82,23 +87,8 @@ export const AdminCoursesScreen: React.FC = () => {
     }, []);
 
     const handleCourseAction = async (action: 'view' | 'edit' | 'delete', course: CourseRow) => {
-        if (action === 'view') {
-            window.alert(`Khóa học: ${course.name}\nID: ${course.id}`);
-            setOpenActionFor(null);
-            return;
-        }
-        if (action === 'edit') {
-            const name = window.prompt('Tên khóa học', course.name);
-            if (!name?.trim()) {
-                setOpenActionFor(null);
-                return;
-            }
-            try {
-                await adminUpdateCourse(course.id, { name: name.trim() });
-                await load();
-            } catch (e) {
-                window.alert(e instanceof Error ? e.message : 'Cập nhật thất bại.');
-            }
+        if (action === 'view' || action === 'edit') {
+            router.push(`/admin/courses/${course.id}/curriculum`);
             setOpenActionFor(null);
             return;
         }
@@ -117,21 +107,11 @@ export const AdminCoursesScreen: React.FC = () => {
         }
     };
 
-    const handleAddCourse = async () => {
-        const name = window.prompt('Tên khóa học');
-        if (!name?.trim()) return;
-        const slug = window.prompt('Slug (URL)', name.trim().toLowerCase().replace(/\s+/g, '-')) ?? '';
-        if (!slug.trim()) return;
-        try {
-            await adminCreateCourse({ name: name.trim(), slug: slug.trim(), description: null });
-            await load();
-        } catch (e) {
-            window.alert(e instanceof Error ? e.message : 'Tạo khóa học thất bại.');
-        }
-    };
-
     return (
         <BaseAdminLayout>
+            {addCourseOpen && (
+                <AdminAddCourseModal onClose={() => setAddCourseOpen(false)} onCreated={() => void load()} />
+            )}
             <section className={styles.courseHeader}>
                 <div>
                     <h1>Quản lý Khoá học</h1>
@@ -149,69 +129,83 @@ export const AdminCoursesScreen: React.FC = () => {
             )}
 
             <section className={styles.courseFilterCard}>
-                <div className={styles.courseSortRow}>
-                    <span>Sắp xếp theo:</span>
-                    <select className={styles.courseSelect} disabled>
-                        <option>Mới cập nhật</option>
-                    </select>
+                <div className={styles.courseFilterHead}>
+                    <strong>Bộ lọc</strong>
+                    <button
+                        type="button"
+                        className={styles.courseFilterToggle}
+                        onClick={() => setFiltersCollapsed((prev) => !prev)}
+                    >
+                        {filtersCollapsed ? 'Mở bộ lọc' : 'Thu gọn bộ lọc'}
+                    </button>
                 </div>
+                {!filtersCollapsed && (
+                    <div className={styles.courseFilterBody}>
+                        <div className={styles.courseSortRow}>
+                            <span>Sắp xếp theo:</span>
+                            <select className={styles.courseSelect} disabled>
+                                <option>Mới cập nhật</option>
+                            </select>
+                        </div>
 
-                <div className={styles.courseFilterGroup}>
-                    <h3>Đối tượng người dùng</h3>
-                    <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
-                            Mọi đối tượng
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Trẻ em
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Vị thành niên
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Người lớn
-                        </button>
-                    </div>
-                </div>
+                        <div className={styles.courseFilterGroup}>
+                            <h3>Đối tượng người dùng</h3>
+                            <div className={styles.courseChipRow}>
+                                <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                                    Mọi đối tượng
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Trẻ em
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Vị thành niên
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Người lớn
+                                </button>
+                            </div>
+                        </div>
 
-                <div className={styles.courseFilterGroup}>
-                    <h3>Chủ đề Học tập</h3>
-                    <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Sơ cứu & Cấp cứu
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Dinh dưỡng & Chế độ ăn
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Sức khỏe Tinh thần
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Sức khỏe Tim mạch
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Y học Thường thức
-                        </button>
-                    </div>
-                </div>
+                        <div className={styles.courseFilterGroup}>
+                            <h3>Chủ đề Học tập</h3>
+                            <div className={styles.courseChipRow}>
+                                <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                                    Tất cả
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Sơ cứu & Cấp cứu
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Dinh dưỡng & Chế độ ăn
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Sức khỏe Tinh thần
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Sức khỏe Tim mạch
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Y học Thường thức
+                                </button>
+                            </div>
+                        </div>
 
-                <div className={styles.courseFilterGroup}>
-                    <h3>Trạng thái hiển thị</h3>
-                    <div className={styles.courseChipRow}>
-                        <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
-                            Tất cả
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Đã đăng tải
-                        </button>
-                        <button type="button" className={styles.courseChip} disabled>
-                            Bản nháp
-                        </button>
+                        <div className={styles.courseFilterGroup}>
+                            <h3>Trạng thái hiển thị</h3>
+                            <div className={styles.courseChipRow}>
+                                <button type="button" className={`${styles.courseChip} ${styles.courseChipActive}`}>
+                                    Tất cả
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Đã đăng tải
+                                </button>
+                                <button type="button" className={styles.courseChip} disabled>
+                                    Bản nháp
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
 
             <section className={styles.courseTableCard}>
@@ -246,7 +240,7 @@ export const AdminCoursesScreen: React.FC = () => {
                             </svg>
                             Xuất Excel
                         </button>
-                        <button type="button" className={styles.coursePrimaryBtn} onClick={() => void handleAddCourse()}>
+                        <button type="button" className={styles.coursePrimaryBtn} onClick={() => setAddCourseOpen(true)}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M12 5V19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 <path d="M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

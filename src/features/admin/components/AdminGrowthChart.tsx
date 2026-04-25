@@ -68,6 +68,7 @@ function getNiceYAxisTicks(maxDataValue: number): number[] {
 export const AdminGrowthChart: React.FC = () => {
     const [monthlyByYear, setMonthlyByYear] = useState<Record<number, number[]>>({});
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -133,8 +134,13 @@ export const AdminGrowthChart: React.FC = () => {
     }
 
     const areaPath = `${path} L ${points[points.length - 1].x} ${HEIGHT - PADDING.bottom} L ${points[0].x} ${HEIGHT - PADDING.bottom} Z`;
-    const peakValue = Math.max(...monthlyData, 0);
-    const peakIndex = monthlyData.findIndex((v) => v === peakValue);
+    const activeIndex = hoveredIndex;
+    const activePoint = activeIndex == null ? null : points[activeIndex];
+    const activeValue = activeIndex == null ? 0 : monthlyData[activeIndex];
+    const activeMonthLabel = activeIndex == null ? '' : MONTH_LABELS[activeIndex];
+    const tooltipX =
+        activePoint == null ? 0 : Math.min(WIDTH - PADDING.right - 64, Math.max(PADDING.left + 64, activePoint.x));
+    const tooltipY = activePoint == null ? 0 : Math.max(PADDING.top + 12, activePoint.y - 24);
 
     return (
         <div className={styles.chartContainer}>
@@ -158,7 +164,13 @@ export const AdminGrowthChart: React.FC = () => {
             {error && <p style={{ margin: '0 0 10px', color: '#b91c1c' }}>Không tải được dữ liệu: {error}</p>}
 
             <div style={{ position: 'relative', width: '100%', overflow: 'visible' }}>
-                <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height="auto" style={{ overflow: 'visible' }}>
+                <svg
+                    viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                    width="100%"
+                    height="auto"
+                    style={{ overflow: 'visible' }}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                >
                     <defs>
                         <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
@@ -178,18 +190,47 @@ export const AdminGrowthChart: React.FC = () => {
                     <path d={areaPath} fill="url(#chartGradient)" />
                     <path d={path} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     
+                    {/* Hover hit-area per month */}
+                    {points.map((pt, i) => {
+                        const left = i === 0 ? PADDING.left : (points[i - 1].x + pt.x) / 2;
+                        const right = i === points.length - 1 ? WIDTH - PADDING.right : (pt.x + points[i + 1].x) / 2;
+                        return (
+                            <rect
+                                key={`hit-${i}`}
+                                x={left}
+                                y={PADDING.top}
+                                width={right - left}
+                                height={plotH}
+                                fill="transparent"
+                                onMouseEnter={() => setHoveredIndex(i)}
+                            />
+                        );
+                    })}
+
                     {/* Points */}
                     {points.map((pt, i) => (
-                        <circle key={i} cx={pt.x} cy={pt.y} r="4" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                        <circle
+                            key={i}
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={hoveredIndex === i ? 5 : 4}
+                            fill="white"
+                            stroke="#3b82f6"
+                            strokeWidth="2"
+                            onMouseEnter={() => setHoveredIndex(i)}
+                        />
                     ))}
 
-                    {peakValue > 0 && peakIndex >= 0 && (
-                        <g transform={`translate(${points[peakIndex].x}, ${points[peakIndex].y - 15})`}>
-                            <rect x="-62" y="-30" width="124" height="24" rx="4" fill="#3b82f6" />
-                            <text y="-14" textAnchor="middle" fontSize="11" fontWeight="600" fill="white">
-                                {peakValue.toLocaleString('vi-VN')} người dùng
+                    {activePoint && (
+                        <g transform={`translate(${tooltipX}, ${tooltipY})`} pointerEvents="none">
+                            <rect x="-78" y="-38" width="156" height="34" rx="6" fill="#3b82f6" />
+                            <text y="-24" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">
+                                {activeMonthLabel}
                             </text>
-                            <path d="M -5 0 L 5 0 L 0 5 Z" fill="#3b82f6" transform="translate(0, -6)" />
+                            <text y="-12" textAnchor="middle" fontSize="11" fontWeight="700" fill="white">
+                                {activeValue.toLocaleString('vi-VN')} người dùng
+                            </text>
+                            <path d="M -6 0 L 6 0 L 0 6 Z" fill="#3b82f6" transform="translate(0, -4)" />
                         </g>
                     )}
 
