@@ -25,15 +25,6 @@ const TopicsIcon = () => (
     <SidebarIconImage src="/images/Icons/streamline-color_open-book.svg" alt="Quản lý khóa học" />
 );
 
-const TestsIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3" y="2.8" width="10.8" height="14.4" rx="1.7" fill="#DDE5FF" stroke={ICON_COLOR} strokeWidth="1.8" />
-        <path d="M6 6.8H10.7" stroke={ICON_COLOR} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6 10H9.5" stroke={ICON_COLOR} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M15.2 4.2L17.5 5.4V17.2H15.2V4.2Z" stroke={ICON_COLOR} strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-);
-
 const DictionaryIcon = () => (
     <SidebarIconImage src="/images/Icons/streamline-color_manual-book.svg" alt="Quản lý từ điển" />
 );
@@ -74,17 +65,11 @@ const navSections = [
         ]
     },
     {
-        title: 'QUẢN LÝ HỌC TẬP',
+        title: 'QUẢN LÝ',
         items: [
             { icon: <TopicsIcon />, label: 'Quản lý khóa học', href: '/admin/topics' },
-            { icon: <TestsIcon />, label: 'Quản lý bài kiểm tra', href: '/admin/tests' },
             { icon: <DictionaryIcon />, label: 'Quản lý từ điển', href: '/admin/dictionary' },
-        ]
-    },
-    {
-        title: 'NGƯỜI DÙNG',
-        items: [
-            { icon: <StudentIcon />, label: 'Hồ sơ học viên', href: '/admin/students' },
+            { icon: <StudentIcon />, label: 'Quản lý người dùng', href: '/admin/students' },
         ]
     },
     {
@@ -100,19 +85,30 @@ export const AdminSidebar: React.FC = () => {
     const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`} style={{ width: collapsed ? 80 : 280 }}>
-            <div className={styles.logoContainer}>
+        <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`} style={{ width: collapsed ? 88 : 280 }}>
+            <div className={`${styles.logoContainer} ${collapsed ? styles.logoContainerCollapsed : ''}`}>
                 <Link href="/admin" className={styles.logoGroup}>
-                    <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'w-10' : 'w-44'}`}>
+                    {collapsed ? (
+                        <div className={styles.logoMarkWrap}>
+                            <Image
+                                src="/images/Logo/Frame 14.svg"
+                                alt="Medicology"
+                                width={201}
+                                height={44}
+                                priority
+                                className={styles.logoMarkImage}
+                            />
+                        </div>
+                    ) : (
                         <Image
                             src="/images/Logo/Frame 14.svg"
                             alt="Medicology"
                             width={201}
                             height={44}
                             priority
-                            style={{ minWidth: 201, height: 'auto' }}
+                            className={styles.logoImage}
                         />
-                    </div>
+                    )}
                 </Link>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
@@ -131,7 +127,10 @@ export const AdminSidebar: React.FC = () => {
                         {!collapsed && <p className={styles.navTitle}>{section.title}</p>}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             {section.items.map((item, i) => {
-                                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                                const isDashboard = item.href === '/admin';
+                                const isActive = isDashboard
+                                    ? pathname === '/admin'
+                                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
                                 return (
                                     <Link
                                         href={item.href}

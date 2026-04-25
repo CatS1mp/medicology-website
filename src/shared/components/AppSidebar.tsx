@@ -18,16 +18,27 @@ interface NavGroup {
 }
 
 const MedicologyLogo = ({ collapsed }: { collapsed: boolean }) => (
-    <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'w-10' : 'w-44'}`}>
+    collapsed ? (
+        <div className="h-9 w-9 overflow-hidden flex items-center justify-start">
+            <Image
+                src="/images/Logo/Frame 14.svg"
+                alt="Medicology"
+                width={201}
+                height={44}
+                priority
+                className="h-9 w-auto max-w-none object-cover object-left"
+            />
+        </div>
+    ) : (
         <Image
             src="/images/Logo/Frame 14.svg"
             alt="Medicology"
             width={201}
             height={44}
             priority
-            style={{ minWidth: 201, height: 'auto' }}
+            className="h-auto w-[170px] max-w-full"
         />
-    </div>
+    )
 );
 
 const IconChevronDown = () => (
@@ -107,13 +118,13 @@ export const AppSidebar: React.FC = () => {
 
     return (
         <aside className={`relative flex flex-col bg-white border-r border-gray-100 h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-[280px]'} flex-shrink-0`}>
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                <Link href="/dashboard" className="flex items-center">
+            <div className={`relative flex items-center border-b border-gray-100 ${collapsed ? 'justify-center px-2 py-5' : 'justify-start px-6 py-5'}`}>
+                <Link href="/dashboard" className={`flex items-center ${collapsed ? 'w-full justify-center' : ''}`}>
                     <MedicologyLogo collapsed={collapsed} />
                 </Link>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors ml-auto"
+                    className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 shadow-sm transition-colors hover:bg-gray-100"
                     aria-label="Toggle sidebar"
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -147,8 +158,10 @@ export const AppSidebar: React.FC = () => {
                                     <div key={item.label}>
                                         <Link
                                             href={item.href}
-                                            className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-[16px] transition-colors ${
-                                                isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                                            className={`flex items-center transition-colors ${
+                                                collapsed
+                                                    ? `w-14 h-14 mx-auto justify-center rounded-xl ${isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'}`
+                                                    : `gap-4 px-3 py-3 rounded-2xl text-[16px] ${isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'}`
                                             }`}
                                         >
                                             <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
