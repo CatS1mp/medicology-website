@@ -8,10 +8,11 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getAttemptReview } from '@/shared/api/assessment';
-import { AttemptReviewAnswerResponse } from '@/shared/types/assessment';
+import { AttemptReviewResponse } from '@/shared/types/assessment';
 import { LessonStepProgress } from '@/features/courses/components/lesson/LessonStepProgress';
 import { LessonStepFooter } from '@/features/courses/components/lesson/LessonStepFooter';
 import { LessonBlockReview } from '@/features/courses/components/lesson/LessonBlockReview';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 export default function AttemptReviewPage() {
     const params = useParams<{ attemptId: string }>();
@@ -22,12 +23,7 @@ export default function AttemptReviewPage() {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [stepIndex, setStepIndex] = useState(0);
-    const [review, setReview] = useState<null | {
-        assessmentTitle: string;
-        resultStatus: 'PROVISIONAL' | 'FINAL';
-        passed: boolean;
-        answers: AttemptReviewAnswerResponse[];
-    }>(null);
+    const [review, setReview] = useState<AttemptReviewResponse | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -102,7 +98,7 @@ export default function AttemptReviewPage() {
                         </Link>
 
                         {loading ? (
-                            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-10 text-center text-gray-500">Đang tải dữ liệu xem lại...</div>
+                            <AttemptReviewSkeleton />
                         ) : error ? (
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
                         ) : !review || !currentAnswer ? (
@@ -110,9 +106,9 @@ export default function AttemptReviewPage() {
                         ) : (
                             <article className="rounded-3xl border border-gray-200 px-6 py-6">
                                 <div className="mb-5 flex items-center gap-2 text-sm text-gray-400">
-                                    <span>Bài kiểm tra</span>
+                                    <span>Bài làm</span>
                                     <span>›</span>
-                                    <span className="font-semibold text-gray-700">{review.assessmentTitle}</span>
+                                    <span className="font-semibold text-gray-700">Nội dung</span>
                                 </div>
                                 <LessonStepProgress currentStep={stepIndex + 1} totalSteps={totalSteps} />
                                 <div className="mb-4 rounded-xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">
@@ -135,6 +131,21 @@ export default function AttemptReviewPage() {
                         )}
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function AttemptReviewSkeleton() {
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-6">
+            <Skeleton className="h-4 w-40 rounded" />
+            <Skeleton className="mt-4 h-3 w-full rounded" />
+            <Skeleton className="mt-6 h-12 w-full rounded-xl" />
+            <Skeleton className="mt-6 h-40 w-full rounded-xl" />
+            <div className="mt-6 flex gap-3">
+                <Skeleton className="h-10 w-24 rounded-xl" />
+                <Skeleton className="h-10 w-24 rounded-xl" />
             </div>
         </div>
     );

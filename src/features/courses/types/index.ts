@@ -8,6 +8,8 @@ export interface LessonNode {
     status: LessonStatus;
     type: LessonType;
     href?: string;
+    /** When set, learner has an in-progress assessment attempt for this content. */
+    inProgressAttemptId?: string;
     score?: {
         current: number;
         max: number;
@@ -26,6 +28,7 @@ export interface CourseSection {
 
 export interface RoadmapData {
     topicTitle: string;
+    courseImageUrl?: string;
     progress: {
         current: number;
         total: number;

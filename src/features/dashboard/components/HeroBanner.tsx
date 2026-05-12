@@ -22,7 +22,7 @@ const Sparkle = ({ size, style }: { size: number; style: React.CSSProperties }) 
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
     return (
-        <div style={{ position: 'relative', marginBottom: '120px' }}>
+        <div style={{ position: 'relative', marginBottom: '32px' }}>
             <div
                 style={{
                     position: 'relative',
@@ -66,7 +66,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
                 style={{
                     position: 'absolute',
                     right: 380,
-                    bottom: '-110px',
+                    bottom: '-68px',
                     width: '420px',
                     height: '420px',
                     backgroundImage: 'url(/images/Mascot/5.svg)',

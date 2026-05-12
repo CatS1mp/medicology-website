@@ -1,0 +1,368 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AppHeader } from '@/shared/components/AppHeader';
+import { AppSidebar } from '@/shared/components/AppSidebar';
+import { Skeleton } from '@/shared/components/Skeleton';
+import { useLogout } from '@/shared/hooks/useLogout';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { getCourses } from '@/shared/api/learning';
+import { getAttemptResult, getAttemptResultFresh } from '@/shared/api/assessment';
+import { AttemptResultResponse } from '@/shared/types/assessment';
+import { LESSON_PASS_SCORE_RATIO } from '@/features/courses/components/lessonCompleteConstants';
+
+interface LessonMeta {
+    courseName: string;
+    sectionName: string;
+    name: string;
+}
+
+type Outcome =
+    | 'loading'
+    | 'page-error'
+    | 'result-error'
+    | 'grading'
+    | 'passed'
+    | 'failed'
+    | 'neutral';
+
+function formatScore(value: number): string {
+    if (!Number.isFinite(value)) return '—';
+    if (Number.isInteger(value)) return String(value);
+    const rounded = Math.round(value * 100) / 100;
+    return String(rounded);
+}
+
+function passThresholdPoints(maxScore: number): number {
+    return Math.round(maxScore * LESSON_PASS_SCORE_RATIO * 100) / 100;
+}
+
+export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const attemptId = searchParams.get('attemptId');
+    const { handleLogout } = useLogout();
+    const { streakDays } = useLearningStreak();
+
+    const [loading, setLoading] = useState(true);
+    const [pageError, setPageError] = useState('');
+    const [resultFetchError, setResultFetchError] = useState('');
+    const [lesson, setLesson] = useState<LessonMeta | null>(null);
+    const [result, setResult] = useState<AttemptResultResponse | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            setLoading(true);
+            setPageError('');
+            setResultFetchError('');
+            try {
+                const courses = await getCourses();
+                if (cancelled) return;
+
+                const course = courses.find((item) => item.slug === courseSlug);
+                const match = course?.sections?.flatMap((section) =>
+                    (section.contents ?? []).map((content) => ({
+                        courseName: course.name,
+                        sectionName: section.name,
+                        name: content.name,
+                        slug: content.slug,
+                    }))
+                ).find((item) => item.slug === lessonSlug);
+
+                setLesson(match ?? null);
+
+                if (!attemptId) {
+                    setResult(null);
+                } else {
+                    try {
+                        const attemptResult = await getAttemptResult(attemptId);
+                        if (!cancelled) setResult(attemptResult);
+                    } catch (nextError) {
+                        if (!cancelled) {
+                            setResult(null);
+                            setResultFetchError(
+                                nextError instanceof Error ? nextError.message : 'Không thể tải kết quả bài làm.'
+                            );
+                        }
+                    }
+                }
+            } catch (nextError) {
+                if (!cancelled) {
+                    setPageError(nextError instanceof Error ? nextError.message : 'Không thể tải trang hoàn thành.');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+        void run();
+        return () => { cancelled = true; };
+    }, [attemptId, courseSlug, lessonSlug]);
+
+    useEffect(() => {
+        if (!attemptId || result?.resultStatus !== 'PROVISIONAL') {
+            return;
+        }
+        const id = attemptId;
+        const tick = async () => {
+            try {
+                const next = await getAttemptResultFresh(id);
+                setResult(next);
+            } catch {
+                // Giữ PROVISIONAL; lần tải sau thử lại.
+            }
+        };
+        const interval = window.setInterval(() => { void tick(); }, 4000);
+        return () => window.clearInterval(interval);
+    }, [attemptId, result?.resultStatus]);
+
+    const outcome: Outcome = useMemo(() => {
+        if (loading) return 'loading';
+        if (pageError) return 'page-error';
+        if (attemptId && resultFetchError) return 'result-error';
+        if (!attemptId || !result) return 'neutral';
+        if (result.resultStatus === 'PROVISIONAL' || result.attemptStatus === 'PENDING_REVIEW') return 'grading';
+        if (result.resultStatus === 'FINAL' && result.passed) return 'passed';
+        if (result.resultStatus === 'FINAL' && !result.passed) return 'failed';
+        return 'neutral';
+    }, [attemptId, loading, pageError, result, resultFetchError]);
+
+    const headline = useMemo(() => {
+        switch (outcome) {
+            case 'page-error':
+                return 'Không tải được trang';
+            case 'result-error':
+                return 'Bài học thất bại';
+            case 'grading':
+                return 'Đang chấm điểm';
+            case 'passed':
+                return 'Hoàn thành bài học';
+            case 'failed':
+                return 'Bạn đã trượt bài học';
+            case 'neutral':
+                return 'Bạn đã hoàn thành bài học';
+            default:
+                return '';
+        }
+    }, [outcome]);
+
+    const subline = useMemo(() => {
+        switch (outcome) {
+            case 'grading':
+                return 'Một số câu cần chấm thủ công (quản trị). Điểm hiển thị có thể là tạm thời cho đến khi chấm xong.';
+            case 'passed':
+                return 'Kết quả đã chốt: bạn đạt ngưỡng điểm yêu cầu.';
+            case 'failed':
+                return 'Kết quả đã chốt: điểm chưa đạt ngưỡng yêu cầu.';
+            case 'result-error':
+                return 'Không lấy được kết quả từ hệ thống sau khi nộp bài. Vui lòng thử lại sau hoặc xem lại bài làm.';
+            default:
+                return '';
+        }
+    }, [outcome]);
+
+    const panelClass = useMemo(() => {
+        switch (outcome) {
+            case 'passed':
+                return 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50';
+            case 'failed':
+            case 'result-error':
+                return 'border-rose-200 bg-gradient-to-br from-rose-50 to-orange-50';
+            case 'grading':
+                return 'border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50';
+            default:
+                return 'border-sky-200 bg-gradient-to-br from-sky-50 to-indigo-50';
+        }
+    }, [outcome]);
+
+    const iconWrapClass = useMemo(() => {
+        switch (outcome) {
+            case 'passed':
+                return 'bg-green-500';
+            case 'failed':
+            case 'result-error':
+                return 'bg-rose-500';
+            case 'grading':
+                return 'bg-amber-500';
+            default:
+                return 'bg-sky-500';
+        }
+    }, [outcome]);
+
+    const iconGlyph = useMemo(() => {
+        switch (outcome) {
+            case 'passed':
+                return '✓';
+            case 'failed':
+            case 'result-error':
+                return '!';
+            case 'grading':
+                return '…';
+            default:
+                return '✓';
+        }
+    }, [outcome]);
+
+    const badgeLabel = useMemo(() => {
+        switch (outcome) {
+            case 'passed':
+                return 'Đạt';
+            case 'failed':
+                return 'Chưa đạt';
+            case 'result-error':
+                return 'Lỗi kết quả';
+            case 'grading':
+                return 'Chờ chấm';
+            default:
+                return 'Hoàn thành nội dung học';
+        }
+    }, [outcome]);
+
+    const badgeTone = useMemo(() => {
+        switch (outcome) {
+            case 'passed':
+                return 'text-green-700';
+            case 'failed':
+            case 'result-error':
+                return 'text-rose-700';
+            case 'grading':
+                return 'text-amber-800';
+            default:
+                return 'text-sky-800';
+        }
+    }, [outcome]);
+
+    return (
+        <div className="flex h-screen overflow-hidden bg-[#f7f8fa] font-sans">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
+                <div className="flex-1 overflow-y-auto px-6 py-8">
+                    <div className="mx-auto max-w-3xl">
+                        <Link
+                            href={`/courses/${courseSlug}`}
+                            className="mb-6 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+                        >
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200">‹</span>
+                            Quay lại lộ trình
+                        </Link>
+
+                        {outcome === 'loading' ? (
+                            <LessonCompleteSkeleton />
+                        ) : pageError ? (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{pageError}</div>
+                        ) : (
+                            <div className={`rounded-3xl border px-8 py-10 shadow-sm ${panelClass}`}>
+                                <div className="flex items-center gap-3">
+                                    <span className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white ${iconWrapClass}`}>
+                                        {iconGlyph}
+                                    </span>
+                                    <p className={`text-xs font-bold uppercase tracking-[0.24em] ${badgeTone}`}>{badgeLabel}</p>
+                                </div>
+                                <h1 className="mt-5 text-3xl font-extrabold text-gray-900">{headline}</h1>
+                                {subline ? <p className="mt-2 text-sm text-gray-700">{subline}</p> : null}
+                                {outcome === 'result-error' && resultFetchError ? (
+                                    <p className="mt-2 text-xs text-gray-600">{resultFetchError}</p>
+                                ) : null}
+
+                                {lesson && (
+                                    <p className="mt-3 text-sm text-gray-600">
+                                        <span className="font-semibold text-gray-800">{lesson.name}</span>
+                                        {' · '}
+                                        {lesson.courseName} • {lesson.sectionName}
+                                    </p>
+                                )}
+
+                                {result && outcome !== 'result-error' ? (
+                                    <>
+                                        {outcome === 'grading' && result.pendingManualReviews > 0 ? (
+                                            <p className="mt-3 text-sm font-semibold text-amber-800">
+                                                Còn {result.pendingManualReviews} câu đang chờ chấm thủ công.
+                                            </p>
+                                        ) : null}
+                                        {result.maxScore > 0 ? (
+                                            <p className="mt-3 text-sm text-gray-700">
+                                                <span className="font-semibold text-gray-900">Điều kiện đạt:</span>
+                                                {' '}
+                                                tổng điểm ≥ {formatScore(passThresholdPoints(result.maxScore))} / {formatScore(result.maxScore)}
+                                                {' '}(≥ {LESSON_PASS_SCORE_RATIO * 100}% điểm tối đa; cùng quy tắc với hệ thống chấm).
+                                            </p>
+                                        ) : null}
+                                        <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                                            <StatCard label="Điểm" value={formatScore(result.score)} />
+                                            <StatCard label="Điểm tối đa" value={formatScore(result.maxScore)} />
+                                            <StatCard label="Đúng" value={String(result.correctAnswers)} />
+                                            <StatCard label="Tổng câu" value={String(result.totalQuestions)} />
+                                        </div>
+                                        <p className="mt-4 text-xs text-gray-500">
+                                            Cập nhật lúc {new Date(result.completedAt).toLocaleString('vi-VN')}
+                                        </p>
+                                    </>
+                                ) : null}
+
+                                <div className="mt-7 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/courses/${courseSlug}`)}
+                                        className="inline-flex items-center justify-center rounded-full bg-[#2aa4e8] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1d8bcb]"
+                                    >
+                                        Quay lại lộ trình
+                                    </button>
+                                    {attemptId && outcome !== 'result-error' ? (
+                                        <Link
+                                            href={`/attempts/${attemptId}/review`}
+                                            className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:border-gray-300"
+                                        >
+                                            Xem lại bài làm
+                                        </Link>
+                                    ) : null}
+                                    {attemptId && outcome !== 'result-error' ? (
+                                        <Link
+                                            href={`/attempts/${attemptId}/result`}
+                                            className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:border-gray-300"
+                                        >
+                                            Xem kết quả chi tiết
+                                        </Link>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function LessonCompleteSkeleton() {
+    return (
+        <div className="rounded-3xl border border-gray-200 bg-white px-8 py-10">
+            <Skeleton className="h-3 w-40 rounded" />
+            <Skeleton className="mt-5 h-10 w-2/3 rounded" />
+            <Skeleton className="mt-3 h-4 w-1/2 rounded" />
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+                        <Skeleton className="h-3 w-16 rounded" />
+                        <Skeleton className="mt-2 h-8 w-12 rounded" />
+                    </div>
+                ))}
+            </div>
+            <div className="mt-7 flex gap-3">
+                <Skeleton className="h-10 w-40 rounded-full" />
+                <Skeleton className="h-10 w-40 rounded-full" />
+            </div>
+        </div>
+    );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-white bg-white/70 px-4 py-4 shadow-sm backdrop-blur">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+            <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+        </div>
+    );
+}

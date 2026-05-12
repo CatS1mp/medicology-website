@@ -10,9 +10,10 @@ import { LessonProgressChart } from './LessonProgressChart';
 import { ContinueLearning } from './ContinueLearning';
 import { LearningResultsChart } from './LearningResultsChart';
 import { LearningProgress } from './LearningProgress';
+import { DashboardSkeleton } from './DashboardSkeleton';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
-import { getCourses, getLessonActivity, getProgress } from '@/shared/api/learning';
+import { getCourses, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
 import { ChartDataPoint, CourseCard, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
 
@@ -29,6 +30,7 @@ export const DashboardScreen: React.FC = () => {
     const [totalLessons, setTotalLessons] = React.useState(0);
     const [averageScore, setAverageScore] = React.useState(0);
     const [activeCourseCount, setActiveCourseCount] = React.useState(0);
+    const [isDashboardLoading, setIsDashboardLoading] = React.useState(true);
 
     const statCards: StatCard[] = [
         { id: 'streak', icon: '🔥', value: streakDays ?? 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
@@ -39,6 +41,7 @@ export const DashboardScreen: React.FC = () => {
     React.useEffect(() => {
         let cancelled = false;
         async function run() {
+            setIsDashboardLoading(true);
             try {
                 const [profile, user, progress, courses, attempts] = await Promise.all([
                     getCurrentProfile().catch(() => null),
@@ -55,16 +58,22 @@ export const DashboardScreen: React.FC = () => {
                     ? finalizedAttempts.reduce((sum, item) => sum + Number(item.score ?? 0), 0) / finalizedAttempts.length
                     : 0;
                 const sortedCourses = courses.slice().sort((a, b) => a.orderIndex - b.orderIndex);
-                const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
-                const lessonCount = sortedCourses.reduce((sum, course) => sum + (course.sections ?? []).reduce((sectionSum, section) => sectionSum + (section.lessons?.length ?? 0), 0), 0);
+                const finalizedContentIds = new Set(finalizedAttempts.map((item) => item.contentId));
+                const completionByCourseId = new Map<string, number>();
+                sortedCourses.forEach((course) => {
+                    const contentIds = (course.sections ?? []).flatMap((section) => (section.contents ?? []).map((content) => content.id));
+                    const completed = contentIds.filter((id) => finalizedContentIds.has(id)).length;
+                    completionByCourseId.set(course.id, contentIds.length === 0 ? 0 : Math.min(100, Math.round((completed * 100) / contentIds.length)));
+                });
+                const lessonCount = sortedCourses.reduce((sum, course) => sum + (course.sections ?? []).reduce((sectionSum, section) => sectionSum + (section.contents?.length ?? 0), 0), 0);
 
                 setUserName(name);
                 setAverageScore(averageScore);
                 setActiveCourseCount(progress.length);
                 setTotalLessons(lessonCount);
                 setCourseCards(sortedCourses.slice(0, 3).map((course) => {
-                    const currentProgress = progressBySlug.get(course.slug)?.completionPercent ?? 0;
-                    const lessons = course.sections?.flatMap((section) => section.lessons ?? []) ?? [];
+                    const currentProgress = completionByCourseId.get(course.id) ?? 0;
+                    const lessons = course.sections?.flatMap((section) => section.contents ?? []) ?? [];
                     const completed = Math.round((currentProgress / 100) * Math.max(lessons.length, 1));
                     return {
                         id: course.id,
@@ -85,12 +94,14 @@ export const DashboardScreen: React.FC = () => {
                 setLearningProgress(progress.slice(0, 5).map((item) => ({
                     id: item.courseId,
                     subject: item.courseName,
-                    completionPercent: item.completionPercent,
+                    completionPercent: completionByCourseId.get(item.courseId) ?? 0,
                     color: sortedCourses.find((course) => course.slug === item.courseSlug)?.colorCode || '#3B82F6',
                     icon: '📘',
                 })));
             } catch {
-                if (!cancelled) return;
+                if (cancelled) return;
+            } finally {
+                if (!cancelled) setIsDashboardLoading(false);
             }
         }
         run();
@@ -103,22 +114,42 @@ export const DashboardScreen: React.FC = () => {
             setIsLessonActivityLoading(true);
             try {
                 const days = activeRange === 'last7' ? 7 : 14;
-                const lessonActivitySummary = await getLessonActivity(days);
+                const attempts = await getMyAttempts().catch(() => []);
                 if (cancelled) return;
 
-                const activity: ChartDataPoint[] = lessonActivitySummary.activities.map((item) => {
-                    const date = new Date(item.date);
-                    return {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDate = new Date(today);
+                startDate.setDate(today.getDate() - (days - 1));
+
+                const completedByDay = new Map<string, number>();
+                attempts
+                    .filter((item) => item.status === 'FINALIZED' && item.submittedAt)
+                    .forEach((item) => {
+                        const submitted = new Date(item.submittedAt as string);
+                        submitted.setHours(0, 0, 0, 0);
+                        if (submitted < startDate || submitted > today) return;
+                        const key = submitted.toISOString().slice(0, 10);
+                        completedByDay.set(key, (completedByDay.get(key) ?? 0) + 1);
+                    });
+
+                const activity: ChartDataPoint[] = [];
+                for (let offset = 0; offset < days; offset += 1) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + offset);
+                    const key = date.toISOString().slice(0, 10);
+                    activity.push({
                         day: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
                         date: date.toLocaleDateString('vi-VN'),
-                        value: item.completedLessons,
-                    };
-                });
+                        value: completedByDay.get(key) ?? 0,
+                    });
+                }
+                const totalCompletedLessons = activity.reduce((sum, item) => sum + item.value, 0);
 
                 setLessonActivityDataset({
                     label: activeRange,
                     data: activity,
-                    totalCompletedLessons: lessonActivitySummary.totalCompletedLessons,
+                    totalCompletedLessons,
                 });
             } catch {
                 if (!cancelled) {
@@ -149,43 +180,47 @@ export const DashboardScreen: React.FC = () => {
                 <AppHeader streak={effectiveStreak} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="flex flex-col gap-5 p-5 min-h-full">
-                        <HeroBanner userName={userName} />
+                    {isDashboardLoading ? (
+                        <DashboardSkeleton />
+                    ) : (
+                        <div className="flex min-h-full flex-col gap-5 p-3 sm:p-5">
+                            <HeroBanner userName={userName} />
 
-                        <div className="flex gap-5">
-                            <div className="flex-1 min-w-0 flex flex-col gap-5">
-                                <div>
-                                    <h2 className="text-sm font-bold text-gray-800 mb-3">Thống kê</h2>
-                                    <StatsCards cards={statCards} />
+                            <div className="flex flex-col gap-5 xl:flex-row">
+                                <div className="flex-1 min-w-0 flex flex-col gap-5">
+                                    <div>
+                                        <h2 className="text-sm font-bold text-gray-800 mb-3">Thống kê</h2>
+                                        <StatsCards cards={statCards} />
+                                    </div>
+
+                                    <div>
+                                        <h2 className="text-sm font-bold text-gray-800 mb-3">Tiến độ bài học</h2>
+                                        <LessonProgressChart
+                                            datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
+                                                label: activeRange,
+                                                data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                                                totalCompletedLessons: 0,
+                                            }]}
+                                            totalLessons={totalLessons}
+                                            activeRange={activeRange}
+                                            onRangeChange={setActiveRange}
+                                            isLoading={isLessonActivityLoading}
+                                        />
+                                    </div>
+
+                                    <ContinueLearning courses={courseCards} />
                                 </div>
 
-                                <div>
-                                    <h2 className="text-sm font-bold text-gray-800 mb-3">Tiến độ bài học</h2>
-                                    <LessonProgressChart
-                                        datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
-                                            label: activeRange,
-                                            data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
-                                            totalCompletedLessons: 0,
-                                        }]}
-                                        totalLessons={totalLessons}
-                                        activeRange={activeRange}
-                                        onRangeChange={setActiveRange}
-                                        isLoading={isLessonActivityLoading}
+                                <div className="w-full flex-shrink-0 flex flex-col gap-4 xl:w-72">
+                                    <LearningResultsChart
+                                        data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
+                                        currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}
                                     />
+                                    <LearningProgress items={learningProgress} />
                                 </div>
-
-                                <ContinueLearning courses={courseCards} />
-                            </div>
-
-                            <div className="w-72 flex-shrink-0 flex flex-col gap-4">
-                                <LearningResultsChart
-                                    data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
-                                    currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}
-                                />
-                                <LearningProgress items={learningProgress} />
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

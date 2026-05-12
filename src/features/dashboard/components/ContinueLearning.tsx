@@ -8,11 +8,30 @@ interface ContinueLearningProps {
 }
 
 export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) => {
+    const [visibleCount, setVisibleCount] = useState(3);
     const [startIndex, setStartIndex] = useState(0);
-    const visible = courses.slice(startIndex, startIndex + 3);
+    const visible = courses.slice(startIndex, startIndex + visibleCount);
 
     const canPrev = startIndex > 0;
-    const canNext = startIndex + 3 < courses.length;
+    const canNext = startIndex + visibleCount < courses.length;
+
+    React.useEffect(() => {
+        const computeVisibleCount = () => {
+            if (window.innerWidth < 768) return 1;
+            if (window.innerWidth < 1280) return 2;
+            return 3;
+        };
+
+        const onResize = () => setVisibleCount(computeVisibleCount());
+        onResize();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    React.useEffect(() => {
+        const maxStart = Math.max(0, courses.length - visibleCount);
+        setStartIndex((prev) => Math.min(prev, maxStart));
+    }, [courses.length, visibleCount]);
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
@@ -30,7 +49,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                         </svg>
                     </button>
                     <button
-                        onClick={() => setStartIndex(Math.min(courses.length - 3, startIndex + 1))}
+                        onClick={() => setStartIndex(Math.min(Math.max(0, courses.length - visibleCount), startIndex + 1))}
                         disabled={!canNext}
                         className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${canNext ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-gray-100 text-gray-300 cursor-default'
                             }`}
@@ -42,7 +61,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visible.map((course) => (
                     <div
                         key={course.id}

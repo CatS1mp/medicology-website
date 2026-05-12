@@ -131,7 +131,7 @@ export const LessonProgressChart: React.FC<LessonProgressChartProps> = ({
                             onClick={() => handleTabChange(tab.key)}
                             className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${activeRange === tab.key ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-700'} ${isLoading ? 'opacity-80' : ''}`}
                         >
-                            {isLoading && activeRange !== tab.key ? 'Đang tải...' : tab.label}
+                            {tab.label}
                         </button>
                     ))}
                 </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
+import { Skeleton } from '@/shared/components/Skeleton';
 import { getAttemptResult } from '@/shared/api/assessment';
 
 export default function AttemptResultPage() {
@@ -45,7 +46,7 @@ export default function AttemptResultPage() {
                 <AppHeader streak={0} />
                 <div className="flex-1 overflow-y-auto px-6 py-8">
                     <div className="mx-auto max-w-3xl rounded-3xl border border-gray-200 bg-white px-6 py-8">
-                        {loading ? <div className="py-12 text-center text-gray-500">Đang tải kết quả...</div> : error ? (
+                        {loading ? <AttemptResultSkeleton /> : error ? (
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
                         ) : result && (
                             <>
@@ -81,6 +82,28 @@ export default function AttemptResultPage() {
                         )}
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function AttemptResultSkeleton() {
+    return (
+        <div className="space-y-5 py-2">
+            <Skeleton className="h-3 w-28 rounded" />
+            <Skeleton className="h-10 w-2/3 rounded" />
+            <Skeleton className="h-4 w-1/2 rounded" />
+            <div className="grid gap-4 md:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+                        <Skeleton className="h-3 w-16 rounded" />
+                        <Skeleton className="mt-2 h-8 w-12 rounded" />
+                    </div>
+                ))}
+            </div>
+            <div className="flex gap-4">
+                <Skeleton className="h-4 w-28 rounded" />
+                <Skeleton className="h-4 w-28 rounded" />
             </div>
         </div>
     );

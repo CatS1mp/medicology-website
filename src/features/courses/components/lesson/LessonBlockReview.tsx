@@ -7,13 +7,13 @@ interface LessonBlockReviewProps {
 
 export function LessonBlockReview({ answer }: LessonBlockReviewProps) {
     const payload = useMemo(() => parsePayload(answer.payload), [answer.payload]);
-    const prompt = String(payload.prompt ?? payload.question ?? payload.title ?? answer.questionContent ?? 'Question');
+    const prompt = String(payload.prompt ?? payload.question ?? payload.title ?? 'Câu hỏi');
 
     return (
         <section className="rounded-2xl border border-gray-200 bg-white p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">{answer.questionType}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#2aa4e8]">{answer.blockKind}</p>
             <h3 className="mt-2 text-lg font-bold text-gray-900">{prompt}</h3>
-            <p className="mt-1 text-xs text-gray-500">Điểm tối đa: {answer.points}</p>
+            <p className="mt-1 text-xs text-gray-500">Điểm tối đa: {answer.maxScore}</p>
 
             {payload.options && Array.isArray(payload.options) ? (
                 <div className="mt-4 grid gap-2">

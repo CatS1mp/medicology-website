@@ -7,6 +7,7 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { MyCourseCard } from './MyCourseCard';
+import { MyCourseCardSkeleton } from './MyCourseCardSkeleton';
 import { useEnrolledCourses } from '../hooks/useEnrolledCourses';
 
 export const MyCoursesScreen: React.FC = () => {
@@ -45,7 +46,9 @@ export const MyCoursesScreen: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (
-                                <div className="col-span-full py-20 flex justify-center text-gray-500">Đang tải khóa học...</div>
+                                Array.from({ length: 6 }).map((_, i) => (
+                                    <MyCourseCardSkeleton key={`course-skel-${i}`} />
+                                ))
                             ) : courses.length > 0 ? (
                                 courses.map((course) => (
                                     <MyCourseCard

@@ -1,20 +1,39 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { completeLesson, getCourses, getLessonBlockProgress, updateLessonBlockProgress } from '@/shared/api/learning';
-import { getAttemptReview, getMyAttempts, saveAttemptAnswer, startAttempt, submitAttempt } from '@/shared/api/assessment';
+import { getCourses } from '@/shared/api/learning';
+import {
+    getAttemptAnswer,
+    getAttemptReview,
+    getMyAttempts,
+    saveAttemptAnswer,
+    startAttempt,
+    submitAttempt,
+    tickAttempt,
+} from '@/shared/api/assessment';
 import { AttemptReviewAnswerResponse } from '@/shared/types/assessment';
-import { LessonContentBlockResponse } from '@/shared/types/learning';
+import { ContentBlockResponse } from '@/shared/types/learning';
 import { LessonBlockStep, LessonBlockStepProgress } from '@/features/courses/components/lesson/LessonBlockStep';
 import { LessonStepBreadcrumb } from '@/features/courses/components/lesson/LessonStepBreadcrumb';
 import { LessonStepFooter } from '@/features/courses/components/lesson/LessonStepFooter';
 import { LessonStepProgress } from '@/features/courses/components/lesson/LessonStepProgress';
+import { Skeleton } from '@/shared/components/Skeleton';
+
+function isAttemptTimeExpiredError(error: unknown): boolean {
+    if (!(error instanceof Error) || !error.message) return false;
+    const m = error.message.toLowerCase();
+    return m.includes('time limit for this attempt has expired') || m.includes('time has expired');
+}
+
+function isBlockGradable(block: ContentBlockResponse | null | undefined): boolean {
+    return Boolean(block?.isGradable);
+}
 
 export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
     const router = useRouter();
@@ -29,7 +48,15 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     const [canContinue, setCanContinue] = useState(true);
     const [blockProgress, setBlockProgress] = useState<LessonBlockStepProgress>({ status: 'IN_PROGRESS' });
     const [attemptId, setAttemptId] = useState<string | null>(null);
-    const [reviewByQuestionId, setReviewByQuestionId] = useState<Record<string, AttemptReviewAnswerResponse>>({});
+    /** Luôn khớp attemptId mới nhất — tránh stale closure khi vừa startAttempt/setAttemptId rồi submit ngay. */
+    const attemptIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        attemptIdRef.current = attemptId;
+    }, [attemptId]);
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+    const [prefillUserAnswer, setPrefillUserAnswer] = useState<string | null>(null);
+    const [reviewByBlockId, setReviewByBlockId] = useState<Record<string, AttemptReviewAnswerResponse>>({});
     const [lesson, setLesson] = useState<null | {
         id: string;
         courseName: string;
@@ -39,7 +66,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         difficulty: string | null;
         estimatedDurationMinutes: number | null;
         content: string | null;
-        blocks: LessonContentBlockResponse[] | null;
+        blocks: ContentBlockResponse[] | null;
     }>(null);
 
     useEffect(() => {
@@ -49,7 +76,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                 const courses = await getCourses();
                 const course = courses.find((item) => item.slug === courseSlug);
                 const match = course?.sections?.flatMap((section) =>
-                    (section.lessons ?? []).map((lessonItem) => ({
+                    (section.contents ?? []).map((lessonItem) => ({
                         id: lessonItem.id,
                         courseName: course.name,
                         sectionName: section.name,
@@ -66,44 +93,31 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                 setLesson(match ?? null);
 
                 if (!match || !isReviewMode) {
-                    setReviewByQuestionId({});
+                    setReviewByBlockId({});
                     return;
                 }
 
-                const lessonAssessmentIds = Array.from(
-                    new Set(
-                        (match.blocks ?? [])
-                            .map((item) => item.assessmentId)
-                            .filter((value): value is string => Boolean(value))
-                    )
+                const submittedAttempts = (await getMyAttempts()).filter(
+                    (item) => item.contentId === match.id && item.submittedAt
                 );
-                const submittedAttempts = lessonAssessmentIds.length > 0
-                    ? (await getMyAttempts()).filter((item) =>
-                        lessonAssessmentIds.includes(item.assessmentId) && item.submittedAt
-                    )
-                    : [];
                 const latestSubmitted = [...submittedAttempts].sort(
                     (left, right) => new Date(right.submittedAt ?? '').getTime() - new Date(left.submittedAt ?? '').getTime()
                 )[0];
 
-                const blockProgressItems = await getLessonBlockProgress(match.id).catch(() => []);
-                const latestAttempt = [...blockProgressItems]
-                    .filter((item) => item.attemptId)
-                    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())[0];
-
-                const selectedAttemptId = latestSubmitted?.attemptId ?? latestAttempt?.attemptId ?? null;
+                const selectedAttemptId = latestSubmitted?.attemptId ?? null;
 
                 if (!selectedAttemptId) {
                     setMessage('Bài học này chưa có kết quả để xem lại.');
-                    setReviewByQuestionId({});
+                    setReviewByBlockId({});
                     return;
                 }
 
+                attemptIdRef.current = selectedAttemptId;
                 setAttemptId(selectedAttemptId);
                 const review = await getAttemptReview(selectedAttemptId);
-                setReviewByQuestionId(
+                setReviewByBlockId(
                     review.answers.reduce<Record<string, AttemptReviewAnswerResponse>>((acc, answer) => {
-                        acc[answer.questionId] = answer;
+                        acc[answer.contentBlockId] = answer;
                         return acc;
                     }, {})
                 );
@@ -117,6 +131,45 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         return () => { cancelled = true; };
     }, [courseSlug, isReviewMode, lessonSlug]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const contentId = lesson?.id;
+        const estimatedDurationMinutes = lesson?.estimatedDurationMinutes ?? null;
+        async function ensureAttempt() {
+            if (!contentId || isReviewMode) return;
+            try {
+                const started = await startAttempt(contentId, { estimatedDurationMinutes });
+                if (cancelled) return;
+                attemptIdRef.current = started.attemptId;
+                setAttemptId(started.attemptId);
+                setRemainingSeconds(started.remainingSeconds);
+            } catch {
+                if (!cancelled) setMessage('Không thể bắt đầu phiên làm bài.');
+            }
+        }
+        void ensureAttempt();
+        return () => { cancelled = true; };
+    }, [lesson?.id, lesson?.estimatedDurationMinutes, isReviewMode]);
+
+    useEffect(() => {
+        if (!attemptId || isReviewMode) return;
+        const id = window.setInterval(() => {
+            void (async () => {
+                try {
+                    const t = await tickAttempt(attemptId);
+                    setRemainingSeconds(t.remainingSeconds);
+                    if (t.remainingSeconds <= 0) {
+                        await submitAttempt(attemptId);
+                        router.push(`/courses/${courseSlug}/lessons/${lessonSlug}/complete?attemptId=${attemptId}`);
+                    }
+                } catch {
+                    /* ignore transient tick errors */
+                }
+            })();
+        }, 60_000);
+        return () => clearInterval(id);
+    }, [attemptId, courseSlug, isReviewMode, lessonSlug, router]);
+
     const sortedBlocks = useMemo(() => {
         if (!lesson?.blocks || lesson.blocks.length === 0) {
             return [];
@@ -126,7 +179,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
 
     const totalSteps = sortedBlocks.length > 0 ? sortedBlocks.length : 1;
     const currentBlock = sortedBlocks[stepIndex] ?? null;
-    const currentReviewAnswer = currentBlock?.questionId ? reviewByQuestionId[currentBlock.questionId] : undefined;
+    const currentReviewAnswer = currentBlock ? reviewByBlockId[currentBlock.id] : undefined;
     const isLastStep = stepIndex === totalSteps - 1;
     const canGoBack = stepIndex > 0;
 
@@ -140,6 +193,24 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
     }, [stepIndex, totalSteps]);
 
+    useEffect(() => {
+        let cancelled = false;
+        async function loadPrefill() {
+            if (!isBlockGradable(currentBlock) || !attemptId || isReviewMode) {
+                setPrefillUserAnswer(null);
+                return;
+            }
+            try {
+                const res = await getAttemptAnswer(attemptId, currentBlock.id);
+                if (!cancelled) setPrefillUserAnswer(res.userAnswer);
+            } catch {
+                if (!cancelled) setPrefillUserAnswer(null);
+            }
+        }
+        void loadPrefill();
+        return () => { cancelled = true; };
+    }, [attemptId, currentBlock, isReviewMode]);
+
     const handleBlockStateChange = useCallback((state: { canContinue: boolean; progress: LessonBlockStepProgress }) => {
         if (isReviewMode) {
             setCanContinue(true);
@@ -150,31 +221,46 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         setBlockProgress(state.progress);
     }, [currentReviewAnswer?.userAnswer, isReviewMode]);
 
-    const saveCurrentBlockProgress = useCallback(async () => {
+    const saveCurrentBlockProgress = useCallback(async (): Promise<string | null> => {
         if (!lesson || !currentBlock) {
-            return;
+            return attemptIdRef.current;
         }
-        try {
-            let currentAttemptId = attemptId;
-            if (currentBlock.questionId && currentBlock.assessmentId && blockProgress.userAnswer) {
-                if (!currentAttemptId) {
-                    const started = await startAttempt(currentBlock.assessmentId);
-                    currentAttemptId = started.attemptId;
-                    setAttemptId(currentAttemptId);
-                }
-                await saveAttemptAnswer(currentAttemptId, {
-                    questionId: currentBlock.questionId,
-                    userAnswer: blockProgress.userAnswer,
+        let currentAttemptId = attemptIdRef.current;
+        if (isBlockGradable(currentBlock) && blockProgress.userAnswer) {
+            const saveAnswer = async (attempt: string) =>
+                saveAttemptAnswer(attempt, {
+                    contentBlockId: currentBlock.id,
+                    contentId: lesson.id,
+                    userAnswer: blockProgress.userAnswer!,
+                    kind: currentBlock.kind,
+                    payload: currentBlock.payload,
+                    maxScore: currentBlock.maxScore,
+                    orderIndex: currentBlock.orderIndex,
+                    isGradable: currentBlock.isGradable,
                 });
+            const startBody = { estimatedDurationMinutes: lesson.estimatedDurationMinutes ?? null };
+
+            if (!currentAttemptId) {
+                const started = await startAttempt(lesson.id, startBody);
+                currentAttemptId = started.attemptId;
+                attemptIdRef.current = currentAttemptId;
+                setAttemptId(currentAttemptId);
+                setRemainingSeconds(started.remainingSeconds);
             }
-            await updateLessonBlockProgress(lesson.id, currentBlock.id, {
-                status: blockProgress.status,
-                attemptId: currentAttemptId ?? undefined,
-            });
-        } catch (error) {
-            setMessage(error instanceof Error ? error.message : 'Không thể cập nhật tiến độ block.');
+            try {
+                await saveAnswer(currentAttemptId);
+            } catch (error) {
+                if (!isAttemptTimeExpiredError(error)) throw error;
+                const restarted = await startAttempt(lesson.id, startBody);
+                currentAttemptId = restarted.attemptId;
+                attemptIdRef.current = currentAttemptId;
+                setAttemptId(currentAttemptId);
+                setRemainingSeconds(restarted.remainingSeconds);
+                await saveAnswer(currentAttemptId);
+            }
         }
-    }, [attemptId, blockProgress.status, blockProgress.userAnswer, currentBlock, lesson]);
+        return currentAttemptId;
+    }, [blockProgress.userAnswer, currentBlock, lesson]);
 
     const handleContinue = useCallback(async () => {
         if (!lesson) {
@@ -191,27 +277,32 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         setMessage('');
         setSubmitting(true);
         try {
-            await saveCurrentBlockProgress();
+            const attemptAfterSave = await saveCurrentBlockProgress();
             if (!isLastStep) {
                 setStepIndex((previous) => previous + 1);
                 return;
             }
-            if (attemptId) {
-                await submitAttempt(attemptId);
+            const toSubmit = attemptAfterSave ?? attemptIdRef.current;
+            if (toSubmit) {
+                await submitAttempt(toSubmit);
             }
-            await completeLesson(lesson.id);
-            setMessage('Đã hoàn thành bài học.');
-            if (attemptId) {
-                router.push(`/attempts/${attemptId}/result`);
-            } else {
-                router.push(`/courses/${courseSlug}`);
-            }
+            setMessage('');
+            const completedAttemptId = toSubmit ?? attemptId;
+            const query = completedAttemptId ? `?attemptId=${encodeURIComponent(completedAttemptId)}` : '';
+            router.push(`/courses/${courseSlug}/lessons/${lessonSlug}/complete${query}`);
         } catch (error) {
+            if (isAttemptTimeExpiredError(error)) {
+                setMessage('Đã hết thời gian làm bài. Hệ thống sẽ chuyển bạn tới trang kết quả.');
+                if (attemptId) {
+                    router.push(`/attempts/${attemptId}/result`);
+                    return;
+                }
+            }
             setMessage(error instanceof Error ? error.message : 'Không thể tiếp tục bài học.');
         } finally {
             setSubmitting(false);
         }
-    }, [attemptId, courseSlug, isLastStep, isReviewMode, lesson, router, saveCurrentBlockProgress]);
+    }, [attemptId, courseSlug, isLastStep, isReviewMode, lesson, lessonSlug, router, saveCurrentBlockProgress]);
 
     const handleBack = useCallback(() => {
         if (!canGoBack || submitting) {
@@ -230,7 +321,11 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
                     <div className="flex-1 overflow-y-auto px-6 py-8">
-                        <div className="mx-auto max-w-4xl py-20 text-center text-gray-500">Đang tải bài học...</div>
+                        <div className="mx-auto max-w-4xl space-y-5 py-8">
+                            <Skeleton className="h-8 w-40 rounded-full" />
+                            <Skeleton className="h-32 w-full rounded-3xl" />
+                            <Skeleton className="h-72 w-full rounded-3xl" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -260,10 +355,17 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                                     <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-500">
                                         {lesson.difficulty && <span className="rounded-full bg-white px-3 py-1">{lesson.difficulty}</span>}
                                         {lesson.estimatedDurationMinutes && <span className="rounded-full bg-white px-3 py-1">{lesson.estimatedDurationMinutes} phút</span>}
+                                        {!isReviewMode && attemptId && remainingSeconds != null && (
+                                            <span className="rounded-full bg-white px-3 py-1 font-semibold text-[#126b98]">
+                                                Còn lại: {Math.floor(remainingSeconds / 60)}:{String(remainingSeconds % 60).padStart(2, '0')}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
-                                {!!message && <div className="rounded-2xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">{message}</div>}
+                                {!!message && (
+                                    <div className="rounded-2xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">{message}</div>
+                                )}
 
                                 <article className="rounded-3xl border border-gray-200 px-6 py-6">
                                     {isReviewMode ? (
@@ -283,6 +385,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                                         legacyContent={lesson.content}
                                         readOnly={isReviewMode}
                                         reviewAnswer={currentReviewAnswer}
+                                        prefillUserAnswer={prefillUserAnswer}
                                         onStateChange={handleBlockStateChange}
                                     />
                                     <LessonStepFooter

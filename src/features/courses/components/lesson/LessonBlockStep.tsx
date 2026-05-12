@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LessonContentBlockResponse } from '@/shared/types/learning';
+import { ContentBlockResponse } from '@/shared/types/learning';
 import { AttemptReviewAnswerResponse } from '@/shared/types/assessment';
+import { LazyImage } from '@/shared/components/LazyImage';
 
 type BlockProgressStatus = 'IN_PROGRESS' | 'COMPLETED';
-const gradableKinds = new Set(['QUIZ_MCQ', 'FILL_IN_THE_BLANKS', 'SHORT_ANSWER', 'MATCHING', 'ORDERING', 'HOTSPOT_IMAGE']);
+const gradableKinds = new Set(['QUIZ_MCQ', 'FILL_IN_THE_BLANKS', 'SHORT_ANSWER', 'MATCHING', 'ORDERING']);
 
 export interface LessonBlockStepProgress {
     status: BlockProgressStatus;
@@ -11,11 +12,13 @@ export interface LessonBlockStepProgress {
 }
 
 interface LessonBlockStepProps {
-    block: LessonContentBlockResponse | null;
+    block: ContentBlockResponse | null;
     legacyContent?: string | null;
     resultRevealRequested?: boolean;
     readOnly?: boolean;
     reviewAnswer?: AttemptReviewAnswerResponse | null;
+    /** When not read-only, hydrate gradable inputs from a previously saved attempt answer. */
+    prefillUserAnswer?: string | null;
     onStateChange: (state: { canContinue: boolean; progress: LessonBlockStepProgress }) => void;
 }
 
@@ -23,7 +26,6 @@ const baseCardClassName = 'rounded-2xl border border-gray-200 bg-white p-5';
 type GenericPayload = Record<string, unknown>;
 type MatchingPair = { left: string; right: string };
 type OrderingItem = { id: string; label: string };
-type HotspotOption = { id: string; label: string };
 
 export function LessonBlockStep({
     block,
@@ -31,13 +33,15 @@ export function LessonBlockStep({
     resultRevealRequested = false,
     readOnly = false,
     reviewAnswer = null,
+    prefillUserAnswer = null,
     onStateChange,
 }: LessonBlockStepProps) {
     const kind = normalizeBlockKind(block?.kind);
+    /** Chỉ các block có isGradable và kind hỗ trợ chấm mới hiện UI nhập đáp án / badge chấm điểm. */
+    const blockNeedsGradableLearnerFlow = Boolean(block?.isGradable && gradableKinds.has(kind));
     const payload = useMemo(() => parsePayload(block?.payload), [block?.payload]);
     const matchingPairs = useMemo(() => parseMatchingPairs(payload), [payload]);
     const matchingOptions = useMemo(() => uniqueStrings(matchingPairs.map((pair) => pair.right)), [matchingPairs]);
-    const hotspotOptions = useMemo(() => parseHotspots(payload), [payload]);
 
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [shortAnswer, setShortAnswer] = useState('');
@@ -45,19 +49,13 @@ export function LessonBlockStep({
     const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({});
     const [orderingItems, setOrderingItems] = useState<OrderingItem[]>(() => parseOrderingItems(payload));
     const [draggingOrderIndex, setDraggingOrderIndex] = useState<number | null>(null);
-    const [hotspotAnswer, setHotspotAnswer] = useState('');
-    const [isHotspotImageBroken, setIsHotspotImageBroken] = useState(false);
 
     useEffect(() => {
         setOrderingItems(parseOrderingItems(payload));
     }, [payload]);
 
     useEffect(() => {
-        setIsHotspotImageBroken(false);
-    }, [block?.id]);
-
-    useEffect(() => {
-        if (!readOnly) return;
+        if (!readOnly || !blockNeedsGradableLearnerFlow) return;
         const userAnswer = reviewAnswer?.userAnswer ?? '';
         if (!userAnswer) return;
 
@@ -93,18 +91,53 @@ export function LessonBlockStep({
             setOrderingItems(reorderByIds(baseItems, orderedIds));
             return;
         }
+    }, [blockNeedsGradableLearnerFlow, kind, payload, readOnly, reviewAnswer?.userAnswer]);
 
-        if (kind === 'HOTSPOT_IMAGE') {
-            setHotspotAnswer(userAnswer);
+    useEffect(() => {
+        if (readOnly || !prefillUserAnswer || !blockNeedsGradableLearnerFlow) return;
+        const userAnswer = prefillUserAnswer;
+        if (!userAnswer) return;
+
+        if (kind === 'QUIZ_MCQ') {
+            const options = parseOptions(payload);
+            const selected = options.findIndex((option) => normalize(option) === normalize(userAnswer));
+            setSelectedOption(selected >= 0 ? selected : null);
+            return;
         }
-    }, [kind, payload, readOnly, reviewAnswer?.userAnswer]);
+
+        if (kind === 'SHORT_ANSWER') {
+            setShortAnswer(userAnswer);
+            return;
+        }
+
+        if (kind === 'FILL_IN_THE_BLANKS') {
+            setBlankAnswer(userAnswer);
+            return;
+        }
+
+        if (kind === 'MATCHING') {
+            setMatchingSelections(parseMatchingAnswer(userAnswer));
+            return;
+        }
+
+        if (kind === 'ORDERING') {
+            const baseItems = parseOrderingItems(payload);
+            const orderedIds = parseOrderingAnswer(userAnswer);
+            if (orderedIds.length === 0) {
+                setOrderingItems(baseItems);
+                return;
+            }
+            setOrderingItems(reorderByIds(baseItems, orderedIds));
+            return;
+        }
+    }, [block?.id, blockNeedsGradableLearnerFlow, kind, payload, readOnly, prefillUserAnswer]);
 
     useEffect(() => {
         if (!block) {
             onStateChange({ canContinue: true, progress: { status: 'IN_PROGRESS' } });
             return;
         }
-        if (!gradableKinds.has(kind)) {
+        if (!blockNeedsGradableLearnerFlow) {
             onStateChange({ canContinue: true, progress: { status: 'COMPLETED' } });
             return;
         }
@@ -130,8 +163,6 @@ export function LessonBlockStep({
             userAnswer = orderingItems.length > 0
                 ? JSON.stringify(orderingItems.map((item) => item.id))
                 : '';
-        } else if (kind === 'HOTSPOT_IMAGE') {
-            userAnswer = hotspotAnswer.trim();
         }
 
         const hasAnswer = userAnswer.length > 0 || readOnly;
@@ -154,16 +185,17 @@ export function LessonBlockStep({
         matchingPairs,
         matchingSelections,
         orderingItems,
-        hotspotAnswer,
         readOnly,
+        blockNeedsGradableLearnerFlow,
     ]);
 
     const reviewTone = getReviewTone(reviewAnswer);
-    const reviewBadge = readOnly ? (
-        <div className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${reviewTone.className}`}>
-            {reviewTone.label}
-        </div>
-    ) : null;
+    const reviewBadge =
+        readOnly && blockNeedsGradableLearnerFlow ? (
+            <div className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${reviewTone.className}`}>
+                {reviewTone.label}
+            </div>
+        ) : null;
 
     if (!block) {
         return (
@@ -175,6 +207,19 @@ export function LessonBlockStep({
 
     if (kind === 'QUIZ_MCQ') {
         const options = parseOptions(payload);
+        if (!blockNeedsGradableLearnerFlow) {
+            return (
+                <section className={baseCardClassName}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung học</p>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['question', 'prompt'], 'Câu hỏi trắc nghiệm')}</h3>
+                    <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-gray-700">
+                        {options.map((option, index) => (
+                            <li key={`ro-opt-${index}`}>{String(option)}</li>
+                        ))}
+                    </ol>
+                </section>
+            );
+        }
         return (
             <section className={baseCardClassName}>
                 <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['question', 'prompt'], 'Câu hỏi trắc nghiệm')}</h3>
@@ -204,6 +249,17 @@ export function LessonBlockStep({
     }
 
     if (kind === 'SHORT_ANSWER') {
+        if (!blockNeedsGradableLearnerFlow) {
+            return (
+                <section className={baseCardClassName}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung học</p>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'question'], 'Câu trả lời ngắn')}</h3>
+                    {readText(payload, ['hint', 'description'], '') ? (
+                        <p className="mt-3 text-sm text-gray-600">{readText(payload, ['hint', 'description'], '')}</p>
+                    ) : null}
+                </section>
+            );
+        }
         return (
             <section className={baseCardClassName}>
                 <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'question'], 'Nhập câu trả lời ngắn')}</h3>
@@ -224,6 +280,14 @@ export function LessonBlockStep({
     }
 
     if (kind === 'FILL_IN_THE_BLANKS') {
+        if (!blockNeedsGradableLearnerFlow) {
+            return (
+                <section className={baseCardClassName}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung học</p>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'template'], 'Điền đáp án')}</h3>
+                </section>
+            );
+        }
         return (
             <section className={baseCardClassName}>
                 <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt', 'template'], 'Điền đáp án')}</h3>
@@ -243,6 +307,23 @@ export function LessonBlockStep({
     }
 
     if (kind === 'MATCHING') {
+        if (!blockNeedsGradableLearnerFlow) {
+            return (
+                <section className={baseCardClassName}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung học</p>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['prompt'], 'Ghép cặp')}</h3>
+                    <div className="mt-4 space-y-2">
+                        {matchingPairs.map((pair, index) => (
+                            <div key={`ro-m-${index}`} className="flex flex-wrap gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                                <span className="font-semibold">{pair.left}</span>
+                                <span className="text-gray-400">→</span>
+                                <span>{pair.right}</span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            );
+        }
         const showMissing = resultRevealRequested && matchingPairs.some((pair) => !(matchingSelections[pair.left] ?? '').trim());
         return (
             <section className={baseCardClassName}>
@@ -286,6 +367,19 @@ export function LessonBlockStep({
     }
 
     if (kind === 'ORDERING') {
+        if (!blockNeedsGradableLearnerFlow) {
+            return (
+                <section className={baseCardClassName}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung học</p>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900">{readText(payload, ['prompt'], 'Sắp xếp thứ tự')}</h3>
+                    <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-gray-800">
+                        {orderingItems.map((item) => (
+                            <li key={item.id}>{item.label}</li>
+                        ))}
+                    </ol>
+                </section>
+            );
+        }
         return (
             <section className={baseCardClassName}>
                 <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['prompt'], 'Sắp xếp thứ tự')}</h3>
@@ -326,62 +420,6 @@ export function LessonBlockStep({
         );
     }
 
-    if (kind === 'HOTSPOT_IMAGE') {
-        const imageUrl = readText(payload, ['imageUrl', 'image', 'imageSrc', 'url'], '');
-        return (
-            <section className={baseCardClassName}>
-                <h3 className="text-lg font-bold text-gray-900">{readText(payload, ['title', 'prompt'], 'Hotspot image')}</h3>
-                {reviewBadge}
-                {imageUrl && !isHotspotImageBroken ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={imageUrl}
-                        alt={readText(payload, ['title', 'prompt'], 'Hotspot image')}
-                        className="mt-4 h-[280px] w-full rounded-xl border border-gray-100 bg-gray-50 object-contain"
-                        onError={() => setIsHotspotImageBroken(true)}
-                    />
-                ) : null}
-                {isHotspotImageBroken ? (
-                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Không tải được ảnh hotspot. Bạn vẫn có thể chọn đáp án bên dưới.
-                    </p>
-                ) : null}
-                <div className="mt-4 grid gap-2">
-                    {hotspotOptions.length === 0 ? (
-                        <input
-                            value={hotspotAnswer}
-                            onChange={(event) => {
-                                if (readOnly) return;
-                                setHotspotAnswer(event.target.value);
-                            }}
-                            disabled={readOnly}
-                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#2aa4e8]"
-                            placeholder="Nhập hotspot đã chọn"
-                        />
-                    ) : (
-                        hotspotOptions.map((option) => (
-                            <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => {
-                                    if (readOnly) return;
-                                    setHotspotAnswer(option.label);
-                                }}
-                                disabled={readOnly}
-                                className={`rounded-xl border px-4 py-3 text-left text-sm ${hotspotAnswer === option.label
-                                    ? 'border-[#2aa4e8] bg-[#f3fbff] text-[#126b98]'
-                                    : 'border-gray-200 bg-white text-gray-700'} ${readOnly ? 'cursor-not-allowed opacity-90' : ''
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))
-                    )}
-                </div>
-            </section>
-        );
-    }
-
     if (kind === 'INFOGRAPHIC') {
         const title = readText(payload, ['title'], 'Infographic');
         const caption = readText(payload, ['caption', 'content'], '');
@@ -396,8 +434,7 @@ export function LessonBlockStep({
                 {mediaType === 'video' && videoUrl ? (
                     <video controls src={videoUrl} className="mt-4 max-h-[420px] w-full rounded-xl bg-black/90" />
                 ) : imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl} alt={title} className="mt-4 h-[320px] w-full rounded-xl border border-white bg-white object-contain" />
+                    <LazyImage src={imageUrl} alt={title} className="mt-4 h-[320px] w-full rounded-xl border border-white bg-white object-contain" />
                 ) : (
                     <p className="mt-4 text-sm text-[#126b98]">Không có media để hiển thị.</p>
                 )}
@@ -551,22 +588,6 @@ function reorderItems(items: OrderingItem[], fromIndex: number, toIndex: number)
     const [moved] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, moved);
     return next;
-}
-
-function parseHotspots(payload: GenericPayload): HotspotOption[] {
-    const raw = payload.hotspots;
-    if (!Array.isArray(raw)) return [];
-    return raw
-        .map((item, index) => {
-            if (typeof item === 'string') {
-                return { id: `hotspot-${index + 1}`, label: item };
-            }
-            const data = (item ?? {}) as GenericPayload;
-            const label = readText(data, ['label', 'name', 'text'], '');
-            const id = readText(data, ['id', 'key', 'stableKey'], `hotspot-${index + 1}`);
-            return { id, label };
-        })
-        .filter((item) => item.label.length > 0);
 }
 
 function parseMatchingAnswer(value: string): Record<string, string> {

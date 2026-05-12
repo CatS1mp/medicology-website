@@ -44,9 +44,13 @@ export const RoadmapHeader: React.FC<RoadmapHeaderProps> = ({ title, progress, s
                     </button>
 
                     <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 border-4 border-orange-100 shadow-sm">
-                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.5 10c0-3.5-2.5-6.5-6-7.5-.5-1.5-2.5-2.5-4-2.5-3.5 0-6.5 2.5-7.5 6-.803-.267-1.5-.5-2.5-1 0 4 2 7.5 5.5 9.5.5-2 1.5-3.5 3-5 5-5 5.5-6 6-9z" transform="translate(4 2) scale(0.6)"/>
-                            <path d="M11.64 5.93h0l-1.41-1.41C9.64 3.93 8.35 3.32 7 3.32s-2.64.61-3.23 1.2l-1.41 1.41h0L1 7.34h0l1.41 1.41h0C3.01 9.34 4.3 9.94 5.61 9.94s2.6-.61 3.2-1.2h0l1.41-1.41h0L11.64 5.93z" fill="white" transform="translate(5 5) scale(0.6)"/>
+                        {/* Flame — streak / continuity */}
+                        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                            <path
+                                fillRule="evenodd"
+                                clipRule="evenodd"
+                                d="M12.963 2.286a.75.75 0 00-1.071-.136 9.625 9.625 0 00-3.445 4.379l-.12.309c-.08.208-.27.343-.486.343a.75.75 0 01-.65-.472l-.098-.309C6.46 4.491 5.04 2.784 3.128 1.726a.75.75 0 00-.867 1.156 11.245 11.245 0 011.648 2.826c.346.995.547 2.073.547 3.188 0 4.773-3.309 8.806-7.755 9.856a.75.75 0 01-.719-.988 15.405 15.405 0 014.384-7.498 15.405 15.405 0 00-4.384-7.498.75.75 0 01.719-.988z"
+                            />
                         </svg>
                     </div>
 
