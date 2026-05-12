@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_ACCESS_COOKIE, AUTH_REFRESH_COOKIE, clearAuthCookies } from '@/lib/auth-cookies';
-import { getAuthServiceUrl } from '@/lib/env-backend';
+import { getAuthBackend } from '@/lib/env-backend';
 
 export async function POST(req: NextRequest) {
-    const backend = getAuthServiceUrl();
+    const backend = getAuthBackend();
     const accessToken = req.cookies.get(AUTH_ACCESS_COOKIE)?.value;
     let refreshToken = req.cookies.get(AUTH_REFRESH_COOKIE)?.value;
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
             headers.authorization = `Bearer ${accessToken}`;
         }
         try {
-            await fetch(`${backend}/api/v1/auth/logout`, {
+            await fetch(`${backend.base}${backend.basePath}/logout`, {
                 method: 'POST',
                 headers,
                 body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,

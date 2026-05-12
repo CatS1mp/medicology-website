@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { applyAuthCookies } from '@/lib/auth-cookies';
 import { isAuthResponse, stripAuthTokensFromResponse, unwrapSpringBody } from '@/lib/auth-response';
-import { getAuthServiceUrl } from '@/lib/env-backend';
+import { getAuthBackend } from '@/lib/env-backend';
 
 export async function POST(req: NextRequest) {
-    const backend = getAuthServiceUrl();
+    const backend = getAuthBackend();
     if (!backend) {
         return NextResponse.json({ message: 'Dịch vụ xác thực chưa được cấu hình.' }, { status: 503 });
     }
 
     const body = await req.text();
-    const res = await fetch(`${backend}/api/v1/auth/oauth`, {
+    const res = await fetch(`${backend.base}${backend.basePath}/oauth`, {
         method: 'POST',
         headers: {
             'content-type': req.headers.get('content-type') ?? 'application/json',

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { applyAuthCookies, AUTH_REFRESH_COOKIE } from '@/lib/auth-cookies';
 import { isAuthResponse, stripAuthTokensFromResponse, unwrapSpringBody } from '@/lib/auth-response';
-import { getAuthServiceUrl } from '@/lib/env-backend';
+import { getAuthBackend } from '@/lib/env-backend';
 
 export async function POST(req: NextRequest) {
-    const backend = getAuthServiceUrl();
+    const backend = getAuthBackend();
     if (!backend) {
         return NextResponse.json({ message: 'Dịch vụ xác thực chưa được cấu hình.' }, { status: 503 });
     }
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: 'Missing refresh token' }, { status: 400 });
     }
 
-    const res = await fetch(`${backend}/api/v1/auth/refresh`, {
+    const res = await fetch(`${backend.base}${backend.basePath}/refresh`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ refreshToken }),

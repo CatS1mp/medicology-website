@@ -6,6 +6,38 @@ interface ProxyConfig {
     upstreamBasePath: string;
 }
 
+/**
+ * URL của API gateway. Khi cấu hình, mọi proxy của Next.js sẽ đi qua gateway,
+ * gateway lo việc rewrite path + chọn service đích.
+ *
+ * Khi không cấu hình, hệ thống fall back về cấu hình cũ (Next.js gọi thẳng service).
+ */
+export const API_GATEWAY_URL = (process.env.API_GATEWAY_URL ?? '').trim();
+
+interface GatewayProxyConfig {
+    /** Prefix gateway nhận, ví dụ `/api/assessment`. Giữ nguyên khi forward qua gateway. */
+    gatewayBasePath: string;
+    /** Cấu hình fallback khi `API_GATEWAY_URL` chưa được đặt. */
+    legacy: ProxyConfig;
+}
+
+/**
+ * Helper duy nhất các route Next.js BFF nên gọi. Tự chọn gateway hoặc fallback service trực tiếp.
+ */
+export function proxyThroughGateway(
+    req: NextRequest,
+    params: { path?: string[] },
+    config: GatewayProxyConfig
+) {
+    if (API_GATEWAY_URL) {
+        return proxyToBackend(req, params, {
+            backendUrl: API_GATEWAY_URL,
+            upstreamBasePath: config.gatewayBasePath,
+        });
+    }
+    return proxyToBackend(req, params, config.legacy);
+}
+
 function validatePathSegments(segments: string[]): boolean {
     if (segments.length > 12) return false;
     return segments.every((seg) => {
@@ -66,7 +98,7 @@ export async function proxyToBackend(
     }
 
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
-    const body = hasBody ? await req.text() : undefined;
+    const body = hasBody ? await req.arrayBuffer() : undefined;
 
     try {
         const res = await fetch(targetUrl, {
