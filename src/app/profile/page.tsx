@@ -1,5 +1,7 @@
-import { ProfileScreen } from '@/features/profile';
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
+
+const ProfileScreen = dynamic(() => import('@/features/profile').then((mod) => mod.ProfileScreen));
 
 export const metadata: Metadata = {
     title: 'Hồ sơ cá nhân - Medicology',

@@ -9,6 +9,7 @@ import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { useEncyclopediaSearch } from '../hooks/useEncyclopedia';
 import { TRENDING_TAGS, ArticleCategory } from '../types';
+import { SearchResultItemSkeleton } from './SearchResultItemSkeleton';
 
 const CATEGORIES: Array<'Tất cả' | ArticleCategory> = ['Tất cả', 'Cấp cứu', 'Sức khỏe Tâm thần', 'Tim mạch', 'Dinh dưỡng'];
 const PER_PAGE_OPTIONS = [3, 5, 10] as const;
@@ -127,7 +128,11 @@ const SearchResultsContent: React.FC<SearchResultsContentProps> = ({ initialQuer
                         )}
 
                         {isLoading ? (
-                            <div className="py-16 text-center text-gray-400">Đang tìm kiếm...</div>
+                            <div className="flex flex-col gap-4">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <SearchResultItemSkeleton key={`result-skel-${i}`} />
+                                ))}
+                            </div>
                         ) : results.length > 0 ? (
                             <div className="flex flex-col gap-4">
                                 {results.map(article => (

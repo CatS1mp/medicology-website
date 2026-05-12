@@ -167,6 +167,38 @@ export const useEncyclopediaSearch = (initialQuery = '') => {
     return { results, filters, setFilters, search, isLoading };
 };
 
+/** Published articles for the encyclopedia landing feed (below the fold). */
+export const useEncyclopediaLandingArticles = () => {
+    const [articles, setArticles] = useState<ArticleSummary[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const list = await listArticles();
+                if (cancelled) return;
+                const summaries = list
+                    .filter((a) => a.isPublished)
+                    .map(toSummary)
+                    .sort((a, b) => (b.publishedAt.localeCompare(a.publishedAt)));
+                setArticles(summaries);
+            } catch {
+                if (!cancelled) setArticles([]);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    return { articles, isLoading };
+};
+
 export const useArticle = (slug: string) => {
     const [article, setArticle] = useState<ArticleDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);

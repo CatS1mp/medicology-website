@@ -9,6 +9,7 @@ import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { listBookmarkedArticles } from '@/features/encyclopedia/api';
 import { extractArticlePlainText } from '@/shared/utils/article-content';
 import { BookmarkCategory } from '../types';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 const categoryFilters: Array<'All' | BookmarkCategory> = ['All', 'Emergency', 'Mental Health', 'Cardiovascular', 'Nutrition'];
 
@@ -132,7 +133,19 @@ export const NotebookScreen: React.FC = () => {
                         <p className="text-xs text-gray-600 mb-3">Đang hiển thị {filtered.length} mục đã lưu</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {isLoading && <div className="col-span-full py-12 text-center text-gray-500">Đang tải dữ liệu lưu trữ...</div>}
+                            {isLoading && (
+                                <>
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={`notebook-skeleton-${i}`} className="rounded-2xl border border-gray-200 bg-white p-4 min-h-[278px]">
+                                            <Skeleton className="h-5 w-20 rounded-full" />
+                                            <Skeleton className="mt-3 h-8 w-5/6 rounded" />
+                                            <Skeleton className="mt-3 h-4 w-full rounded" />
+                                            <Skeleton className="mt-2 h-4 w-4/5 rounded" />
+                                            <Skeleton className="mt-4 h-4 w-1/2 rounded" />
+                                        </div>
+                                    ))}
+                                </>
+                            )}
                             {!isLoading && !!error && <div className="col-span-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
                             {!isLoading && !error && filtered.length === 0 && <div className="col-span-full py-12 text-center text-gray-500">Chưa có bài viết nào trong sổ tay.</div>}
                             {!isLoading && !error && filtered.map((item) => (

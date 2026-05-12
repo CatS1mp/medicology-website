@@ -1,5 +1,7 @@
-import { TopicsScreen } from '@/features/topics';
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
+
+const TopicsScreen = dynamic(() => import('@/features/topics').then((mod) => mod.TopicsScreen));
 
 export const metadata: Metadata = {
     title: 'Chủ đề Học tập - Medicology',

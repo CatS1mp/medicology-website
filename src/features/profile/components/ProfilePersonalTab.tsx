@@ -18,14 +18,14 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({ form, on
                 <p className="text-[11px] font-bold text-gray-600 tracking-wide">*CÁC TRƯỜNG BẮT BUỘC</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="HỌ" value={form.firstName} onChange={(v) => update('firstName', v)} />
                 <Field label="TÊN" value={form.lastName} onChange={(v) => update('lastName', v)} />
                 <Field label="USERNAME*" value={form.username} onChange={(v) => update('username', v)} />
                 <Field label="EMAIL*" value={form.email} onChange={(v) => update('email', v)} />
             </div>
 
-            <div className="grid grid-cols-[1fr_1fr] gap-4 items-end">
+            <div className="grid grid-cols-1 gap-4 items-end md:grid-cols-[1fr_1fr]">
                 <div>
                     <p className="text-[11px] font-semibold text-gray-600 mb-2">NGÀY SINH</p>
                     <div className="grid grid-cols-3 gap-2">

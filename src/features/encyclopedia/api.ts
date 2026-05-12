@@ -1,6 +1,7 @@
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
+import { normalizeSpringListPayload } from '@/shared/types/admin';
 
 const DICTIONARY = `/api/dictionary`;
 
@@ -118,10 +119,32 @@ function deleteJson<T>(url: string): Promise<T> {
     });
 }
 
+/**
+ * Backend `dictionary-service`: `GET /api/dictionary/articles` returns PaginatedResponse (`content`, `totalElements`),
+ * not a bare array. Same shape as Spring `Page` consumers already handle via `normalizeSpringListPayload`.
+ */
+async function fetchDictionaryArticlesCatalog(): Promise<DictionaryArticleResponse[]> {
+    const pageSize = 500;
+    let page = 0;
+    const acc: DictionaryArticleResponse[] = [];
+    let reportedTotal = 0;
+
+    for (let guard = 0; guard < 40; guard += 1) {
+        const qs = new URLSearchParams({ page: String(page), size: String(pageSize) });
+        const raw = await getJson<unknown>(`${DICTIONARY}/articles?${qs}`);
+        const { items, total } = normalizeSpringListPayload<DictionaryArticleResponse>(raw);
+        reportedTotal = total;
+        if (items.length === 0) break;
+        acc.push(...items);
+        if (acc.length >= reportedTotal) break;
+        page += 1;
+    }
+
+    return acc;
+}
+
 export function listArticles(): Promise<DictionaryArticleResponse[]> {
-    return cachedGet(cacheKeys.dictionary.articles(), CACHE_TTL.MEDIUM, () =>
-        getJson<DictionaryArticleResponse[]>(`${DICTIONARY}/articles`)
-    );
+    return cachedGet(cacheKeys.dictionary.articles(), CACHE_TTL.MEDIUM, fetchDictionaryArticlesCatalog);
 }
 
 export function listTermArticles(): Promise<DictionaryArticleResponse[]> {

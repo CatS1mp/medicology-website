@@ -1,7 +1,8 @@
 import React from 'react';
-import Image from 'next/image';
 import { Topic } from '../types';
 import { Button } from '@/shared/components/Button';
+import { LazyImage } from '@/shared/components/LazyImage';
+import { DEFAULT_COURSE_ICON } from '@/shared/utils/course-icon';
 
 interface TopicCardProps {
     topic: Topic;
@@ -16,18 +17,16 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
 
     return (
         <div className="bg-white rounded-[24px] overflow-hidden border border-gray-100 flex flex-col h-full shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300">
-            <div className="relative h-48 w-full bg-[#E5F0FF] flex items-center justify-center p-6 mix-blend-multiply">
+            <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-t-[24px] bg-[#E5F0FF] isolate">
+                <LazyImage
+                    src={topic.imageUrl}
+                    alt={topic.title}
+                    fallbackSrc={DEFAULT_COURSE_ICON}
+                    className="absolute inset-0 size-full object-cover object-center pointer-events-none select-none"
+                />
                 <div className="absolute top-4 right-4 z-10 bg-[#E5F0FF]/80 backdrop-blur-md text-[#4147D5] text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
                     {topic.level}
                 </div>
-                
-                <Image 
-                    src={topic.imageUrl} 
-                    alt={topic.title} 
-                    width={180} 
-                    height={180} 
-                    className="object-contain w-full h-full mix-blend-darken filter drop-shadow-md"
-                />
             </div>
 
             <div className="p-5 flex flex-col flex-1">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Topic, TopicFiltersState } from '../types';
-import { enrollCourse, getAvailableStudentCourses } from '@/shared/api/learning';
+import { enrollCourse, getAvailableStudentCoursesPaged } from '@/shared/api/learning';
+import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 
 export const useTopics = () => {
     const [filters, setFilters] = useState<TopicFiltersState>({
@@ -13,6 +14,7 @@ export const useTopics = () => {
     const [allTopics, setAllTopics] = useState<Topic[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [enrollingTopicId, setEnrollingTopicId] = useState<string | null>(null);
+    const [totalItems, setTotalItems] = useState(0);
 
     const [page, setPage] = useState(1);
     const limit = 6;
@@ -23,9 +25,9 @@ export const useTopics = () => {
         async function fetchThemes() {
             setIsLoading(true);
             try {
-                const themes = await getAvailableStudentCourses();
+                const themes = await getAvailableStudentCoursesPaged({ page: page - 1, size: limit });
                 const mapped: Topic[] = themes
-                    .slice()
+                    .items.slice()
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((t) => {
                         const sectionCount =
@@ -33,8 +35,8 @@ export const useTopics = () => {
                             t.sections?.length ??
                             0;
                         const lessonCount =
-                            t.lessonCount ??
-                            (t.sections?.reduce((sum, s) => sum + (s.lessons?.length ?? 0), 0) ?? 0);
+                            t.contentCount ??
+                            (t.sections?.reduce((sum, s) => sum + (s.contents?.length ?? 0), 0) ?? 0);
                         return {
                             id: t.id,
                             slug: t.slug,
@@ -45,12 +47,16 @@ export const useTopics = () => {
                             sectionCount,
                             lessonCount,
                             courseCount: lessonCount,
-                            imageUrl: t.iconFileName ? `${t.iconFileName}` : '/images/Others/earth.png',
+                            imageUrl: resolveCourseIconSrc(t.iconFileName),
                         };
                     });
                 if (!cancelled) setAllTopics(mapped);
+                if (!cancelled) setTotalItems(themes.total);
             } catch {
-                if (!cancelled) setAllTopics([]);
+                if (!cancelled) {
+                    setAllTopics([]);
+                    setTotalItems(0);
+                }
             } finally {
                 if (!cancelled) setIsLoading(false);
             }
@@ -60,7 +66,7 @@ export const useTopics = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [page]);
 
     const filteredTopics = useMemo(() => {
         let result = [...allTopics];
@@ -88,8 +94,8 @@ export const useTopics = () => {
         return result;
     }, [allTopics, filters]);
 
-    const totalPages = Math.ceil(filteredTopics.length / limit);
-    const paginatedTopics = filteredTopics.slice((page - 1) * limit, page * limit);
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    const paginatedTopics = filteredTopics;
 
     async function handleEnroll(topicId: string) {
         if (enrollingTopicId) return;
@@ -113,7 +119,7 @@ export const useTopics = () => {
         page,
         setPage,
         totalPages,
-        totalItems: filteredTopics.length,
+        totalItems,
         isLoading,
         enrollingTopicId,
         enrollTopic: handleEnroll,

@@ -20,7 +20,7 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
     return (
         <div className="space-y-7">
             <section className="text-center border-b border-gray-200 pb-7">
-                <h3 className="text-[38px] font-semibold text-gray-700 mb-4">Quyền riêng tư</h3>
+                <h3 className="mb-4 text-3xl font-semibold text-gray-700 md:text-[38px]">Quyền riêng tư</h3>
                 <div className="max-w-3xl mx-auto text-left space-y-4">
                     <CheckboxRow
                         title="Quyền riêng tư của hồ sơ"
@@ -41,10 +41,10 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
             </section>
 
             <section className="border-b border-gray-200 pb-7">
-                <h3 className="text-[38px] font-semibold text-center text-gray-700 mb-4">Đổi mật khẩu</h3>
+                <h3 className="mb-4 text-center text-3xl font-semibold text-gray-700 md:text-[38px]">Đổi mật khẩu</h3>
                 <div className="space-y-3">
                     <PasswordField label="Mật khẩu hiện tại" value={password.currentPassword} onChange={(v) => onPasswordChange({ ...password, currentPassword: v })} />
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <PasswordField label="Mật khẩu mới" value={password.newPassword} onChange={(v) => onPasswordChange({ ...password, newPassword: v })} />
                         <PasswordField label="Xác nhận mật khẩu mới" value={password.confirmNewPassword} onChange={(v) => onPasswordChange({ ...password, confirmNewPassword: v })} />
                     </div>
@@ -56,11 +56,11 @@ export const ProfileSettingsTab: React.FC<ProfileSettingsTabProps> = ({
             </section>
 
             <section>
-                <h3 className="text-[38px] font-semibold text-center text-gray-700 mb-5">Tài khoản liên kết</h3>
+                <h3 className="mb-5 text-center text-3xl font-semibold text-gray-700 md:text-[38px]">Tài khoản liên kết</h3>
                 <div className="space-y-5">
                     {linkedAccounts.map((item) => (
                         <div key={item.provider}>
-                            <p className="text-[30px] leading-tight font-medium text-gray-700">Kết nối với {item.provider}</p>
+                            <p className="text-2xl leading-tight font-medium text-gray-700 md:text-[30px]">Kết nối với {item.provider}</p>
                             <p className="text-sm text-gray-600 max-w-2xl">{item.description}</p>
                             <div className="mt-2 text-sm">
                                 {item.status && <span className="text-gray-500 mr-2">{item.status}</span>}
@@ -84,7 +84,7 @@ interface CheckboxRowProps {
 const CheckboxRow: React.FC<CheckboxRowProps> = ({ title, description, checked, onChange }) => {
     return (
         <div>
-            <p className="text-[28px] leading-tight font-medium text-gray-700">{title}</p>
+            <p className="text-2xl leading-tight font-medium text-gray-700 md:text-[28px]">{title}</p>
             <p className="text-sm text-gray-600 mb-2 max-w-2xl">{description}</p>
             <label className="inline-flex items-center gap-2 text-sm text-gray-600">
                 <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />

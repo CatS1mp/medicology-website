@@ -20,6 +20,7 @@ import {
     updateCurrentSettings,
     updateCurrentUser,
 } from '@/features/auth/api';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 type Tab = 'profile' | 'security';
 
@@ -248,7 +249,13 @@ export function ConnectedProfileScreen() {
                             <button className={`rounded-2xl py-2 text-sm font-semibold ${tab === 'security' ? 'bg-[#2aa4e8] text-white' : 'text-gray-600'}`} onClick={() => setTab('security')}>Cài đặt và bảo mật</button>
                         </div>
 
-                        {loading ? <div className="py-20 text-center text-gray-500">Đang tải dữ liệu hồ sơ...</div> : (
+                        {loading ? (
+                            <div className="space-y-4 py-6">
+                                <Skeleton className="h-10 w-1/3 rounded" />
+                                <Skeleton className="h-24 w-full rounded-2xl" />
+                                <Skeleton className="h-72 w-full rounded-2xl" />
+                            </div>
+                        ) : (
                             <>
                                 <div className="mb-4 flex flex-col gap-4 border-b border-gray-300 pb-4 md:flex-row md:items-center">
                                     <div className="relative h-[96px] w-[96px] shrink-0 rounded-full border border-gray-200 bg-[#fafafa]">

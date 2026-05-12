@@ -8,6 +8,7 @@ import { TopicFilters } from './TopicFilters';
 import { TopicCard } from './TopicCard';
 import { useTopics } from '../hooks/useTopics';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { TopicCardSkeleton } from './TopicCardSkeleton';
 
 export const TopicsScreen: React.FC = () => {
     const { streakDays } = useLearningStreak();
@@ -44,7 +45,7 @@ export const TopicsScreen: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (
-                                <div className="col-span-full py-20 flex justify-center text-gray-500">Đang tải...</div>
+                                Array.from({ length: 6 }).map((_, i) => <TopicCardSkeleton key={`topic-skeleton-${i}`} />)
                             ) : topics.length > 0 ? (
                                 topics.map(topic => (
                                     <TopicCard 

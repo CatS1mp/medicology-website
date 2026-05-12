@@ -2,10 +2,11 @@
 
 import { Suspense } from 'react';
 import { SearchResultsScreen } from '@/features/encyclopedia';
+import { RouteLoadingSkeleton } from '@/shared/components/RouteLoadingSkeleton';
 
 export default function EncyclopediaResultsPage() {
     return (
-        <Suspense fallback={<div className="p-8 text-gray-400">Đang tải...</div>}>
+        <Suspense fallback={<RouteLoadingSkeleton />}>
             <SearchResultsScreen />
         </Suspense>
     );

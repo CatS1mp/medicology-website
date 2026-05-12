@@ -83,7 +83,11 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-export const AppSidebar: React.FC = () => {
+interface AppSidebarProps {
+    lockScroll?: boolean;
+}
+
+export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const [courseLinks, setCourseLinks] = useState<Array<{ slug: string; label: string }>>([]);
@@ -133,7 +137,7 @@ export const AppSidebar: React.FC = () => {
                 </button>
             </div>
 
-            <nav className="flex-1 overflow-y-auto py-5 px-4 font-sans">
+            <nav className={`flex-1 py-5 px-4 font-sans ${lockScroll ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                 {navGroups.map((group, groupIdx) => (
                     <div key={group.title} className={groupIdx !== 0 ? 'mt-8' : ''}>
                         {!collapsed && (

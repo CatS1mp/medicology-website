@@ -60,8 +60,8 @@ export const HomepageScreen = () => {
                                         src="/images/Others/earth.png"
                                         alt="Earth"
                                         fill
+                                        sizes="(max-width: 768px) 200px, 400px"
                                         style={{ objectFit: 'contain' }}
-                                        priority
                                     />
                                 </div>
 
@@ -70,6 +70,7 @@ export const HomepageScreen = () => {
                                         src="/images/Mascot/13 1.svg"
                                         alt="Robot"
                                         fill
+                                        sizes="(max-width: 768px) 240px, 450px"
                                         style={{ objectFit: 'contain' }}
                                         priority
                                     />
@@ -151,6 +152,7 @@ export const HomepageScreen = () => {
                                         src="/images/Mascot/3.svg"
                                         alt="Robot 1"
                                         fill
+                                        sizes="(max-width: 768px) 300px, 500px"
                                         style={{ objectFit: 'contain' }}
                                     />
                                 </div>
@@ -195,6 +197,7 @@ export const HomepageScreen = () => {
                                         src="/images/Others/laptop.svg"
                                         alt="Laptop Mockup"
                                         fill
+                                        sizes="(max-width: 768px) 300px, (max-width: 1024px) 450px, 450px"
                                         style={{ objectFit: 'contain' }}
                                     />
                                 </div>
@@ -242,6 +245,7 @@ export const HomepageScreen = () => {
                                             src="/images/Mascot/11.svg"
                                             alt="Robot Test"
                                             fill
+                                            sizes="(max-width: 768px) 300px, 500px"
                                             style={{ objectFit: 'contain' }}
                                         />
                                     </div>
@@ -258,6 +262,7 @@ export const HomepageScreen = () => {
                                         src="/images/Mascot/28.svg"
                                         alt="Robot Chart"
                                         fill
+                                        sizes="(max-width: 768px) 220px, 320px"
                                         style={{ objectFit: 'contain' }}
                                     />
                                 </div>

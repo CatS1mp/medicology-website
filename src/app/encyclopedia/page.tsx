@@ -1,5 +1,7 @@
-import { EncyclopediaLanding } from '@/features/encyclopedia';
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
+
+const EncyclopediaLanding = dynamic(() => import('@/features/encyclopedia').then((mod) => mod.EncyclopediaLanding));
 
 export const metadata: Metadata = {
     title: 'Bách khoa Y học - Medicology',

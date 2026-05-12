@@ -25,8 +25,8 @@ export const ProfileScreen: React.FC = () => {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AppHeader streak={0} onLogout={handleLogout} />
 
-                <div className="flex-1 overflow-y-auto px-6 py-4 lg:px-8">
-                    <div className="max-w-[1000px] mx-auto bg-white border border-gray-200 rounded-[6px] px-6 py-4 md:px-8">
+                <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 lg:px-8">
+                    <div className="mx-auto max-w-[1000px] rounded-[6px] border border-gray-200 bg-white px-4 py-4 md:px-8">
                         <div className="grid grid-cols-2 gap-1 bg-[#eef0f2] rounded-md p-1 mb-6">
                             <button
                                 className={`rounded-[6px] py-1.5 text-[12px] font-semibold transition-colors ${activeTab === 'personal' ? 'bg-[#2aa4e8] text-white' : 'text-gray-600'}`}
@@ -44,15 +44,15 @@ export const ProfileScreen: React.FC = () => {
 
                         {activeTab === 'personal' ? (
                             <>
-                                <div className="flex items-center gap-7 mb-5 px-1">
-                                    <div className="w-[90px] h-[90px] rounded-full border border-gray-200 bg-gray-100 flex items-center justify-center">
+                                <div className="mb-5 flex flex-col items-center gap-4 px-1 text-center sm:flex-row sm:items-center sm:text-left">
+                                    <div className="flex h-[90px] w-[90px] items-center justify-center rounded-full border border-gray-200 bg-gray-100">
                                         <svg width="44" height="44" viewBox="0 0 24 24" fill="currentColor" className="text-gray-500">
                                             <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-3.866 0-7 3.134-7 7h14c0-3.866-3.134-7-7-7z" />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h2 className="text-[42px] leading-[1.05] font-extrabold text-[#364f75]">{mockProfile.fullName}</h2>
-                                        <p className="text-[26px] text-gray-500">{mockProfile.username}</p>
+                                        <h2 className="text-3xl font-extrabold leading-[1.05] text-[#364f75] sm:text-[42px]">{mockProfile.fullName}</h2>
+                                        <p className="text-xl text-gray-500 sm:text-[26px]">{mockProfile.username}</p>
                                         <p className="text-sm text-gray-600 mt-1">{mockProfile.joinedAtLabel}</p>
                                     </div>
                                 </div>

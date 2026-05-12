@@ -21,6 +21,7 @@ import {
     type DictionaryCommentResponse,
 } from '../api';
 import type { ArticleComment } from '../types';
+import { ArticleDetailSkeleton } from './ArticleDetailSkeleton';
 
 interface ArticleDetailScreenProps {
     slug: string;
@@ -242,15 +243,7 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
     }
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen bg-white font-sans">
-                <AppSidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
-                    <div className="flex-1 flex items-center justify-center text-gray-400">Đang tải bài viết...</div>
-                </div>
-            </div>
-        );
+        return <ArticleDetailSkeleton streak={streakDays ?? 0} onLogout={handleLogout} />;
     }
 
     if (!article) {
