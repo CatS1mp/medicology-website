@@ -1,51 +1,55 @@
-export interface AssessmentDiscoveryResponse {
-    id: string;
-    title: string;
-    description: string | null;
-    courseId: string;
-    sectionId: string;
-    lessonId: string | null;
-    passScore: number;
-    timeLimitMinutes: number | null;
-    status: string;
-    active: boolean;
-}
-
-export interface AttemptQuestionResponse {
-    id: string;
-    content: string;
-    type: string;
-    displayOrder: number;
-    points: number;
-    payload: string;
-    version: number;
-}
-
 export interface AttemptStartResponse {
     attemptId: string;
-    assessmentId: string;
-    assessmentTitle: string;
+    contentId: string;
     status: string;
     startedAt: string;
-    questions: AttemptQuestionResponse[];
+    remainingSeconds: number;
+}
+
+export interface AttemptStartRequest {
+    estimatedDurationMinutes?: number | null;
 }
 
 export interface AttemptAnswerRequest {
-    questionId: string;
+    contentBlockId: string;
+    contentId: string;
     userAnswer: string;
+    kind: string;
+    payload?: string | null;
+    maxScore?: number | null;
+    orderIndex?: number | null;
+    isGradable?: boolean | null;
 }
 
 export interface AttemptAnswerResponse {
     attemptId: string;
-    questionId: string;
+    contentBlockId: string;
     userAnswer: string;
     gradingStatus: 'PENDING' | 'MANUAL_REVIEW' | 'FINALIZED';
     answeredAt: string;
 }
 
+export interface AttemptAnswerLookupResponse {
+    userAnswer: string | null;
+}
+
+export interface AttemptTickRequest {
+    deltaSeconds?: number;
+}
+
+export interface AttemptTickResponse {
+    remainingSeconds: number;
+}
+
+export interface AttemptInProgressItem {
+    attemptId: string;
+    contentId: string;
+    remainingSeconds: number;
+}
+
 export interface AttemptResultResponse {
     attemptId: string;
-    assessmentId: string;
+    contentId: string;
     score: number;
     maxScore: number;
     correctAnswers: number;
@@ -59,8 +63,7 @@ export interface AttemptResultResponse {
 
 export interface AttemptSummaryResponse {
     attemptId: string;
-    assessmentId: string;
-    assessmentTitle: string;
+    contentId: string;
     status: string;
     startedAt: string;
     submittedAt: string | null;
@@ -69,11 +72,10 @@ export interface AttemptSummaryResponse {
 }
 
 export interface AttemptReviewAnswerResponse {
-    questionId: string;
-    questionContent: string;
-    questionType: 'SINGLE_CHOICE' | 'FILL_IN_THE_BLANKS' | 'SHORT_ANSWER' | 'MATCHING' | 'ORDERING' | 'HOTSPOT_IMAGE';
-    displayOrder: number;
-    points: number;
+    contentBlockId: string;
+    blockKind: string;
+    orderIndex: number | null;
+    maxScore: number;
     payload: string;
     userAnswer: string | null;
     correct: boolean | null;
@@ -85,7 +87,17 @@ export interface AttemptReviewAnswerResponse {
     aiModel: string | null;
 }
 
-export interface AttemptReviewResponse extends AttemptResultResponse {
-    assessmentTitle: string;
+export interface AttemptReviewResponse {
+    attemptId: string;
+    contentId: string;
+    score: number;
+    maxScore: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    passed: boolean;
+    completedAt: string;
+    resultStatus: 'PROVISIONAL' | 'FINAL';
+    attemptStatus: 'IN_PROGRESS' | 'SUBMITTED' | 'PENDING_REVIEW' | 'FINALIZED';
+    pendingManualReviews: number;
     answers: AttemptReviewAnswerResponse[];
 }

@@ -1,10 +1,16 @@
-import { buildHeaders, requestApi, unwrapSpringData } from '@/shared/api/http';
-import type { AssessmentDiscoveryResponse } from '@/shared/types/assessment';
-import { normalizeSpringListPayload } from '@/shared/types/admin';
-import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
-import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
-
-const API = '/api/assessment';
+/** Legacy row shape for admin UI; standalone assessment CRUD was removed from the API. */
+export interface AssessmentAdminListItem {
+    id: string;
+    title: string;
+    description?: string | null;
+    courseId: string;
+    sectionId: string;
+    lessonId?: string | null;
+    passScore: number;
+    timeLimitMinutes?: number | null;
+    status: string;
+    active: boolean;
+}
 
 export interface AssessmentAdminDetail {
     id: string;
@@ -30,82 +36,31 @@ export interface AssessmentAdminQuestion {
     difficultyLevel?: string | null;
 }
 
-export async function listAssessmentsAdmin(): Promise<AssessmentDiscoveryResponse[]> {
-    return cachedGet(cacheKeys.admin.assessments(), CACHE_TTL.SHORT, async () => {
-        const rawBody = await requestApi<unknown>(
-            `${API}/assessments`,
-            { method: 'GET', headers: buildHeaders({ includeJsonContentType: false }) },
-            { unwrapData: false }
-        );
-        const data = unwrapSpringData<unknown>(rawBody);
-        const { items } = normalizeSpringListPayload<AssessmentDiscoveryResponse>(data);
-        return items;
-    });
+export async function listAssessmentsAdmin(): Promise<AssessmentAdminListItem[]> {
+    return [];
 }
 
-export async function createAssessmentAdmin(body: {
+export async function createAssessmentAdmin(_body: {
     title: string;
     courseId: string;
     sectionId: string;
     passScore: number;
     timeLimitMinutes?: number | null;
-}): Promise<AssessmentDiscoveryResponse> {
-    return mutateAndInvalidate(
-        () =>
-            requestApi<AssessmentDiscoveryResponse>(`${API}/assessments`, {
-                method: 'POST',
-                headers: buildHeaders(),
-                body: JSON.stringify(body),
-            }),
-        [],
-        [cacheKeys.admin.assessmentPrefix()]
-    );
+}): Promise<AssessmentAdminListItem> {
+    throw new Error('Quản lý bài kiểm tra độc lập đã gỡ bỏ. Nội dung chấm điểm nằm trong từng khối nội dung (content).');
 }
 
-export async function deleteAssessmentAdmin(assessmentId: string): Promise<void> {
-    await mutateAndInvalidate(
-        () =>
-            requestApi<void>(
-                `${API}/assessments/${encodeURIComponent(assessmentId)}`,
-                {
-                    method: 'DELETE',
-                    headers: buildHeaders({ includeJsonContentType: false }),
-                },
-                { unwrapData: false }
-            ),
-        [],
-        [cacheKeys.admin.assessmentPrefix()]
-    );
+export async function deleteAssessmentAdmin(_assessmentId: string): Promise<void> {
+    return;
 }
 
-export async function getAssessmentAdmin(assessmentId: string): Promise<AssessmentAdminDetail> {
-    return cachedGet(cacheKeys.admin.assessmentDetail(assessmentId), CACHE_TTL.SHORT, async () => {
-        const rawBody = await requestApi<unknown>(
-            `${API}/assessments/${encodeURIComponent(assessmentId)}`,
-            { method: 'GET', headers: buildHeaders({ includeJsonContentType: false }) },
-            { unwrapData: false }
-        );
-        return unwrapSpringData<AssessmentAdminDetail>(rawBody);
-    });
+export async function getAssessmentAdmin(_assessmentId: string): Promise<AssessmentAdminDetail> {
+    throw new Error('API bài kiểm tra độc lập đã gỡ bỏ; nội dung nằm trong khối content.');
 }
 
 export async function putAssessmentAdmin(
-    assessmentId: string,
-    body: Partial<AssessmentAdminDetail> & { title?: string; passScore?: number }
+    _assessmentId: string,
+    _body: Partial<AssessmentAdminDetail> & { title?: string; passScore?: number }
 ): Promise<AssessmentAdminDetail> {
-    const rawBody = await mutateAndInvalidate(
-        () =>
-            requestApi<unknown>(
-                `${API}/assessments/${encodeURIComponent(assessmentId)}`,
-                {
-                    method: 'PUT',
-                    headers: buildHeaders(),
-                    body: JSON.stringify(body),
-                },
-                { unwrapData: false }
-            ),
-        [],
-        [cacheKeys.admin.assessmentPrefix()]
-    );
-    return unwrapSpringData<AssessmentAdminDetail>(rawBody);
+    throw new Error('API bài kiểm tra độc lập đã gỡ bỏ; nội dung nằm trong khối content.');
 }

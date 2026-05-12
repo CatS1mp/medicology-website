@@ -7,18 +7,33 @@ import type {
 } from '@/features/encyclopedia/api';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
+import { normalizeSpringListPayload } from '@/shared/types/admin';
 
 const DICTIONARY = '/api/dictionary';
 
 export async function adminListArticles(): Promise<DictionaryArticleResponse[]> {
-    return cachedGet(cacheKeys.admin.dictionaryArticles(), CACHE_TTL.SHORT, async () => {
+    const { items } = await adminListArticlesPaged({ page: 0, size: 1000 });
+    return items;
+}
+
+export async function adminListArticlesPaged(params?: { page?: number; size?: number }): Promise<{ items: DictionaryArticleResponse[]; total: number }> {
+    const page = params?.page ?? 0;
+    const size = params?.size ?? 1000;
+    const search = new URLSearchParams();
+    search.set('page', String(page));
+    search.set('size', String(size));
+    const q = search.toString();
+    const url = `${DICTIONARY}/articles${q ? `?${q}` : ''}`;
+
+    const cacheKey = `${cacheKeys.admin.dictionaryArticles()}:${page}:${size}`;
+    return cachedGet(cacheKey, CACHE_TTL.SHORT, async () => {
         const rawBody = await requestApi<unknown>(
-            `${DICTIONARY}/articles`,
+            url,
             { method: 'GET', headers: buildHeaders({ includeJsonContentType: false }) },
             { unwrapData: false }
         );
         const data = unwrapSpringData<unknown>(rawBody);
-        return Array.isArray(data) ? (data as DictionaryArticleResponse[]) : [];
+        return normalizeSpringListPayload<DictionaryArticleResponse>(data);
     });
 }
 
@@ -106,8 +121,8 @@ export async function adminGetArticleById(articleId: string): Promise<Dictionary
             );
             return unwrapSpringData<DictionaryArticleResponse>(rawBody);
         } catch (error) {
-            const articles = await adminListArticles();
-            const matched = articles.find((article) => article.id === articleId);
+            const articles = await adminListArticlesPaged({ page: 0, size: 1000 });
+            const matched = articles.items.find((article) => article.id === articleId);
             if (matched) {
                 return matched;
             }

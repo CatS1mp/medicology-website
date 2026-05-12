@@ -17,29 +17,34 @@ function prefixed(prefix: string, ...parts: Array<string | number | null | undef
 
 export const cacheKeys = {
     learning: {
-        courses: () => prefixed('learner', 'learning', 'courses'),
-        enrolledCourses: () => prefixed('learner', 'learning', 'courses', 'enrolled'),
-        availableCourses: () => prefixed('learner', 'learning', 'courses', 'available'),
+        /** v2: list payloads normalized from PaginatedResponse; bump clears stale sessionStorage */
+        courses: () => prefixed('learner', 'learning', 'courses', 'v2'),
+        enrolledCourses: () => prefixed('learner', 'learning', 'courses', 'enrolled', 'v2'),
+        availableCourses: () => prefixed('learner', 'learning', 'courses', 'available', 'v2'),
         progress: () => prefixed('learner', 'learning', 'progress'),
+        contentActivity: (days: number) => prefixed('learner', 'learning', 'progress', 'activity', days),
+        contentActivityPrefix: () => prefixed('learner', 'learning', 'progress', 'activity'),
+        /** @deprecated use contentActivity */
         lessonActivity: (days: number) => prefixed('learner', 'learning', 'progress', 'activity', days),
+        /** @deprecated use contentActivityPrefix */
         lessonActivityPrefix: () => prefixed('learner', 'learning', 'progress', 'activity'),
         streak: () => prefixed('learner', 'learning', 'streak'),
         learningPath: () => prefixed('learner', 'learning', 'path'),
         courseDetail: (courseId: string) => prefixed('learner', 'learning', 'course', courseId),
         courseSections: (courseId: string) => prefixed('learner', 'learning', 'course', courseId, 'sections'),
         sectionDetail: (sectionId: string) => prefixed('learner', 'learning', 'section', sectionId),
-        sectionLessons: (sectionId: string) => prefixed('learner', 'learning', 'section', sectionId, 'lessons'),
-        lessonDetail: (lessonId: string) => prefixed('learner', 'learning', 'lesson', lessonId),
-        lessonBlockProgress: (lessonId: string) => prefixed('learner', 'learning', 'lesson', lessonId, 'block-progress'),
+        sectionContents: (sectionId: string) => prefixed('learner', 'learning', 'section', sectionId, 'contents'),
+        contentDetail: (contentId: string) => prefixed('learner', 'learning', 'content', contentId),
     },
     assessment: {
         myAttempts: () => prefixed('learner', 'assessment', 'my-attempts'),
         attemptResult: (attemptId: string) => prefixed('learner', 'assessment', 'attempt', attemptId, 'result'),
-        sectionAssessment: (sectionId: string, lessonId?: string) =>
-            prefixed('learner', 'assessment', 'section', sectionId, 'discovery', lessonId ?? 'all'),
+        attemptReview: (attemptId: string) => prefixed('learner', 'assessment', 'attempt', attemptId, 'review'),
+        inProgressAttempts: () => prefixed('learner', 'assessment', 'in-progress'),
     },
     dictionary: {
-        articles: () => prefixed('learner', 'dictionary', 'articles'),
+        /** bumped when article list payload shape changed (PaginatedResponse `content`) */
+        articles: () => prefixed('learner', 'dictionary', 'articles', 'v2'),
         articlePrefix: () => prefixed('learner', 'dictionary', 'article'),
         articleBySlug: (slug: string) => prefixed('learner', 'dictionary', 'article', slug),
         articleInteractions: (articleId: string) => prefixed('learner', 'dictionary', 'article', articleId, 'interactions'),
@@ -52,6 +57,7 @@ export const cacheKeys = {
         currentProfile: () => prefixed('auth', 'current-profile'),
         currentSettings: () => prefixed('auth', 'current-settings'),
         linkedAccounts: () => prefixed('auth', 'linked-accounts'),
+        sessions: () => prefixed('auth', 'sessions'),
     },
     admin: {
         users: (page?: number, size?: number) => prefixed('admin', 'users', `p${page ?? 0}`, `s${size ?? 0}`),
@@ -59,7 +65,7 @@ export const cacheKeys = {
         usersPrefix: () => prefixed('admin', 'users'),
         courses: () => prefixed('admin', 'learning', 'courses'),
         sections: (courseId: string) => prefixed('admin', 'learning', 'course', courseId, 'sections'),
-        lessons: (sectionId: string) => prefixed('admin', 'learning', 'section', sectionId, 'lessons'),
+        contents: (sectionId: string) => prefixed('admin', 'learning', 'section', sectionId, 'contents'),
         learningPrefix: () => prefixed('admin', 'learning'),
         assessments: () => prefixed('admin', 'assessment', 'assessments'),
         assessmentDetail: (assessmentId: string) => prefixed('admin', 'assessment', 'assessment', assessmentId),

@@ -1,5 +1,5 @@
 import { buildHeaders, requestApi, unwrapSpringData } from '@/shared/api/http';
-import type { CourseResponse, LessonResponse, SectionResponse } from '@/shared/types/learning';
+import type { ContentBlockTemplateResponse, ContentResponse, CourseResponse, SectionResponse } from '@/shared/types/learning';
 import { normalizeSpringListPayload } from '@/shared/types/admin';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
@@ -7,16 +7,27 @@ import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 const API = '/api/learning';
 
 export async function adminListCourses(): Promise<CourseResponse[]> {
-    return cachedGet(cacheKeys.admin.courses(), CACHE_TTL.SHORT, async () => {
+    const { items } = await adminListCoursesPaged({ page: 0, size: 1000 });
+    return items;
+}
+
+export async function adminListCoursesPaged(params?: { page?: number; size?: number }): Promise<{ items: CourseResponse[]; total: number }> {
+    const page = params?.page ?? 0;
+    const size = params?.size ?? 1000;
+    const search = new URLSearchParams();
+    search.set('page', String(page));
+    search.set('size', String(size));
+    const q = search.toString();
+
+    const cacheKey = `${cacheKeys.admin.courses()}:${page}:${size}`;
+    return cachedGet(cacheKey, CACHE_TTL.SHORT, async () => {
         const rawBody = await requestApi<unknown>(
-            `${API}/courses`,
+            `${API}/courses${q ? `?${q}` : ''}`,
             { method: 'GET', headers: buildHeaders({ includeJsonContentType: false }) },
             { unwrapData: false }
         );
         const data = unwrapSpringData<unknown>(rawBody);
-        if (Array.isArray(data)) return data as CourseResponse[];
-        const { items } = normalizeSpringListPayload<CourseResponse>(data);
-        return items;
+        return normalizeSpringListPayload<CourseResponse>(data);
     });
 }
 
@@ -24,35 +35,27 @@ export type AdminCreateCourseBody = {
     name: string;
     slug: string;
     description?: string | null;
-    iconFileName?: string | null;
+    iconFile: File;
     colorCode?: string | null;
-    orderIndex?: number;
-    /** Learning service may accept extra fields; omitted if unsupported */
-    targetAudience?: string | null;
-    contentRating?: string | null;
 };
 
 export async function adminCreateCourse(body: AdminCreateCourseBody): Promise<CourseResponse> {
-    const payload: Record<string, unknown> = {
+    const requestPayload: Record<string, unknown> = {
         name: body.name,
         slug: body.slug,
         description: body.description ?? null,
-        iconFileName: body.iconFileName ?? null,
         colorCode: body.colorCode ?? null,
-        orderIndex: body.orderIndex ?? 0,
     };
-    if (body.targetAudience != null && body.targetAudience !== '') {
-        payload.targetAudience = body.targetAudience;
-    }
-    if (body.contentRating != null && body.contentRating !== '') {
-        payload.contentRating = body.contentRating;
-    }
+    const formData = new FormData();
+    formData.append('request', JSON.stringify(requestPayload));
+    formData.append('iconFile', body.iconFile);
+
     return mutateAndInvalidate(
         () =>
             requestApi<CourseResponse>(`${API}/courses`, {
                 method: 'POST',
-                headers: buildHeaders(),
-                body: JSON.stringify(payload),
+                headers: buildHeaders({ includeJsonContentType: false }),
+                body: formData,
             }),
         [],
         [cacheKeys.admin.learningPrefix()]
@@ -97,16 +100,28 @@ export async function adminListSections(courseId: string): Promise<SectionRespon
     );
 }
 
-export async function adminListLessons(sectionId: string): Promise<LessonResponse[]> {
-    return cachedGet(cacheKeys.admin.lessons(sectionId), CACHE_TTL.SHORT, () =>
-        requestApi<LessonResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/lessons`, {
+export async function adminListContents(sectionId: string): Promise<ContentResponse[]> {
+    return cachedGet(cacheKeys.admin.contents(sectionId), CACHE_TTL.SHORT, () =>
+        requestApi<ContentResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/contents`, {
             method: 'GET',
             headers: buildHeaders(),
         })
     );
 }
 
-export async function adminCreateLesson(body: {
+/** @deprecated use adminListContents */
+export const adminListLessons = adminListContents;
+
+export async function adminListBlockTemplates(): Promise<ContentBlockTemplateResponse[]> {
+    return cachedGet(`${cacheKeys.admin.learningPrefix()}:block-templates`, CACHE_TTL.SHORT, () =>
+        requestApi<ContentBlockTemplateResponse[]>(`${API}/block-templates`, {
+            method: 'GET',
+            headers: buildHeaders(),
+        })
+    );
+}
+
+export async function adminCreateContent(body: {
     sectionId: string;
     name: string;
     slug: string;
@@ -114,10 +129,10 @@ export async function adminCreateLesson(body: {
     orderIndex?: number;
     estimatedDurationMinutes?: number | null;
     difficultyLevel?: string | null;
-}): Promise<LessonResponse> {
+}): Promise<ContentResponse> {
     return mutateAndInvalidate(
         () =>
-            requestApi<LessonResponse>(`${API}/lessons`, {
+            requestApi<ContentResponse>(`${API}/contents`, {
                 method: 'POST',
                 headers: buildHeaders(),
                 body: JSON.stringify(body),
@@ -127,10 +142,13 @@ export async function adminCreateLesson(body: {
     );
 }
 
-export async function adminUpdateLesson(lessonId: string, body: Partial<LessonResponse>): Promise<LessonResponse> {
+/** @deprecated use adminCreateContent */
+export const adminCreateLesson = adminCreateContent;
+
+export async function adminUpdateContent(contentId: string, body: Partial<ContentResponse>): Promise<ContentResponse> {
     return mutateAndInvalidate(
         () =>
-            requestApi<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}`, {
+            requestApi<ContentResponse>(`${API}/contents/${encodeURIComponent(contentId)}`, {
                 method: 'PUT',
                 headers: buildHeaders(),
                 body: JSON.stringify(body),
@@ -140,11 +158,14 @@ export async function adminUpdateLesson(lessonId: string, body: Partial<LessonRe
     );
 }
 
-export async function adminDeleteLesson(lessonId: string): Promise<void> {
+/** @deprecated use adminUpdateContent */
+export const adminUpdateLesson = adminUpdateContent;
+
+export async function adminDeleteContent(contentId: string): Promise<void> {
     await mutateAndInvalidate(
         () =>
             requestApi<void>(
-                `${API}/lessons/${encodeURIComponent(lessonId)}`,
+                `${API}/contents/${encodeURIComponent(contentId)}`,
                 {
                     method: 'DELETE',
                     headers: buildHeaders({ includeJsonContentType: false }),
@@ -156,10 +177,13 @@ export async function adminDeleteLesson(lessonId: string): Promise<void> {
     );
 }
 
-export async function adminPatchLessonStatus(lessonId: string, isActive: boolean): Promise<LessonResponse> {
+/** @deprecated use adminDeleteContent */
+export const adminDeleteLesson = adminDeleteContent;
+
+export async function adminPatchContentStatus(contentId: string, isActive: boolean): Promise<ContentResponse> {
     return mutateAndInvalidate(
         () =>
-            requestApi<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}/status`, {
+            requestApi<ContentResponse>(`${API}/contents/${encodeURIComponent(contentId)}/status`, {
                 method: 'PATCH',
                 headers: buildHeaders(),
                 body: JSON.stringify({ isActive }),
@@ -168,6 +192,9 @@ export async function adminPatchLessonStatus(lessonId: string, isActive: boolean
         [cacheKeys.admin.learningPrefix()]
     );
 }
+
+/** @deprecated use adminPatchContentStatus */
+export const adminPatchLessonStatus = adminPatchContentStatus;
 
 export async function adminGetCourse(courseId: string): Promise<CourseResponse> {
     return requestApi<CourseResponse>(`${API}/courses/${encodeURIComponent(courseId)}`, {

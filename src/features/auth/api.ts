@@ -236,13 +236,15 @@ export function unlinkLinkedAccount(provider: string, accessToken?: string): Pro
 }
 
 export function getSessions(accessToken?: string): Promise<UserSession[]> {
-    return jsonGet<UserSession[]>(`${SESSIONS}`, accessToken);
+    return cachedGet(authScopedKey(cacheKeys.auth.sessions(), accessToken), CACHE_TTL.SHORT, () =>
+        jsonGet<UserSession[]>(`${SESSIONS}`, accessToken)
+    );
 }
 
 export function revokeSession(sessionId: string, accessToken?: string): Promise<void> {
     return mutateAndInvalidate(
         () => jsonDelete<void>(`${SESSIONS}/${encodeURIComponent(sessionId)}`, accessToken),
-        [],
+        [authScopedKey(cacheKeys.auth.sessions(), accessToken)],
         ['auth:']
     );
 }

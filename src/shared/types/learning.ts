@@ -1,4 +1,4 @@
-export type LessonContentBlockKind =
+export type ContentBlockKind =
     | 'RICH_TEXT'
     | 'INFOGRAPHIC'
     | 'QUIZ_MCQ'
@@ -7,16 +7,36 @@ export type LessonContentBlockKind =
     | 'FLASHCARD'
     | 'MATCHING'
     | 'ORDERING'
-    | 'HOTSPOT_IMAGE'
     | 'TIMELINE';
 
-export interface LessonContentBlockResponse {
+/** @deprecated use ContentBlockKind */
+export type LessonContentBlockKind = ContentBlockKind;
+
+export interface ContentBlockResponse {
     id: string;
     orderIndex: number;
-    kind: LessonContentBlockKind;
+    kind: ContentBlockKind;
     payload: string;
-    assessmentId: string | null;
-    questionId: string | null;
+    maxScore: number | null;
+    isGradable: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** @deprecated use ContentBlockResponse */
+export type LessonContentBlockResponse = ContentBlockResponse;
+
+export interface ContentBlockTemplateResponse {
+    id: string;
+    kind: ContentBlockKind;
+    name: string;
+    description: string | null;
+    payloadSchemaJson: string;
+    starterPayloadJson: string;
+    defaultIsGradable: boolean;
+    defaultMaxScore: number | null;
+    allowScoreEdit: boolean;
+    isActive: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -32,7 +52,7 @@ export interface LessonInfographicPayload {
     caption?: string;
 }
 
-export interface LessonSummaryResponse {
+export interface ContentSummaryResponse {
     id: string;
     name: string;
     description: string | null;
@@ -42,10 +62,13 @@ export interface LessonSummaryResponse {
     difficultyLevel: string | null;
     isActive: boolean;
     content: string | null;
-    blocks: LessonContentBlockResponse[] | null;
+    blocks: ContentBlockResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
+
+/** @deprecated use ContentSummaryResponse */
+export type LessonSummaryResponse = ContentSummaryResponse;
 
 export interface SectionSummaryResponse {
     id: string;
@@ -53,7 +76,7 @@ export interface SectionSummaryResponse {
     slug: string;
     orderIndex: number;
     estimatedDurationMinutes: number | null;
-    lessons: LessonSummaryResponse[] | null;
+    contents: ContentSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -66,10 +89,10 @@ export interface CourseResponse {
     iconFileName: string | null;
     colorCode: string | null;
     orderIndex: number;
-    /** Sections (chặng) count from API when sections list is omitted. */
+    /** Present on some admin/learner payloads */
+    isActive?: boolean;
     sectionCount?: number;
-    /** Total lessons in course when sections list is omitted. */
-    lessonCount?: number;
+    contentCount?: number;
     sections: SectionSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;
@@ -82,12 +105,12 @@ export interface SectionResponse {
     slug: string;
     orderIndex: number;
     estimatedDurationMinutes: number | null;
-    lessons: LessonSummaryResponse[] | null;
+    contents: ContentSummaryResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface LessonResponse {
+export interface ContentResponse {
     id: string;
     sectionId: string;
     name: string;
@@ -98,21 +121,28 @@ export interface LessonResponse {
     difficultyLevel: string | null;
     isActive: boolean;
     content: string | null;
-    blocks: LessonContentBlockResponse[] | null;
+    blocks: ContentBlockResponse[] | null;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface LessonBlockProgressResponse {
-    blockId: string;
-    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-    score: number | null;
-    maxScore: number | null;
-    attemptId: string | null;
-    gradingStatus: 'NOT_GRADED' | 'PENDING_REVIEW' | 'FINALIZED';
-    completedAt: string | null;
-    updatedAt: string;
+/** @deprecated use ContentResponse */
+export type LessonResponse = ContentResponse;
+
+export interface ContentActivityResponse {
+    date: string;
+    completedContents: number;
 }
+
+export interface ContentActivitySummaryResponse {
+    totalCompletedContents: number;
+    activities: ContentActivityResponse[];
+}
+
+/** @deprecated */
+export type LessonActivityResponse = ContentActivityResponse;
+/** @deprecated */
+export type LessonActivitySummaryResponse = ContentActivitySummaryResponse;
 
 export interface CourseProgressResponse {
     courseId: string;
@@ -120,16 +150,6 @@ export interface CourseProgressResponse {
     courseSlug: string;
     lastStudiedAt: string | null;
     completionPercent: number;
-}
-
-export interface LessonActivityResponse {
-    date: string;
-    completedLessons: number;
-}
-
-export interface LessonActivitySummaryResponse {
-    totalCompletedLessons: number;
-    activities: LessonActivityResponse[];
 }
 
 export interface UserDailyStreak {
@@ -201,7 +221,7 @@ export interface UserSectionTest {
 
 export type Theme = CourseResponse;
 export type Section = SectionResponse;
-export type Course = LessonResponse;
+export type Course = CourseResponse;
 export type UserCourse = CourseProgressResponse;
 
 export class LearningApiError extends Error {

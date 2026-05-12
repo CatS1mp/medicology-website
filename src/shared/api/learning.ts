@@ -1,12 +1,11 @@
 import {
     AiLearningFeedback,
+    ContentActivitySummaryResponse,
     CourseProgressResponse,
     CourseResponse,
     LearningApiError,
-    LessonActivitySummaryResponse,
-    LessonBlockProgressResponse,
+    ContentResponse,
     LearningPathResponse,
-    LessonResponse,
     RequestAiFeedback,
     SectionResponse,
     Theme,
@@ -15,6 +14,7 @@ import {
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
+import { normalizeSpringListPayload } from '@/shared/types/admin';
 
 const API = '/api/learning';
 
@@ -59,10 +59,24 @@ function jsonPost<T>(url: string, data?: unknown): Promise<T> {
     });
 }
 
+/** Learning service wraps list results in a Spring-style paginated object (`content`, `totalElements`, …). */
+function fetchCourseList(subpath: string): Promise<CourseResponse[]> {
+    const query = new URLSearchParams({ page: '0', size: '5000' }).toString();
+    return requestApi<unknown>(`${API}/${subpath}?${query}`, {
+        method: 'GET',
+        headers: buildHeaders({ includeJsonContentType: false }),
+    }).then((raw) => normalizeSpringListPayload<CourseResponse>(raw).items);
+}
+
+/** Coerce cached or legacy payloads (e.g. raw PaginatedResponse) into a flat list. */
+function toLearnerCourseList(raw: unknown): CourseResponse[] {
+    if (raw == null) return [];
+    if (Array.isArray(raw)) return raw as CourseResponse[];
+    return normalizeSpringListPayload<CourseResponse>(raw).items;
+}
+
 export function getCourses(): Promise<CourseResponse[]> {
-    return cachedGet(cacheKeys.learning.courses(), CACHE_TTL.LONG, () =>
-        jsonGet<CourseResponse[]>(`${API}/courses`)
-    );
+    return cachedGet(cacheKeys.learning.courses(), CACHE_TTL.LONG, () => fetchCourseList('courses')).then(toLearnerCourseList);
 }
 
 export function getThemes(): Promise<Theme[]> {
@@ -71,14 +85,36 @@ export function getThemes(): Promise<Theme[]> {
 
 export function getEnrolledCourses(): Promise<CourseResponse[]> {
     return cachedGet(cacheKeys.learning.enrolledCourses(), CACHE_TTL.SHORT, () =>
-        jsonGet<CourseResponse[]>(`${API}/courses/enrolled`)
-    );
+        fetchCourseList('courses/enrolled')
+    ).then(toLearnerCourseList);
 }
 
 export function getAvailableStudentCourses(): Promise<CourseResponse[]> {
     return cachedGet(cacheKeys.learning.availableCourses(), CACHE_TTL.SHORT, () =>
-        jsonGet<CourseResponse[]>(`${API}/courses/student/available`)
-    );
+        fetchCourseList('courses/student/available')
+    ).then(toLearnerCourseList);
+}
+
+export function getEnrolledCoursesPaged(params: { page: number; size: number }): Promise<{ items: CourseResponse[]; total: number }> {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) }).toString();
+    return cachedGet(`${cacheKeys.learning.enrolledCourses()}:${params.page}:${params.size}`, CACHE_TTL.SHORT, async () => {
+        const raw = await requestApi<unknown>(`${API}/courses/enrolled?${query}`, {
+            method: 'GET',
+            headers: buildHeaders({ includeJsonContentType: false }),
+        });
+        return normalizeSpringListPayload<CourseResponse>(raw);
+    });
+}
+
+export function getAvailableStudentCoursesPaged(params: { page: number; size: number }): Promise<{ items: CourseResponse[]; total: number }> {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) }).toString();
+    return cachedGet(`${cacheKeys.learning.availableCourses()}:${params.page}:${params.size}`, CACHE_TTL.SHORT, async () => {
+        const raw = await requestApi<unknown>(`${API}/courses/student/available?${query}`, {
+            method: 'GET',
+            headers: buildHeaders({ includeJsonContentType: false }),
+        });
+        return normalizeSpringListPayload<CourseResponse>(raw);
+    });
 }
 
 export function getLearningPath(): Promise<LearningPathResponse> {
@@ -109,53 +145,23 @@ export function getSectionDetail(sectionId: string): Promise<SectionResponse> {
     );
 }
 
-export function getSectionLessons(sectionId: string): Promise<LessonResponse[]> {
-    return cachedGet(cacheKeys.learning.sectionLessons(sectionId), CACHE_TTL.SHORT, () =>
-        jsonGet<LessonResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/lessons`)
+export function getSectionContents(sectionId: string): Promise<ContentResponse[]> {
+    return cachedGet(cacheKeys.learning.sectionContents(sectionId), CACHE_TTL.SHORT, () =>
+        jsonGet<ContentResponse[]>(`${API}/sections/${encodeURIComponent(sectionId)}/contents`)
     );
 }
 
-export function getLessonDetail(lessonId: string): Promise<LessonResponse> {
-    return cachedGet(cacheKeys.learning.lessonDetail(lessonId), CACHE_TTL.SHORT, () =>
-        jsonGet<LessonResponse>(`${API}/lessons/${encodeURIComponent(lessonId)}`)
+/** @deprecated use getSectionContents */
+export const getSectionLessons = getSectionContents;
+
+export function getContentDetail(contentId: string): Promise<ContentResponse> {
+    return cachedGet(cacheKeys.learning.contentDetail(contentId), CACHE_TTL.SHORT, () =>
+        jsonGet<ContentResponse>(`${API}/contents/${encodeURIComponent(contentId)}`)
     );
 }
 
-export function getLessonBlockProgress(lessonId: string): Promise<LessonBlockProgressResponse[]> {
-    return cachedGet(cacheKeys.learning.lessonBlockProgress(lessonId), CACHE_TTL.SHORT, () =>
-        jsonGet<LessonBlockProgressResponse[]>(`${API}/lessons/${encodeURIComponent(lessonId)}/blocks/progress`)
-    );
-}
-
-export function completeLesson(lessonId: string): Promise<void> {
-    return mutateAndInvalidate(
-        () => jsonPost<void>(`${API}/lessons/${encodeURIComponent(lessonId)}/complete`),
-        [cacheKeys.learning.progress(), cacheKeys.learning.streak(), cacheKeys.learning.lessonDetail(lessonId)],
-        [cacheKeys.learning.lessonActivityPrefix()]
-    );
-}
-
-export function updateLessonBlockProgress(
-    lessonId: string,
-    blockId: string,
-    data: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; attemptId?: string }
-): Promise<LessonBlockProgressResponse> {
-    return mutateAndInvalidate(
-        () =>
-            requestApi<LessonBlockProgressResponse>(
-                `${API}/lessons/${encodeURIComponent(lessonId)}/blocks/${encodeURIComponent(blockId)}/progress`,
-                {
-                    method: 'PATCH',
-                    headers: buildHeaders(),
-                    body: JSON.stringify(data),
-                }
-            ).catch((error: unknown) => {
-                throw normalizeLearningError(error);
-            }),
-        [cacheKeys.learning.progress(), cacheKeys.learning.lessonDetail(lessonId), cacheKeys.learning.lessonBlockProgress(lessonId)],
-        [cacheKeys.learning.lessonActivityPrefix()]
-    );
-}
+/** @deprecated use getContentDetail */
+export const getLessonDetail = getContentDetail;
 
 export function enrollCourse(courseId: string): Promise<CourseResponse> {
     return mutateAndInvalidate(
@@ -178,12 +184,15 @@ export function getProgress(): Promise<CourseProgressResponse[]> {
     );
 }
 
-export function getLessonActivity(days: number = 7): Promise<LessonActivitySummaryResponse> {
+export function getContentActivity(days: number = 7): Promise<ContentActivitySummaryResponse> {
     const normalizedDays = Math.max(1, days);
-    return cachedGet(cacheKeys.learning.lessonActivity(normalizedDays), CACHE_TTL.SHORT, () =>
-        jsonGet<LessonActivitySummaryResponse>(`${API}/progress/activity?days=${normalizedDays}`)
+    return cachedGet(cacheKeys.learning.contentActivity(normalizedDays), CACHE_TTL.SHORT, () =>
+        jsonGet<ContentActivitySummaryResponse>(`${API}/progress/activity?days=${normalizedDays}`)
     );
 }
+
+/** @deprecated use getContentActivity */
+export const getLessonActivity = getContentActivity;
 
 export function pingStreak(): Promise<UserDailyStreak> {
     return jsonPost<UserDailyStreak>(`${API}/progress/streak/ping`);

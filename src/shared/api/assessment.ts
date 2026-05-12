@@ -2,13 +2,17 @@ import { buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 import type {
-    AssessmentDiscoveryResponse,
+    AttemptAnswerLookupResponse,
     AttemptAnswerRequest,
     AttemptAnswerResponse,
-    AttemptReviewResponse,
+    AttemptInProgressItem,
     AttemptResultResponse,
+    AttemptReviewResponse,
+    AttemptStartRequest,
     AttemptStartResponse,
     AttemptSummaryResponse,
+    AttemptTickRequest,
+    AttemptTickResponse,
 } from '@/shared/types/assessment';
 
 const API = '/api/assessment';
@@ -28,32 +32,46 @@ function post<T>(url: string, data?: unknown): Promise<T> {
     });
 }
 
-export function getSectionAssessment(sectionId: string, lessonId?: string): Promise<AssessmentDiscoveryResponse | null> {
-    const search = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : '';
-    return cachedGet(cacheKeys.assessment.sectionAssessment(sectionId, lessonId), CACHE_TTL.MEDIUM, () =>
-        get<AssessmentDiscoveryResponse | null>(`${API}/sections/${sectionId}/assessment${search}`)
-    );
-}
-
-export function startAttempt(assessmentId: string): Promise<AttemptStartResponse> {
-    return post<AttemptStartResponse>(`${API}/assessments/${assessmentId}/attempts`);
+export function startAttempt(contentId: string, body?: AttemptStartRequest): Promise<AttemptStartResponse> {
+    return post<AttemptStartResponse>(`${API}/contents/${encodeURIComponent(contentId)}/attempts`, body ?? {});
 }
 
 export function saveAttemptAnswer(attemptId: string, data: AttemptAnswerRequest): Promise<AttemptAnswerResponse> {
-    return post<AttemptAnswerResponse>(`${API}/attempts/${attemptId}/answers`, data);
+    return post<AttemptAnswerResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/answers`, data);
+}
+
+export function getAttemptAnswer(attemptId: string, contentBlockId: string): Promise<AttemptAnswerLookupResponse> {
+    return get<AttemptAnswerLookupResponse>(
+        `${API}/attempts/${encodeURIComponent(attemptId)}/blocks/${encodeURIComponent(contentBlockId)}/answer`
+    );
+}
+
+export function tickAttempt(attemptId: string, body?: AttemptTickRequest): Promise<AttemptTickResponse> {
+    return post<AttemptTickResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/tick`, body ?? {});
+}
+
+export function getMyInProgressAttempts(): Promise<AttemptInProgressItem[]> {
+    return cachedGet(cacheKeys.assessment.inProgressAttempts(), CACHE_TTL.SHORT, () =>
+        get<AttemptInProgressItem[]>(`${API}/users/me/in-progress-attempts`)
+    );
 }
 
 export function submitAttempt(attemptId: string): Promise<AttemptResultResponse> {
     return mutateAndInvalidate(
-        () => post<AttemptResultResponse>(`${API}/attempts/${attemptId}/submit`),
-        [cacheKeys.assessment.myAttempts(), cacheKeys.assessment.attemptResult(attemptId)]
+        () => post<AttemptResultResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/submit`),
+        [cacheKeys.assessment.myAttempts(), cacheKeys.assessment.attemptResult(attemptId), cacheKeys.assessment.inProgressAttempts()]
     );
 }
 
 export function getAttemptResult(attemptId: string): Promise<AttemptResultResponse> {
     return cachedGet(cacheKeys.assessment.attemptResult(attemptId), CACHE_TTL.LONG, () =>
-        get<AttemptResultResponse>(`${API}/attempts/${attemptId}/result`)
+        get<AttemptResultResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/result`)
     );
+}
+
+/** GET kết quả không qua cache — dùng khi poll trạng thái chấm (PROVISIONAL → FINAL). */
+export function getAttemptResultFresh(attemptId: string): Promise<AttemptResultResponse> {
+    return get<AttemptResultResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/result`);
 }
 
 export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
@@ -63,5 +81,7 @@ export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
 }
 
 export function getAttemptReview(attemptId: string): Promise<AttemptReviewResponse> {
-    return get<AttemptReviewResponse>(`${API}/attempts/${attemptId}/review`);
+    return cachedGet(cacheKeys.assessment.attemptReview(attemptId), CACHE_TTL.MEDIUM, () =>
+        get<AttemptReviewResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/review`)
+    );
 }
