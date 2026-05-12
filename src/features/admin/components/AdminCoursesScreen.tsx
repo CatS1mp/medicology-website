@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
 import { AdminAddCourseModal } from './AdminAddCourseModal';
-import { adminDeleteCourse, adminListCourses } from '@/shared/api/admin-learning';
+import { adminDeleteCourse, adminListCoursesPaged } from '@/shared/api/admin-learning';
 import type { CourseResponse } from '@/shared/types/learning';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 
 type CourseLevel = 'General' | 'Teen' | 'Adult';
 
@@ -50,6 +51,9 @@ export const AdminCoursesScreen: React.FC = () => {
     const [rows, setRows] = useState<CourseRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const PAGE_SIZE = 20;
 
     const rowsWithKeys = useMemo(
         () => rows.map((course, index) => ({ course, rowKey: `${course.id}-${index}` })),
@@ -60,15 +64,17 @@ export const AdminCoursesScreen: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const list = await adminListCourses();
-            setRows(list.map(mapCourse));
+            const { items, total: totalItems } = await adminListCoursesPaged({ page: page - 1, size: PAGE_SIZE });
+            setRows(items.map(mapCourse));
+            setTotal(totalItems);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Không tải được danh sách khóa học.');
             setRows([]);
+            setTotal(0);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page]);
 
     useEffect(() => {
         void load();
@@ -250,7 +256,21 @@ export const AdminCoursesScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Đang tải…</p>}
+                {loading && (
+                    <AdminTableSkeleton
+                        columns={[
+                            { key: 'sel', width: 'w-6' },
+                            { key: 'code', width: 'w-14' },
+                            { key: 'name', width: 'w-56' },
+                            { key: 'topic', width: 'w-40' },
+                            { key: 'target', width: 'w-20' },
+                            { key: 'updated', width: 'w-24' },
+                            { key: 'order', width: 'w-10' },
+                            { key: 'level', width: 'w-16' },
+                            { key: 'actions', width: 'w-12' },
+                        ]}
+                    />
+                )}
                 {!loading && !error && rows.length === 0 && (
                     <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Chưa có khóa học.</p>
                 )}
@@ -365,16 +385,16 @@ export const AdminCoursesScreen: React.FC = () => {
 
                 <div className={styles.coursePagination}>
                     <p>
-                        Hiển thị <b>1-{rows.length || 0}</b> trong tổng số <b>{rows.length}</b> khoá học chuyên đề
+                        Hiển thị <b>{rows.length ? (page - 1) * PAGE_SIZE + 1 : 0}-{(page - 1) * PAGE_SIZE + rows.length}</b> trong tổng số <b>{total}</b> khoá học chuyên đề
                     </p>
                     <div className={styles.coursePageControls}>
-                        <button type="button" disabled>
+                        <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                             Trước
                         </button>
                         <button type="button" className={styles.coursePageActive}>
-                            1
+                            {page}
                         </button>
-                        <button type="button" disabled>
+                        <button type="button" disabled={page >= Math.max(1, Math.ceil(total / PAGE_SIZE))} onClick={() => setPage((p) => Math.min(Math.max(1, Math.ceil(total / PAGE_SIZE)), p + 1))}>
                             Sau
                         </button>
                     </div>

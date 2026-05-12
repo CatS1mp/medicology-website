@@ -12,6 +12,7 @@ import {
 } from '@/shared/types/admin';
 import { AdminAddStudentModal } from './AdminAddStudentModal';
 import { AdminStudentProfileModal } from './AdminStudentProfileModal';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 
 function statusClass(status: StudentStatusUi): string {
     if (status === 'Hoạt động') return styles.studentStatusActive;
@@ -34,12 +35,14 @@ export const AdminStudentsScreen: React.FC = () => {
     const [profileDetailLoading, setProfileDetailLoading] = useState(false);
     const [profileDetailError, setProfileDetailError] = useState<string | null>(null);
     const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 20;
 
     const load = useCallback(async (): Promise<AdminUserApiRecord[]> => {
         setLoading(true);
         setError(null);
         try {
-            const { items, total: t } = await fetchAdminUsers({ page: 0, size: 100 });
+            const { items, total: t } = await fetchAdminUsers({ page: page - 1, size: PAGE_SIZE });
             setAdminUsers(items);
             setRows(items.map(mapAdminUserToStudentRow));
             setTotal(t);
@@ -53,7 +56,7 @@ export const AdminStudentsScreen: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page]);
 
     useEffect(() => {
         void load();
@@ -93,8 +96,9 @@ export const AdminStudentsScreen: React.FC = () => {
         }
     };
 
-    const displayFrom = rows.length ? 1 : 0;
-    const displayTo = rows.length;
+    const displayFrom = rows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+    const displayTo = (page - 1) * PAGE_SIZE + rows.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     const openProfile = (row: StudentTableRow) => {
         const raw = adminUsers.find((u) => u.id === row.id);
@@ -281,7 +285,18 @@ export const AdminStudentsScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Đang tải…</p>}
+                {loading && (
+                    <AdminTableSkeleton
+                        columns={[
+                            { key: 'sel', width: 'w-6' },
+                            { key: 'name', width: 'w-56' },
+                            { key: 'email', width: 'w-64' },
+                            { key: 'joined', width: 'w-28' },
+                            { key: 'status', width: 'w-24' },
+                            { key: 'act', width: 'w-12' },
+                        ]}
+                    />
+                )}
                 {!loading && !error && rows.length === 0 && (
                     <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Chưa có dữ liệu học viên.</p>
                 )}
@@ -397,13 +412,13 @@ export const AdminStudentsScreen: React.FC = () => {
                         trong tổng số <b>{total}</b> người dùng
                     </p>
                     <div className={styles.studentsPageControls}>
-                        <button type="button" disabled>
+                        <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                             Trước
                         </button>
                         <button type="button" className={styles.studentsPageActive}>
-                            1
+                            {page}
                         </button>
-                        <button type="button" disabled>
+                        <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
                             Sau
                         </button>
                     </div>

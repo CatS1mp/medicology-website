@@ -1,18 +1,24 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 import { TopicCard } from './TopicCard';
-import { adminListCourses } from '@/shared/api/admin-learning';
+import { AdminAddCourseModal } from './AdminAddCourseModal';
+import { adminDeleteCourse, adminListCoursesPaged } from '@/shared/api/admin-learning';
 import type { CourseResponse } from '@/shared/types/learning';
+import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 
 import { BaseAdminLayout } from './BaseAdminLayout';
+import { AdminTopicCardSkeleton } from './AdminTopicCardSkeleton';
 
 type TopicCardVm = {
+    id: string;
     status: 'published' | 'draft';
     level: string;
     title: string;
     desc: string;
+    coverUrl: string;
     metrics: {
         courses: number;
         lessons: number;
@@ -24,15 +30,17 @@ type TopicCardVm = {
 
 function mapCourseToTopicCard(course: CourseResponse): TopicCardVm {
     const lessonCountFromSections = Array.isArray(course.sections)
-        ? course.sections.reduce((sum, section) => sum + (section.lessons?.length ?? 0), 0)
+        ? course.sections.reduce((sum, section) => sum + (section.contents?.length ?? 0), 0)
         : 0;
-    const lessonCount = course.lessonCount ?? lessonCountFromSections;
+    const lessonCount = course.contentCount ?? lessonCountFromSections;
 
     return {
+        id: course.id,
         status: 'published',
         level: 'Cơ bản',
         title: course.name,
         desc: course.description?.trim() || 'Chưa có mô tả.',
+        coverUrl: resolveCourseIconSrc(course.iconFileName),
         metrics: {
             courses: 1,
             lessons: lessonCount,
@@ -44,23 +52,30 @@ function mapCourseToTopicCard(course: CourseResponse): TopicCardVm {
 }
 
 export const AdminTopicsScreen: React.FC = () => {
+    const router = useRouter();
+    const [addCourseOpen, setAddCourseOpen] = useState(false);
     const [courses, setCourses] = useState<CourseResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const PAGE_SIZE = 12;
 
     const loadCourses = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const list = await adminListCourses();
-            setCourses(list);
+            const { items, total: totalItems } = await adminListCoursesPaged({ page: page - 1, size: PAGE_SIZE });
+            setCourses(items);
+            setTotal(totalItems);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Không tải được danh sách khóa học.');
             setCourses([]);
+            setTotal(0);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page]);
 
     useEffect(() => {
         void loadCourses();
@@ -68,8 +83,30 @@ export const AdminTopicsScreen: React.FC = () => {
 
     const topicData = useMemo(() => courses.map(mapCourseToTopicCard), [courses]);
 
+    const handleOpenCurriculum = (courseId: string) => {
+        router.push(`/admin/courses/${courseId}/curriculum`);
+    };
+
+    const handleDeleteCourse = async (courseId: string) => {
+        const course = courses.find((item) => item.id === courseId);
+        if (!course) return;
+        if (!window.confirm(`Xóa khóa học "${course.name}"?`)) return;
+        try {
+            await adminDeleteCourse(courseId);
+            await loadCourses();
+        } catch (e) {
+            window.alert(e instanceof Error ? e.message : 'Xóa khóa học thất bại.');
+        }
+    };
+
     return (
         <BaseAdminLayout>
+            {addCourseOpen && (
+                <AdminAddCourseModal
+                    onClose={() => setAddCourseOpen(false)}
+                    onCreated={() => void loadCourses()}
+                />
+            )}
             <section className={styles.reportHeader}>
                 <div className={styles.reportTitleGroup}>
                     <h1>Quản lý Khóa học</h1>
@@ -119,7 +156,12 @@ export const AdminTopicsScreen: React.FC = () => {
             </section>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button className={styles.btnPrimary} style={{ borderRadius: 12 }}>
+                <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    style={{ borderRadius: 12 }}
+                    onClick={() => setAddCourseOpen(true)}
+                >
                     <span style={{ fontSize: 18 }}>+</span> Thêm khóa học
                 </button>
             </div>
@@ -137,27 +179,35 @@ export const AdminTopicsScreen: React.FC = () => {
                     </button>
                 </section>
             )}
-            {loading && <p style={{ color: '#64748b', margin: '12px 0 0' }}>Đang tải danh sách môn học…</p>}
+            {loading && (
+                <div className={styles.topicsGrid}>
+                    {Array.from({ length: 9 }).map((_, i) => (
+                        <AdminTopicCardSkeleton key={`admin-topic-skel-${i}`} />
+                    ))}
+                </div>
+            )}
             {!loading && !error && topicData.length === 0 && <p style={{ color: '#64748b', margin: '12px 0 0' }}>Chưa có môn học.</p>}
 
             <div className={styles.topicsGrid}>
                 {topicData.map((topic, i) => (
-                    <TopicCard key={i} {...topic} />
+                    <TopicCard
+                        key={`${topic.id}-${i}`}
+                        {...topic}
+                        onEdit={handleOpenCurriculum}
+                        onDelete={(id) => void handleDeleteCourse(id)}
+                        onManage={handleOpenCurriculum}
+                    />
                 ))}
             </div>
             
             <div className={styles.pagination}>
                 <div className={styles.pageInfo}>
-                    Hiển thị <b>{topicData.length ? `1-${topicData.length}` : '0-0'}</b> trong tổng số <b>{topicData.length}</b> khóa học
+                    Hiển thị <b>{topicData.length ? `${(page - 1) * PAGE_SIZE + 1}-${(page - 1) * PAGE_SIZE + topicData.length}` : '0-0'}</b> trong tổng số <b>{total}</b> khóa học
                 </div>
                 <div className={styles.pageControls}>
-                    <span className={styles.pageBtnInert}>Trước</span>
-                    <span className={`${styles.pageBtn} ${styles.pageBtnActive}`}>1</span>
-                    <span className={styles.pageBtn}>2</span>
-                    <span className={styles.pageBtn}>3</span>
-                    <span className={styles.pageBtnInert}>...</span>
-                    <span className={styles.pageBtn}>140</span>
-                    <span className={styles.pageBtnInert} style={{ color: '#3b82f6' }}>Sau</span>
+                    <button type="button" className={styles.pageBtn} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
+                    <span className={`${styles.pageBtn} ${styles.pageBtnActive}`}>{page}</span>
+                    <button type="button" className={styles.pageBtn} disabled={page >= Math.max(1, Math.ceil(total / PAGE_SIZE))} onClick={() => setPage((p) => Math.min(Math.max(1, Math.ceil(total / PAGE_SIZE)), p + 1))}>Sau</button>
                 </div>
             </div>
         </BaseAdminLayout>

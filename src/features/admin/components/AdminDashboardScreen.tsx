@@ -7,7 +7,7 @@ import { BaseAdminLayout } from './BaseAdminLayout';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import { adminListCourses } from '@/shared/api/admin-learning';
 import { adminListArticles } from '@/shared/api/admin-dictionary';
-import { getLessonActivity } from '@/shared/api/learning';
+import { getContentActivity } from '@/shared/api/learning';
 
 export const AdminDashboardScreen: React.FC = () => {
     const [userTotal, setUserTotal] = useState<number | null>(null);
@@ -22,7 +22,7 @@ export const AdminDashboardScreen: React.FC = () => {
             const results = await Promise.allSettled([
                 fetchAdminUsers({ page: 0, size: 1 }),
                 adminListCourses(),
-                getLessonActivity(7),
+                getContentActivity(7),
                 adminListArticles(),
             ]);
             if (cancelled) return;
@@ -31,7 +31,7 @@ export const AdminDashboardScreen: React.FC = () => {
             else errs.push('Người dùng');
             if (results[1].status === 'fulfilled') setCourseCount(results[1].value.length);
             else errs.push('Khóa học');
-            if (results[2].status === 'fulfilled') setLessonDone(results[2].value.totalCompletedLessons);
+            if (results[2].status === 'fulfilled') setLessonDone(results[2].value.totalCompletedContents);
             else errs.push('Hoạt động học');
             if (results[3].status === 'fulfilled') setDictCount(results[3].value.length);
             else errs.push('Từ điển');

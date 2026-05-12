@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from '@/features/auth/api';
+import { RouteLoadingSkeleton } from '@/shared/components/RouteLoadingSkeleton';
 
 export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -35,11 +36,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     }, [router]);
 
     if (state === 'loading') {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-white text-gray-500">
-                Đang kiểm tra quyền...
-            </div>
-        );
+        return <RouteLoadingSkeleton />;
     }
 
     if (state === 'denied') {

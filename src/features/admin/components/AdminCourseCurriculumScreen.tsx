@@ -5,23 +5,22 @@ import { useParams, useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
 import {
-    adminCreateLesson,
+    adminCreateContent,
     adminCreateSection,
-    adminDeleteLesson,
+    adminDeleteContent,
     adminDeleteSection,
     adminGetCourse,
     adminListCourses,
     adminListSections,
-    adminListLessons,
+    adminListContents,
     adminPatchCourseActive,
-    adminPatchLessonStatus,
+    adminPatchContentStatus,
     adminUpdateCourse,
-    adminUpdateLesson,
+    adminUpdateContent,
     adminUpdateSection,
 } from '@/shared/api/admin-learning';
-import { getSectionAssessment } from '@/shared/api/assessment';
-import type { AssessmentDiscoveryResponse } from '@/shared/types/assessment';
-import type { CourseResponse, LessonResponse, SectionResponse } from '@/shared/types/learning';
+import type { ContentResponse, CourseResponse, SectionResponse } from '@/shared/types/learning';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 const SECTION_PROGRESS_TARGET = 20;
 
@@ -35,62 +34,34 @@ function slugifyName(name: string): string {
         .replace(/^-+|-+$/g, '');
 }
 
-function countQuizBlocks(lesson: LessonResponse): number {
-    return lesson.blocks?.filter((b) => b.kind === 'QUIZ_MCQ' || b.assessmentId).length ?? 0;
+function countQuizBlocks(content: ContentResponse): number {
+    return content.blocks?.filter((b) => b.isGradable || b.kind === 'QUIZ_MCQ').length ?? 0;
 }
 
-type CurriculumItem =
-    | { kind: 'lesson'; lesson: LessonResponse }
-    | { kind: 'test'; assessment: AssessmentDiscoveryResponse };
+type CurriculumItem = { kind: 'content'; content: ContentResponse };
 
 type SectionBundle = {
     section: SectionResponse;
-    lessons: LessonResponse[];
-    sectionAssessment: AssessmentDiscoveryResponse | null;
-    lessonAssessmentByLessonId: Record<string, AssessmentDiscoveryResponse | null>;
+    contents: ContentResponse[];
 };
 
 function buildCurriculumItems(bundle: SectionBundle): CurriculumItem[] {
-    const { lessons, sectionAssessment, lessonAssessmentByLessonId } = bundle;
-    const out: CurriculumItem[] = [];
-    const used = new Set<string>();
-    for (const lesson of lessons) {
-        out.push({ kind: 'lesson', lesson });
-        const la = lessonAssessmentByLessonId[lesson.id];
-        if (la?.lessonId === lesson.id && la.id && !used.has(la.id)) {
-            used.add(la.id);
-            out.push({ kind: 'test', assessment: la });
-        }
-    }
-    if (sectionAssessment?.lessonId == null && sectionAssessment?.id && !used.has(sectionAssessment.id)) {
-        out.push({ kind: 'test', assessment: sectionAssessment });
-    }
-    return out;
+    return bundle.contents.map((content) => ({ kind: 'content', content }));
 }
 
 function sectionPublished(bundle: SectionBundle): boolean {
-    if (bundle.lessons.length === 0) return false;
-    return bundle.lessons.every((l) => l.isActive);
+    if (bundle.contents.length === 0) return false;
+    return bundle.contents.every((c) => c.isActive);
 }
 
 async function loadSectionBundles(courseId: string): Promise<SectionBundle[]> {
     const sections = (await adminListSections(courseId)).slice().sort((a, b) => a.orderIndex - b.orderIndex);
     return Promise.all(
         sections.map(async (section) => {
-            const lessons = (await adminListLessons(section.id)).slice().sort((a, b) => a.orderIndex - b.orderIndex);
-            const [sectionAssessment, ...lessonAssessments] = await Promise.all([
-                getSectionAssessment(section.id).catch(() => null),
-                ...lessons.map((l) => getSectionAssessment(section.id, l.id).catch(() => null)),
-            ]);
-            const lessonAssessmentByLessonId: Record<string, AssessmentDiscoveryResponse | null> = {};
-            lessons.forEach((l, i) => {
-                lessonAssessmentByLessonId[l.id] = lessonAssessments[i] ?? null;
-            });
+            const contents = (await adminListContents(section.id)).slice().sort((a, b) => a.orderIndex - b.orderIndex);
             return {
                 section,
-                lessons,
-                sectionAssessment: sectionAssessment ?? null,
-                lessonAssessmentByLessonId,
+                contents,
             };
         })
     );
@@ -115,8 +86,10 @@ type CourseInfoModalProps = {
 
 const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ course, onClose, onSaved }) => {
     const [name, setName] = useState(course.name);
+    const [slug, setSlug] = useState(course.slug);
     const [description, setDescription] = useState(course.description ?? '');
     const [colorCode, setColorCode] = useState(course.colorCode ?? '#1cb0f6');
+    const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>(course.isActive ? 'PUBLISHED' : 'DRAFT');
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState<string | null>(null);
 
@@ -140,8 +113,11 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ course, onClose, onSa
         try {
             const updated = await adminUpdateCourse(course.id, {
                 name: n,
+                slug: slug.trim() || course.slug,
                 description: description.trim() || null,
                 colorCode: colorCode || null,
+                isActive: status === 'PUBLISHED',
+                orderIndex: course.orderIndex,
             });
             onSaved(updated);
             onClose();
@@ -166,37 +142,73 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ course, onClose, onSa
                 <h2 id="course-meta-title" className={styles.curriculumMetaTitle}>
                     Thông tin khóa học
                 </h2>
+                <p className={styles.curriculumMetaSubtitle}>Hiển thị thông tin và cấu hình của khóa học trên hệ thống</p>
                 <form onSubmit={(e) => void handleSave(e)}>
-                    <label className={styles.curriculumField}>
-                        <span>Tên khóa học</span>
-                        <input value={name} onChange={(e) => setName(e.target.value)} className={styles.curriculumInput} />
-                    </label>
-                    <label className={styles.curriculumField}>
-                        <span>Mô tả</span>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className={styles.curriculumTextarea}
-                            rows={4}
-                        />
-                    </label>
-                    <label className={styles.curriculumField}>
-                        <span>Màu chủ đạo</span>
-                        <span className={styles.curriculumColorRow}>
-                            <input
-                                type="color"
-                                value={colorPicker}
-                                onChange={(e) => setColorCode(e.target.value)}
-                                className={styles.curriculumColorPicker}
-                            />
-                            <input
-                                value={colorCode}
-                                onChange={(e) => setColorCode(e.target.value)}
-                                className={styles.curriculumInput}
-                                spellCheck={false}
-                            />
-                        </span>
-                    </label>
+                    <div className={styles.curriculumMetaGrid}>
+                        <div className={styles.curriculumMetaCol}>
+                            <h3 className={styles.curriculumMetaGroupTitle}>Thông tin chung</h3>
+                            <label className={styles.curriculumField}>
+                                <span>Tên khóa học</span>
+                                <input value={name} onChange={(e) => setName(e.target.value)} className={styles.curriculumInput} />
+                            </label>
+                            <label className={styles.curriculumField}>
+                                <span>Đường dẫn (Slug)</span>
+                                <input value={slug} onChange={(e) => setSlug(e.target.value)} className={styles.curriculumInput} />
+                            </label>
+                            <label className={styles.curriculumField}>
+                                <span className={styles.curriculumLabelRow}>
+                                    <span>Mô tả khóa học</span>
+                                    <span>{description.length} / 1000</span>
+                                </span>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value.slice(0, 1000))}
+                                    className={styles.curriculumTextarea}
+                                    rows={7}
+                                />
+                            </label>
+                        </div>
+                        <div className={styles.curriculumMetaColTone}>
+                            <h3 className={styles.curriculumMetaGroupTitle}>Phân loại & cấu hình</h3>
+                            <div className={styles.curriculumImagePreview} />
+                            <label className={styles.curriculumField}>
+                                <span>Màu chủ đạo</span>
+                                <span className={styles.curriculumColorRow}>
+                                    <input
+                                        type="color"
+                                        value={colorPicker}
+                                        onChange={(e) => setColorCode(e.target.value)}
+                                        className={styles.curriculumColorPicker}
+                                    />
+                                    <input
+                                        value={colorCode}
+                                        onChange={(e) => setColorCode(e.target.value)}
+                                        className={styles.curriculumInput}
+                                        spellCheck={false}
+                                    />
+                                </span>
+                            </label>
+                            <div className={styles.curriculumField}>
+                                <span>Trạng thái hiển thị</span>
+                                <div className={styles.curriculumSegment}>
+                                    <button
+                                        type="button"
+                                        className={status === 'PUBLISHED' ? styles.curriculumSegmentActive : ''}
+                                        onClick={() => setStatus('PUBLISHED')}
+                                    >
+                                        Đã đăng tải
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={status === 'DRAFT' ? styles.curriculumSegmentActive : ''}
+                                        onClick={() => setStatus('DRAFT')}
+                                    >
+                                        Bản nháp
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {err && <p className={styles.curriculumFormError}>{err}</p>}
                     <div className={styles.curriculumMetaActions}>
                         <button type="button" className={styles.curriculumBtnGhost} onClick={onClose}>
@@ -207,6 +219,221 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ course, onClose, onSa
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+};
+
+type SectionEditorState = {
+    sectionId?: string;
+    name: string;
+    durationMinutes: number;
+};
+
+type SectionEditorDialogProps = {
+    initialState: SectionEditorState;
+    onClose: () => void;
+    onSubmit: (state: SectionEditorState) => Promise<void>;
+};
+
+const SectionEditorDialog: React.FC<SectionEditorDialogProps> = ({ initialState, onClose, onSubmit }) => {
+    const [form, setForm] = useState(initialState);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!form.name.trim()) {
+            setError('Vui lòng nhập tên section.');
+            return;
+        }
+        setSaving(true);
+        setError(null);
+        try {
+            await onSubmit({ ...form, name: form.name.trim() });
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Không thể lưu section.');
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className={styles.curriculumMetaBackdrop} role="presentation" onClick={onClose}>
+            <div className={styles.curriculumMetaModalWide} onClick={(ev) => ev.stopPropagation()}>
+                <h2 className={styles.curriculumMetaTitle}>Thêm phần học mới</h2>
+                <p className={styles.curriculumMetaSubtitle}>Nhập các thông tin cần có để thiết lập phần học trên hệ thống</p>
+                <form onSubmit={(event) => void handleSubmit(event)}>
+                    <label className={styles.curriculumField}>
+                        <span>Tên section *</span>
+                        <input
+                            className={styles.curriculumInput}
+                            value={form.name}
+                            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                            placeholder="Ví dụ: Kỹ năng xử lý vết thương hở"
+                        />
+                    </label>
+                    <div className={styles.curriculumMetaGridTwo}>
+                        <label className={styles.curriculumField}>
+                            <span>Thời lượng (phút)</span>
+                            <input
+                                type="number"
+                                min={1}
+                                className={styles.curriculumInput}
+                                value={form.durationMinutes}
+                                onChange={(event) =>
+                                    setForm((prev) => ({ ...prev, durationMinutes: Number(event.target.value) || 1 }))
+                                }
+                            />
+                        </label>
+                    </div>
+                    {error && <p className={styles.curriculumFormError}>{error}</p>}
+                    <div className={styles.curriculumMetaActions}>
+                        <button type="button" className={styles.curriculumBtnGhost} onClick={onClose} disabled={saving}>
+                            Hủy bỏ
+                        </button>
+                        <button type="submit" className={styles.curriculumBtnPrimary} disabled={saving}>
+                            {saving ? 'Đang lưu…' : 'Lưu Section'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+type AddLessonDialogProps = {
+    onClose: () => void;
+    onSubmit: (payload: { name: string; estimatedDurationMinutes: number; mode: 'lesson' | 'exercise' }) => Promise<void>;
+};
+
+const AddLessonDialog: React.FC<AddLessonDialogProps> = ({ onClose, onSubmit }) => {
+    const [name, setName] = useState('');
+    const [duration, setDuration] = useState(8);
+    const [mode, setMode] = useState<'lesson' | 'exercise'>('lesson');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!name.trim()) {
+            setError('Vui lòng nhập tên bài học/bài tập.');
+            return;
+        }
+        setSaving(true);
+        setError(null);
+        try {
+            await onSubmit({ name: name.trim(), estimatedDurationMinutes: duration, mode });
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Không thể tạo mới.');
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className={styles.curriculumMetaBackdrop} role="presentation" onClick={onClose}>
+            <div className={styles.curriculumMetaModalWide} onClick={(ev) => ev.stopPropagation()}>
+                <h2 className={styles.curriculumMetaTitle}>Thêm thẻ mới</h2>
+                <p className={styles.curriculumMetaSubtitle}>Chọn loại thẻ nội dung thay vì gõ lệnh chèn khối.</p>
+                <form onSubmit={(event) => void submit(event)}>
+                    <div className={styles.curriculumMiniCards}>
+                        <button
+                            type="button"
+                            className={`${styles.curriculumMiniCard} ${mode === 'lesson' ? styles.curriculumMiniCardActive : ''}`}
+                            onClick={() => setMode('lesson')}
+                        >
+                            Bài học
+                        </button>
+                        <button
+                            type="button"
+                            className={`${styles.curriculumMiniCard} ${mode === 'exercise' ? styles.curriculumMiniCardActive : ''}`}
+                            onClick={() => setMode('exercise')}
+                        >
+                            Bài tập
+                        </button>
+                    </div>
+                    <label className={styles.curriculumField}>
+                        <span>Tên hiển thị</span>
+                        <input className={styles.curriculumInput} value={name} onChange={(e) => setName(e.target.value)} />
+                    </label>
+                    <label className={styles.curriculumField}>
+                        <span>Thời lượng (phút)</span>
+                        <input
+                            type="number"
+                            min={1}
+                            className={styles.curriculumInput}
+                            value={duration}
+                            onChange={(event) => setDuration(Number(event.target.value) || 1)}
+                        />
+                    </label>
+                    {mode === 'exercise' && (
+                        <p className={styles.curriculumMuted}>
+                            Bài tập sẽ dùng cùng layout với bài học và có thể gắn câu hỏi ở bước chỉnh sửa nội dung.
+                        </p>
+                    )}
+                    {error && <p className={styles.curriculumFormError}>{error}</p>}
+                    <div className={styles.curriculumMetaActions}>
+                        <button type="button" className={styles.curriculumBtnGhost} onClick={onClose} disabled={saving}>
+                            Hủy
+                        </button>
+                        <button type="submit" className={styles.curriculumBtnPrimary} disabled={saving}>
+                            {saving ? 'Đang tạo…' : 'Lưu thẻ'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+type ConfirmDialogProps = {
+    title: string;
+    description: string;
+    note: string;
+    confirmLabel: string;
+    danger?: boolean;
+    onClose: () => void;
+    onConfirm: () => Promise<void> | void;
+};
+
+const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+    title,
+    description,
+    note,
+    confirmLabel,
+    danger = false,
+    onClose,
+    onConfirm,
+}) => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    return (
+        <div className={styles.curriculumMetaBackdrop} role="presentation" onClick={onClose}>
+            <div className={styles.curriculumConfirmModal} onClick={(ev) => ev.stopPropagation()}>
+                <h2 className={styles.curriculumMetaTitle}>{title}</h2>
+                <p className={styles.curriculumConfirmText}>{description}</p>
+                <p className={danger ? styles.curriculumConfirmWarn : styles.curriculumConfirmInfo}>{note}</p>
+                {error && <p className={styles.curriculumFormError}>{error}</p>}
+                <div className={styles.curriculumMetaActions}>
+                    <button type="button" className={styles.curriculumBtnGhost} disabled={loading} onClick={onClose}>
+                        Hủy
+                    </button>
+                    <button
+                        type="button"
+                        className={danger ? styles.curriculumBtnDanger : styles.curriculumBtnPrimary}
+                        disabled={loading}
+                        onClick={() => {
+                            setLoading(true);
+                            Promise.resolve(onConfirm())
+                                .then(() => onClose())
+                                .catch((e) => {
+                                    setError(e instanceof Error ? e.message : 'Thao tác thất bại.');
+                                    setLoading(false);
+                                });
+                        }}
+                    >
+                        {loading ? 'Đang xử lý…' : confirmLabel}
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -225,6 +452,10 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
     const [openMenu, setOpenMenu] = useState<string | null>(null);
     const [infoOpen, setInfoOpen] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+    const [sectionEditor, setSectionEditor] = useState<SectionEditorState | null>(null);
+    const [addingLessonSectionId, setAddingLessonSectionId] = useState<string | null>(null);
+    const [deletingLesson, setDeletingLesson] = useState<ContentResponse | null>(null);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     const load = useCallback(async () => {
@@ -273,7 +504,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                 await adminPatchCourseActive(courseId, true);
             } catch {
                 await Promise.all(
-                    bundles.flatMap((b) => b.lessons.map((l) => adminPatchLessonStatus(l.id, true)))
+                    bundles.flatMap((b) => b.contents.map((c) => adminPatchContentStatus(c.id, true)))
                 );
             }
             await load();
@@ -308,7 +539,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
         }
     };
 
-    const reorderLessons = async (sectionId: string, from: number, to: number, list: LessonResponse[]) => {
+    const reorderContents = async (sectionId: string, from: number, to: number, list: ContentResponse[]) => {
         if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return;
         const next = list.slice();
         const [moved] = next.splice(from, 1);
@@ -316,51 +547,52 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
         const bundleIdx = bundles.findIndex((b) => b.section.id === sectionId);
         if (bundleIdx < 0) return;
         const copy = bundles.slice();
-        copy[bundleIdx] = { ...copy[bundleIdx], lessons: next };
+        copy[bundleIdx] = { ...copy[bundleIdx], contents: next };
         setBundles(copy);
         try {
-            await Promise.all(next.map((l, idx) => adminUpdateLesson(l.id, { orderIndex: idx })));
+            await Promise.all(next.map((c, idx) => adminUpdateContent(c.id, { orderIndex: idx })));
         } catch {
             window.alert('Không sắp xếp lại bài học được.');
             await load();
         }
     };
 
-    const addSection = async () => {
-        const name = window.prompt('Tên phần học mới');
-        if (!name?.trim()) return;
-        const slug = slugifyName(name);
+    const addSection = async (state: SectionEditorState) => {
+        const slug = slugifyName(state.name);
         if (!slug) {
             window.alert('Slug không hợp lệ.');
             return;
         }
         try {
             await adminCreateSection(courseId, {
-                name: name.trim(),
+                name: state.name.trim(),
                 slug,
                 orderIndex: bundles.length,
+                estimatedDurationMinutes: state.durationMinutes,
             });
+            setSectionEditor(null);
             await load();
         } catch (e) {
             window.alert(e instanceof Error ? e.message : 'Không tạo được phần học.');
+            throw e;
         }
     };
 
-    const editSection = async (section: SectionResponse) => {
-        const name = window.prompt('Tên phần học', section.name);
-        if (!name?.trim()) return;
-        const s = slugifyName(name);
+    const editSection = async (section: SectionResponse, state: SectionEditorState) => {
+        const s = slugifyName(state.name);
         try {
             await adminUpdateSection(section.id, {
                 themeId: section.courseId,
-                name: name.trim(),
+                name: state.name.trim(),
                 slug: s || section.slug,
                 orderIndex: section.orderIndex,
-                estimatedDurationMinutes: section.estimatedDurationMinutes,
+                estimatedDurationMinutes: state.durationMinutes,
             });
+            setSectionEditor(null);
             await load();
         } catch (e) {
             window.alert(e instanceof Error ? e.message : 'Cập nhật thất bại.');
+            throw e;
         }
     };
 
@@ -374,36 +606,43 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
         }
     };
 
-    const addLesson = async (sectionId: string) => {
-        const name = window.prompt('Tên bài học');
-        if (!name?.trim()) return;
-        const slug = slugifyName(name);
+    const addLesson = async (
+        sectionId: string,
+        payload: { name: string; estimatedDurationMinutes: number; mode: 'lesson' | 'exercise' }
+    ) => {
+        const lessonName = payload.mode === 'exercise' ? `${payload.name} (Bài tập)` : payload.name;
+        const slug = slugifyName(lessonName);
         if (!slug) {
             window.alert('Slug không hợp lệ.');
             return;
         }
         const bundle = bundles.find((b) => b.section.id === sectionId);
-        const orderIndex = bundle?.lessons.length ?? 0;
+        const orderIndex = bundle?.contents.length ?? 0;
         try {
-            await adminCreateLesson({
+            await adminCreateContent({
                 sectionId,
-                name: name.trim(),
+                name: lessonName,
                 slug,
                 orderIndex,
+                estimatedDurationMinutes: payload.estimatedDurationMinutes,
+                difficultyLevel: payload.mode === 'exercise' ? 'INTERMEDIATE' : null,
             });
+            setAddingLessonSectionId(null);
             await load();
         } catch (e) {
             window.alert(e instanceof Error ? e.message : 'Không tạo được bài học.');
+            throw e;
         }
     };
 
-    const deleteLesson = async (lesson: LessonResponse) => {
-        if (!window.confirm(`Xóa bài học "${lesson.name}"?`)) return;
+    const deleteLesson = async (lesson: ContentResponse) => {
         try {
-            await adminDeleteLesson(lesson.id);
+            await adminDeleteContent(lesson.id);
+            setDeletingLesson(null);
             await load();
         } catch (e) {
             window.alert(e instanceof Error ? e.message : 'Xóa thất bại.');
+            throw e;
         }
     };
 
@@ -420,6 +659,49 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                     course={headerCourse}
                     onClose={() => setInfoOpen(false)}
                     onSaved={(c) => setCourse(c)}
+                />
+            )}
+            {publishDialogOpen && headerCourse && (
+                <ConfirmDialog
+                    title="Xác nhận xuất bản khóa học?"
+                    description={`Bạn chuẩn bị xuất bản khóa học [${headerCourse.name}]`}
+                    note={`Hệ thống phát hiện có ${bundles.filter((b) => b.contents.length === 0).length} phần học đang trống nội dung.`}
+                    confirmLabel="Xuất bản"
+                    onClose={() => setPublishDialogOpen(false)}
+                    onConfirm={publishCourse}
+                />
+            )}
+            {deletingLesson && (
+                <ConfirmDialog
+                    title="Xác nhận xóa bài học"
+                    description={`Bạn có chắc chắn muốn xóa bài học [${deletingLesson.name}] không?`}
+                    note="Hành động này sẽ xóa vĩnh viễn toàn bộ dữ liệu liên quan và không thể hoàn tác."
+                    confirmLabel="Xóa phần học"
+                    danger
+                    onClose={() => setDeletingLesson(null)}
+                    onConfirm={() => deleteLesson(deletingLesson)}
+                />
+            )}
+            {sectionEditor && (
+                <SectionEditorDialog
+                    initialState={sectionEditor}
+                    onClose={() => setSectionEditor(null)}
+                    onSubmit={(state) => {
+                        if (state.sectionId) {
+                            const section = bundles.find((b) => b.section.id === state.sectionId)?.section;
+                            if (!section) return Promise.resolve();
+                            return editSection(section, state);
+                        }
+                        return addSection(state);
+                    }}
+                />
+            )}
+            {addingLessonSectionId && (
+                <AddLessonDialog
+                    onClose={() => setAddingLessonSectionId(null)}
+                    onSubmit={({ name, estimatedDurationMinutes, mode }) => {
+                        return addLesson(addingLessonSectionId, { name, estimatedDurationMinutes, mode });
+                    }}
                 />
             )}
 
@@ -469,7 +751,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                         <button
                             type="button"
                             className={styles.curriculumBtnPublish}
-                            onClick={() => void publishCourse()}
+                            onClick={() => setPublishDialogOpen(true)}
                             disabled={!headerCourse || publishing || loading}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -493,7 +775,13 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p className={styles.curriculumMuted}>Đang tải…</p>}
+                {loading && (
+                    <div className="space-y-3">
+                        <Skeleton className="h-10 w-1/3 rounded-xl" />
+                        <Skeleton className="h-24 w-full rounded-2xl" />
+                        <Skeleton className="h-24 w-full rounded-2xl" />
+                    </div>
+                )}
                 {error && (
                     <div className={styles.curriculumErrorBox}>
                         <p>{error}</p>
@@ -555,7 +843,13 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                             <button
                                                 type="button"
                                                 className={styles.curriculumIconBtn}
-                                                onClick={() => void editSection(section)}
+                                                onClick={() =>
+                                                    setSectionEditor({
+                                                        sectionId: section.id,
+                                                        name: section.name,
+                                                        durationMinutes: section.estimatedDurationMinutes ?? 45,
+                                                    })
+                                                }
                                                 aria-label="Sửa phần học"
                                             >
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -615,83 +909,14 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                             <div className={styles.curriculumTreeLine} aria-hidden="true" />
                                             <div className={styles.curriculumItems}>
                                                 {items.map((item) => {
-                                                    if (item.kind === 'test') {
-                                                        const a = item.assessment;
-                                                        const menuKey = `test-${a.id}`;
-                                                        return (
-                                                            <div key={`test-${a.id}`} className={styles.curriculumRowTest}>
-                                                                <button
-                                                                    type="button"
-                                                                    className={styles.curriculumGripSmall}
-                                                                    aria-hidden
-                                                                    tabIndex={-1}
-                                                                >
-                                                                    <span className={styles.curriculumGripDots} />
-                                                                </button>
-                                                                <div className={styles.curriculumRowIconTest}>
-                                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                                                                        <path
-                                                                            d="M12 2L14.5 8.5L21 10L14.5 11.5L12 18L9.5 11.5L3 10L9.5 8.5L12 2Z"
-                                                                            fill="currentColor"
-                                                                        />
-                                                                    </svg>
-                                                                </div>
-                                                                <div className={styles.curriculumRowMain}>
-                                                                    <div className={styles.curriculumRowTitle}>{a.title}</div>
-                                                                    <div className={styles.curriculumRowMeta}>
-                                                                        {a.timeLimitMinutes != null && (
-                                                                            <span>{a.timeLimitMinutes} phút</span>
-                                                                        )}
-                                                                        <span>
-                                                                            Điểm đạt:{' '}
-                                                                            {Math.round(a.passScore <= 1 ? a.passScore * 100 : a.passScore)}%
-                                                                        </span>
-                                                                        <span
-                                                                            className={
-                                                                                a.active
-                                                                                    ? styles.curriculumBadgePub
-                                                                                    : styles.curriculumBadgeDraft
-                                                                            }
-                                                                        >
-                                                                            {a.active ? 'Đã đăng tải' : 'Bản nháp'}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                <div className={styles.curriculumRowMenuWrap} ref={openMenu === menuKey ? menuRef : null}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.curriculumRowMore}
-                                                                        aria-label="Thêm thao tác"
-                                                                        onClick={() => setOpenMenu((p) => (p === menuKey ? null : menuKey))}
-                                                                    >
-                                                                        ⋮
-                                                                    </button>
-                                                                    {openMenu === menuKey && (
-                                                                        <div className={styles.curriculumRowMenu} role="menu">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setOpenMenu(null);
-                                                                                    router.push(`/admin/tests/edit?assessmentId=${encodeURIComponent(a.id)}`);
-                                                                                }}
-                                                                            >
-                                                                                Sửa nội dung
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    }
-
-                                                    const lesson = item.lesson;
+                                                    const lesson = item.content;
                                                     const qCount = countQuizBlocks(lesson);
                                                     const dur =
                                                         lesson.estimatedDurationMinutes != null
                                                             ? `${lesson.estimatedDurationMinutes} phút`
                                                             : '—';
                                                     const menuKey = `lesson-${lesson.id}`;
-                                                    const lessonIdx = bundle.lessons.findIndex((l) => l.id === lesson.id);
+                                                    const lessonIdx = bundle.contents.findIndex((l) => l.id === lesson.id);
 
                                                     return (
                                                         <div key={lesson.id} className={styles.curriculumRowLesson}>
@@ -718,7 +943,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                                                         e.dataTransfer.getData('application/curriculum-lesson-idx')
                                                                     );
                                                                     if (sid !== section.id || !Number.isFinite(fromIdx)) return;
-                                                                    void reorderLessons(section.id, fromIdx, lessonIdx, bundle.lessons);
+                                                                    void reorderContents(section.id, fromIdx, lessonIdx, bundle.contents);
                                                                 }}
                                                                 aria-label="Kéo để sắp xếp bài học"
                                                             >
@@ -765,7 +990,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                                                             onClick={() => {
                                                                                 setOpenMenu(null);
                                                                                 router.push(
-                                                                                    `/courses/${encodeURIComponent(headerCourse.slug)}/lessons/${encodeURIComponent(lesson.slug)}`
+                                                                                    `/admin/tests/edit?contentId=${encodeURIComponent(lesson.id)}`
                                                                                 );
                                                                             }}
                                                                         >
@@ -776,7 +1001,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                                                             className={styles.curriculumMenuDanger}
                                                                             onClick={() => {
                                                                                 setOpenMenu(null);
-                                                                                void deleteLesson(lesson);
+                                                                                setDeletingLesson(lesson);
                                                                             }}
                                                                         >
                                                                             Xóa bài học
@@ -791,7 +1016,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                                 <button
                                                     type="button"
                                                     className={styles.curriculumAddItem}
-                                                    onClick={() => void addLesson(section.id)}
+                                                    onClick={() => setAddingLessonSectionId(section.id)}
                                                 >
                                                     <span className={styles.curriculumAddPlus}>+</span>
                                                     Thêm bài học/bài tập
@@ -803,7 +1028,11 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                             );
                         })}
 
-                        <button type="button" className={styles.curriculumAddSection} onClick={() => void addSection()}>
+                        <button
+                            type="button"
+                            className={styles.curriculumAddSection}
+                            onClick={() => setSectionEditor({ name: '', durationMinutes: 45 })}
+                        >
                             <span className={styles.curriculumAddPlus}>+</span>
                             Thêm phần học mới
                         </button>

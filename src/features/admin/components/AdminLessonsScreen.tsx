@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 import {
     adminCreateLesson,
     adminDeleteLesson,
@@ -66,6 +68,7 @@ function lessonStatusClass(status: LessonStatus): string {
 }
 
 export const AdminLessonsScreen: React.FC = () => {
+    const searchParams = useSearchParams();
     const [openActionFor, setOpenActionFor] = useState<string | null>(null);
     const actionMenuRef = useRef<HTMLDivElement | null>(null);
     const [courses, setCourses] = useState<CourseResponse[]>([]);
@@ -75,6 +78,9 @@ export const AdminLessonsScreen: React.FC = () => {
     const [rows, setRows] = useState<LessonRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const appliedQueryRef = useRef(false);
+    const initialCourseId = searchParams.get('courseId') ?? '';
+    const initialSectionId = searchParams.get('sectionId') ?? '';
 
     const courseName = useMemo(() => courses.find((c) => c.id === courseId)?.name ?? '—', [courses, courseId]);
 
@@ -84,14 +90,20 @@ export const AdminLessonsScreen: React.FC = () => {
         try {
             const list = await adminListCourses();
             setCourses(list);
-            setCourseId((prev) => prev || (list[0]?.id ?? ''));
+            setCourseId((prev) => {
+                if (prev) return prev;
+                if (initialCourseId && list.some((c) => c.id === initialCourseId)) {
+                    return initialCourseId;
+                }
+                return list[0]?.id ?? '';
+            });
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Không tải được khóa học.');
             setCourses([]);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [initialCourseId]);
 
     useEffect(() => {
         void loadCourses();
@@ -106,7 +118,14 @@ export const AdminLessonsScreen: React.FC = () => {
                 if (cancelled) return;
                 setSections(secs);
                 if (secs.length) {
-                    setSectionId((prev) => (prev && secs.some((s) => s.id === prev) ? prev : secs[0].id));
+                    setSectionId((prev) => {
+                        if (prev && secs.some((s) => s.id === prev)) return prev;
+                        if (!appliedQueryRef.current && initialSectionId && secs.some((s) => s.id === initialSectionId)) {
+                            appliedQueryRef.current = true;
+                            return initialSectionId;
+                        }
+                        return secs[0].id;
+                    });
                 } else {
                     setSectionId('');
                     setRows([]);
@@ -121,7 +140,7 @@ export const AdminLessonsScreen: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [courseId]);
+    }, [courseId, initialSectionId]);
 
     const loadLessons = useCallback(async () => {
         if (!sectionId) {
@@ -411,7 +430,22 @@ export const AdminLessonsScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Đang tải…</p>}
+                {loading && (
+                    <AdminTableSkeleton
+                        columns={[
+                            { key: 'sel', width: 'w-6' },
+                            { key: 'code', width: 'w-14' },
+                            { key: 'name', width: 'w-56' },
+                            { key: 'course', width: 'w-40' },
+                            { key: 'order', width: 'w-14' },
+                            { key: 'dur', width: 'w-20' },
+                            { key: 'upd', width: 'w-24' },
+                            { key: 'level', width: 'w-24' },
+                            { key: 'status', width: 'w-24' },
+                            { key: 'act', width: 'w-12' },
+                        ]}
+                    />
+                )}
                 {!loading && !error && sectionId && rows.length === 0 && (
                     <p style={{ padding: '0 24px 16px', color: '#64748b' }}>Chưa có bài học trong chặng này.</p>
                 )}
@@ -454,7 +488,10 @@ export const AdminLessonsScreen: React.FC = () => {
                         </thead>
                         <tbody>
                             {rows.map((lesson) => (
-                                <tr key={lesson.id}>
+                                <tr
+                                    key={lesson.id}
+                                    className={openActionFor === lesson.id ? styles.lessonTableRowMenuOpen : undefined}
+                                >
                                     <td>
                                         <input type="checkbox" aria-label={`Chọn ${lesson.code}`} disabled />
                                     </td>

@@ -8,7 +8,7 @@ import { BaseAdminLayout } from './BaseAdminLayout';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import { adminListCourses } from '@/shared/api/admin-learning';
 import { adminListArticles } from '@/shared/api/admin-dictionary';
-import { getLessonActivity } from '@/shared/api/learning';
+import { getContentActivity } from '@/shared/api/learning';
 
 export const AdminReportScreen: React.FC = () => {
     const [registrations, setRegistrations] = useState<number | null>(null);
@@ -25,7 +25,7 @@ export const AdminReportScreen: React.FC = () => {
         (async () => {
             const results = await Promise.allSettled([
                 fetchAdminUsers({ page: 0, size: 1 }),
-                getLessonActivity(30),
+                getContentActivity(30),
                 adminListCourses(),
                 adminListArticles(),
             ]);
@@ -36,13 +36,13 @@ export const AdminReportScreen: React.FC = () => {
             } else errs.push('Đăng ký');
             if (results[1].status === 'fulfilled') {
                 const act = results[1].value;
-                const total = act.totalCompletedLessons;
+                const total = act.totalCompletedContents;
                 setCompletionHint(`${total} bài hoàn thành (30 ngày)`);
-                const rows = act.activities.slice(-4).map((a, i) => ({
+                const rows = act.activities.slice(-4).map((a: (typeof act.activities)[number], i: number) => ({
                     week: `Tuần ${i + 1}`,
                     activeUsers: 0,
                     started: 0,
-                    completed: a.completedLessons,
+                    completed: a.completedContents,
                     avgScore: '—',
                 }));
                 if (rows.length) setWeeklyRows(rows);

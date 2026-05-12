@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import styles from '../admin.module.css';
 import { updateAdminUser } from '@/shared/api/admin-users';
 import type { AdminUserApiRecord, StudentTableRow } from '@/shared/types/admin';
+import { LazyImage } from '@/shared/components/LazyImage';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 export type AdminStudentProfileModalProps = {
     raw: AdminUserApiRecord;
@@ -221,8 +223,7 @@ export const AdminStudentProfileModal: React.FC<AdminStudentProfileModalProps> =
                 <div className={styles.studentModalHeader}>
                     <div className={styles.studentModalAvatarWrap}>
                         {raw.avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- dynamic admin avatar URLs from API
-                            <img src={raw.avatarUrl} alt="" className={styles.studentModalAvatarImg} />
+                            <LazyImage src={raw.avatarUrl} alt="" className={styles.studentModalAvatarImg} />
                         ) : (
                             <span className={styles.studentModalAvatarFallback} aria-hidden>
                                 {row.fullName.slice(0, 1).toUpperCase()}
@@ -255,7 +256,11 @@ export const AdminStudentProfileModal: React.FC<AdminStudentProfileModalProps> =
                     </div>
                 </div>
 
-                {profileDetailLoading && <p className={styles.studentModalProfileHint}>Đang tải hồ sơ chi tiết…</p>}
+                {profileDetailLoading && (
+                    <div className={styles.studentModalProfileHint}>
+                        <Skeleton className="h-4 w-56 rounded" />
+                    </div>
+                )}
                 {profileDetailError && !profileDetailLoading && (
                     <p className={styles.studentModalProfileWarn}>{profileDetailError} — hiển thị dữ liệu từ danh sách.</p>
                 )}

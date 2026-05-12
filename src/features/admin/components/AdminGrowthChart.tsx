@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import styles from '../admin.module.css';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import type { AdminUserApiRecord } from '@/shared/types/admin';
+import { Skeleton } from '@/shared/components/Skeleton';
 
 const MONTH_LABELS = [
     'Tháng 1',
@@ -160,7 +161,11 @@ export const AdminGrowthChart: React.FC = () => {
                 </select>
             </div>
 
-            {loading && <p style={{ margin: '0 0 10px', color: '#64748b' }}>Đang tải dữ liệu người dùng…</p>}
+            {loading && (
+                <div style={{ margin: '0 0 10px' }}>
+                    <Skeleton className="h-4 w-56 rounded" />
+                </div>
+            )}
             {error && <p style={{ margin: '0 0 10px', color: '#b91c1c' }}>Không tải được dữ liệu: {error}</p>}
 
             <div style={{ position: 'relative', width: '100%', overflow: 'visible' }}>

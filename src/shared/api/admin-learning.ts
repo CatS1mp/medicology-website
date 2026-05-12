@@ -1,5 +1,5 @@
 import { buildHeaders, requestApi, unwrapSpringData } from '@/shared/api/http';
-import type { ContentBlockTemplateResponse, ContentResponse, CourseResponse, SectionResponse } from '@/shared/types/learning';
+import type { ContentBlockKind, ContentBlockTemplateResponse, ContentResponse, CourseResponse, SectionResponse } from '@/shared/types/learning';
 import { normalizeSpringListPayload } from '@/shared/types/admin';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
@@ -145,7 +145,28 @@ export async function adminCreateContent(body: {
 /** @deprecated use adminCreateContent */
 export const adminCreateLesson = adminCreateContent;
 
-export async function adminUpdateContent(contentId: string, body: Partial<ContentResponse>): Promise<ContentResponse> {
+type AdminUpdateContentBlockPayload = {
+    orderIndex: number;
+    kind: ContentBlockKind;
+    payload: string;
+    maxScore: number | null;
+    isGradable: boolean;
+};
+
+type AdminUpdateContentBody = {
+    sectionId?: string;
+    name?: string;
+    slug?: string;
+    description?: string | null;
+    orderIndex?: number;
+    estimatedDurationMinutes?: number | null;
+    difficultyLevel?: string | null;
+    isActive?: boolean;
+    content?: string | null;
+    blocks?: AdminUpdateContentBlockPayload[];
+};
+
+export async function adminUpdateContent(contentId: string, body: AdminUpdateContentBody): Promise<ContentResponse> {
     return mutateAndInvalidate(
         () =>
             requestApi<ContentResponse>(`${API}/contents/${encodeURIComponent(contentId)}`, {

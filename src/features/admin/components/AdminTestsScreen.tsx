@@ -4,9 +4,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
-import { createAssessmentAdmin, deleteAssessmentAdmin, listAssessmentsAdmin } from '@/shared/api/admin-assessment';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
+import {
+    createAssessmentAdmin,
+    deleteAssessmentAdmin,
+    listAssessmentsAdmin,
+    type AssessmentAdminListItem,
+} from '@/shared/api/admin-assessment';
 import { adminListCourses } from '@/shared/api/admin-learning';
-import type { AssessmentDiscoveryResponse } from '@/shared/types/assessment';
 import type { CourseResponse } from '@/shared/types/learning';
 
 function formatDuration(min: number | null | undefined): string {
@@ -15,7 +20,7 @@ function formatDuration(min: number | null | undefined): string {
 }
 
 export const AdminTestsScreen: React.FC = () => {
-    const [assessments, setAssessments] = useState<AssessmentDiscoveryResponse[]>([]);
+    const [assessments, setAssessments] = useState<AssessmentAdminListItem[]>([]);
     const [courses, setCourses] = useState<CourseResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -78,7 +83,7 @@ export const AdminTestsScreen: React.FC = () => {
         }
     };
 
-    const handleDelete = async (a: AssessmentDiscoveryResponse) => {
+    const handleDelete = async (a: AssessmentAdminListItem) => {
         if (!window.confirm(`Xóa bài kiểm tra "${a.title}"?`)) return;
         setBusyId(a.id);
         try {
@@ -230,7 +235,21 @@ export const AdminTestsScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p style={{ padding: '0 24px 16px', color: '#94a3b8' }}>Đang tải…</p>}
+                {loading && (
+                    <AdminTableSkeleton
+                        columns={[
+                            { key: 'sel', width: 'w-6' },
+                            { key: 'stt', width: 'w-10' },
+                            { key: 'title', width: 'w-64' },
+                            { key: 'course', width: 'w-56' },
+                            { key: 'pass', width: 'w-24' },
+                            { key: 'time', width: 'w-24' },
+                            { key: 'tries', width: 'w-16' },
+                            { key: 'status', width: 'w-20' },
+                            { key: 'act', width: 'w-12' },
+                        ]}
+                    />
+                )}
                 {!loading && !error && assessments.length === 0 && (
                     <p style={{ padding: '0 24px 16px', color: '#94a3b8' }}>Chưa có bài kiểm tra.</p>
                 )}

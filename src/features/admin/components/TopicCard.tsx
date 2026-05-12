@@ -2,12 +2,16 @@
 
 import React from 'react';
 import styles from '../admin.module.css';
+import { LazyImage } from '@/shared/components/LazyImage';
+import { DEFAULT_COURSE_ICON } from '@/shared/utils/course-icon';
 
 interface TopicCardProps {
+    id: string;
     status: 'published' | 'draft';
     level: string;
     title: string;
     desc: string;
+    coverUrl: string;
     metrics: {
         courses: number;
         lessons: number;
@@ -15,18 +19,30 @@ interface TopicCardProps {
     };
     createdDate: string;
     rating: number;
+    onEdit: (id: string) => void;
+    onDelete: (id: string) => void;
+    onManage: (id: string) => void;
 }
 
-export const TopicCard: React.FC<TopicCardProps> = ({ status, level, title, desc, metrics, createdDate, rating }) => {
+export const TopicCard: React.FC<TopicCardProps> = ({
+    id,
+    status,
+    level,
+    title,
+    desc,
+    coverUrl,
+    metrics,
+    createdDate,
+    rating,
+    onEdit,
+    onDelete,
+    onManage,
+}) => {
     return (
         <div className={styles.topicCard}>
             <div className={styles.cardImageContainer}>
-                {/* Visual Placeholder for the heads illustration */}
-                <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 40, height: 60, borderRadius: '20px 20px 0 0', backgroundColor: '#1e3a8a', opacity: 0.8 }}></div>
-                    <div style={{ width: 40, height: 60, borderRadius: '20px 20px 0 0', backgroundColor: '#3b82f6', opacity: 0.6 }}></div>
-                </div>
-                
+                <LazyImage src={coverUrl} alt={title} className={styles.topicCardCoverImg} draggable={false} fallbackSrc={DEFAULT_COURSE_ICON} />
+
                 <span className={`${styles.cardBadge} ${styles.badgeLeft} ${status === 'published' ? styles.badgePublished : styles.badgeDraft}`}>
                     {status === 'published' ? 'Đã đăng tải' : 'Bản nháp'}
                 </span>
@@ -64,13 +80,13 @@ export const TopicCard: React.FC<TopicCardProps> = ({ status, level, title, desc
                 </div>
                 
                 <div className={styles.cardActions}>
-                    <button className={`${styles.btnAction} ${styles.btnEdit}`}>
+                    <button type="button" className={`${styles.btnAction} ${styles.btnEdit}`} onClick={() => onEdit(id)}>
                         <span>✏️</span> Chỉnh sửa
                     </button>
-                    <button className={`${styles.btnAction} ${styles.btnDelete}`}>
+                    <button type="button" className={`${styles.btnAction} ${styles.btnDelete}`} onClick={() => onDelete(id)}>
                         <span>🗑️</span> Xoá
                     </button>
-                    <button className={`${styles.btnAction} ${styles.btnManage}`}>
+                    <button type="button" className={`${styles.btnAction} ${styles.btnManage}`} onClick={() => onManage(id)}>
                         Quản lý Khoá học →
                     </button>
                 </div>

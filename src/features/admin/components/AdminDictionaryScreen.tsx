@@ -5,10 +5,11 @@ import Link from 'next/link';
 import styles from '../admin.module.css';
 import tableStyles from './admin-dictionary-screen.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 import type { DictionaryArticleResponse } from '@/features/encyclopedia/api';
 import {
     adminDeleteArticle,
-    adminListArticles,
+    adminListArticlesPaged,
 } from '@/shared/api/admin-dictionary';
 
 function formatDate(iso?: string | null): string {
@@ -27,20 +28,23 @@ export const AdminDictionaryScreen: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [page, setPage] = useState(1);
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+    const [total, setTotal] = useState(0);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const list = await adminListArticles();
-            setArticles(list);
+            const { items, total: totalItems } = await adminListArticlesPaged({ page: page - 1, size: PAGE_SIZE });
+            setArticles(items);
+            setTotal(totalItems);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Không tải được từ điển.');
             setArticles([]);
+            setTotal(0);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page]);
 
     useEffect(() => {
         void load();
@@ -83,15 +87,15 @@ export const AdminDictionaryScreen: React.FC = () => {
         setPage(1);
     }, [searchText]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredArticles.length / PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
     const start = (currentPage - 1) * PAGE_SIZE;
-    const pagedArticles = filteredArticles.slice(start, start + PAGE_SIZE);
-    const startIndex = filteredArticles.length === 0 ? 0 : start + 1;
+    const pagedArticles = filteredArticles;
+    const startIndex = total === 0 ? 0 : start + 1;
     const endIndex = start + pagedArticles.length;
 
     const pageButtons = useMemo(() => {
-        const hardTotal = Math.max(totalPages, 140);
+        const hardTotal = totalPages;
         if (hardTotal <= 6) return Array.from({ length: hardTotal }, (_, i) => String(i + 1));
         const nearStart = currentPage <= 3;
         const nearEnd = currentPage >= hardTotal - 2;
@@ -171,7 +175,22 @@ export const AdminDictionaryScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {loading && <p className={tableStyles.feedback}>Đang tải…</p>}
+                {loading && (
+                    <AdminTableSkeleton
+                        columns={[
+                            { key: 'sel', width: 'w-6' },
+                            { key: 'code', width: 'w-14' },
+                            { key: 'term', width: 'w-56' },
+                            { key: 'topic', width: 'w-40' },
+                            { key: 'author', width: 'w-32' },
+                            { key: 'pub', width: 'w-24' },
+                            { key: 'upd', width: 'w-24' },
+                            { key: 'tags', width: 'w-40' },
+                            { key: 'status', width: 'w-24' },
+                            { key: 'act', width: 'w-12' },
+                        ]}
+                    />
+                )}
                 {!loading && !error && articles.length === 0 && (
                     <p className={tableStyles.feedback}>Chưa có bài viết.</p>
                 )}
@@ -197,7 +216,7 @@ export const AdminDictionaryScreen: React.FC = () => {
                         <tbody>
                         {pagedArticles.map((item, index) => {
                             const tagStr = (item.tags ?? []).map((t) => t.name).join(' | ') || '---';
-                            const absoluteIndex = start + index;
+                    const absoluteIndex = start + index;
                             const isRowMenuOpen = menuOpenId === item.id;
                             return (
                                 <tr key={item.id}>
@@ -267,7 +286,7 @@ export const AdminDictionaryScreen: React.FC = () => {
 
                 <div className={tableStyles.pagination}>
                     <div className={tableStyles.pageInfo}>
-                        Hiển thị <b>{startIndex}-{endIndex}</b> trong tổng số <b>{filteredArticles.length}</b> bài viết bách khoa
+                        Hiển thị <b>{startIndex}-{endIndex}</b> trong tổng số <b>{total}</b> bài viết bách khoa
                     </div>
                     <div className={tableStyles.pageControls}>
                         <button
