@@ -1,5 +1,32 @@
 import type { NextConfig } from "next";
 
+/** Extra hosts for `next/image` (comma-separated, no protocol). */
+function extraImageRemoteHosts(): Array<{ protocol: "https"; hostname: string }> {
+  const out: Array<{ protocol: "https"; hostname: string }> = [];
+  const push = (hostname: string) => {
+    const h = hostname.trim().toLowerCase();
+    if (!h || out.some((x) => x.hostname === h)) return;
+    out.push({ protocol: "https", hostname: h });
+  };
+
+  for (const part of (process.env.NEXT_PUBLIC_IMAGE_REMOTE_HOSTS ?? "").split(",")) {
+    push(part);
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (supabaseUrl) {
+    try {
+      push(new URL(supabaseUrl).hostname);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  push(process.env.NEXT_PUBLIC_DICTIONARY_SUPABASE_HOST ?? "");
+
+  return out;
+}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -7,6 +34,7 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "pttagaddlwsmrflahzvr.supabase.co",
       },
+      ...extraImageRemoteHosts(),
     ],
   },
 
