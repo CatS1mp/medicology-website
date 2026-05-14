@@ -17,6 +17,7 @@ export function LazyImage({ loading, decoding, fallbackSrc, onError, src, ...res
     // eslint-disable-next-line @next/next/no-img-element
     <img
       {...rest}
+      alt={rest.alt ?? ''}
       src={currentSrc}
       loading={loading ?? 'lazy'}
       decoding={decoding ?? 'async'}
