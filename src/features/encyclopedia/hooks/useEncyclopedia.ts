@@ -10,7 +10,10 @@ import {
     listArticles,
     recordArticleView,
 } from '../api';
-import { buildArticlePreview, extractArticlePlainText } from '@/shared/utils/article-content';
+import {
+    buildArticlePreviewLenient,
+    extractArticlePlainTextLenient,
+} from '@/shared/utils/article-content';
 
 function stripMarkdown(markdown: string): string {
     return markdown
@@ -40,7 +43,7 @@ function guessCategory(tags: DictionaryArticleResponse['tags']): ArticleCategory
 }
 
 function toSummary(a: DictionaryArticleResponse): ArticleSummary {
-    const plain = stripMarkdown(extractArticlePlainText(a.contentJson, a.contentMarkdown));
+    const plain = stripMarkdown(extractArticlePlainTextLenient(a.contentJson, a.contentMarkdown));
     const excerpt = plain.slice(0, 220);
     const tags = (a.tags ?? [])?.map(t => ({ label: t.name, slug: t.id })) ?? [];
     const publishedAt = (a.publishedAt ?? a.createdAt ?? new Date().toISOString()).slice(0, 10);
@@ -80,7 +83,7 @@ function toDetail(
     comments?: DictionaryCommentResponse[]
 ): ArticleDetail {
     const summary = toSummary(a);
-    const preview = buildArticlePreview(a.contentJson, summary.title);
+    const preview = buildArticlePreviewLenient(a.contentJson, summary.title, a.contentMarkdown);
 
     const relatedArticles = all
         .filter(x => x.slug !== summary.slug)
@@ -94,6 +97,7 @@ function toDetail(
         sections: preview.sections.map((section) => ({
             id: section.id,
             heading: section.heading,
+            headingLevel: section.headingLevel,
             content: section.content,
             imageUrl: section.imageUrl,
         })),

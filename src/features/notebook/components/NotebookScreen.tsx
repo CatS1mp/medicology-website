@@ -7,7 +7,7 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { listBookmarkedArticles } from '@/features/encyclopedia/api';
-import { extractArticlePlainText } from '@/shared/utils/article-content';
+import { extractArticlePlainTextLenient } from '@/shared/utils/article-content';
 import { BookmarkCategory } from '../types';
 import { Skeleton } from '@/shared/components/Skeleton';
 
@@ -53,7 +53,7 @@ export const NotebookScreen: React.FC = () => {
                     slug: item.slug,
                     category: mapCategory(item.tags?.map((tag) => tag.name) ?? []),
                     title: item.name,
-                    description: stripMarkdown(extractArticlePlainText(item.contentJson, item.contentMarkdown)).slice(0, 160),
+                    description: stripMarkdown(extractArticlePlainTextLenient(item.contentJson, item.contentMarkdown)).slice(0, 160),
                     tags: (item.tags ?? []).map((tag) => tag.name),
                     views: '-',
                     publishedAt: item.publishedAt ? `Xuất bản ${new Date(item.publishedAt).toLocaleDateString('vi-VN')}` : 'Chưa xuất bản',
