@@ -35,8 +35,7 @@ export const ContinueLearning: React.FC<ContinueLearningProps> = ({ courses }) =
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-gray-900">Học tiếp thôi nào!</h3>
+            <div className="flex justify-end mb-4">
                 <div className="flex items-center gap-1.5">
                     <button
                         onClick={() => setStartIndex(Math.max(0, startIndex - 1))}

@@ -40,9 +40,11 @@ export interface LearningResultPoint {
 export interface LearningProgressItem {
     id: string;
     subject: string;
+    courseSlug?: string;
     completionPercent: number;
     color: string;
     icon: string;
+    imageUrl?: string;
 }
 
 export interface UserInfo {
