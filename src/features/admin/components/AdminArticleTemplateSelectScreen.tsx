@@ -6,7 +6,12 @@ import { BaseAdminLayout } from './BaseAdminLayout';
 import styles from './article-template-select.module.css';
 import type { DictionaryArticleTemplateResponse } from '@/features/encyclopedia/api';
 import { adminCreateArticle } from '@/shared/api/admin-dictionary';
-import { buildMarkdownFromArticleContent, parseArticleContentJson, stringifyArticleContent } from '@/shared/utils/article-content';
+import {
+    ARTICLE_CONTENT_SCHEMA_VERSION,
+    buildMarkdownFromArticleContent,
+    parseArticleContentJson,
+    stringifyArticleContent,
+} from '@/shared/utils/article-content';
 
 const EMPTY_TEMPLATE: DictionaryArticleTemplateResponse = {
     id: 'template-none',
@@ -14,7 +19,7 @@ const EMPTY_TEMPLATE: DictionaryArticleTemplateResponse = {
     name: 'Không',
     description: 'Không có gì hết.',
     defaultContentJson: JSON.stringify({
-        version: 1,
+        version: ARTICLE_CONTENT_SCHEMA_VERSION,
         blocks: [],
     }),
     isActive: true,
@@ -74,7 +79,7 @@ export const AdminArticleTemplateSelectScreen: React.FC = () => {
                 name: trimmedName,
                 slug: trimmedSlug,
                 contentJson,
-                contentVersion: 1,
+                contentVersion: ARTICLE_CONTENT_SCHEMA_VERSION,
                 contentMarkdown: buildMarkdownFromArticleContent(trimmedName, contentJson),
             });
             router.push(`/admin/dictionary/${articleId}/editor`);
