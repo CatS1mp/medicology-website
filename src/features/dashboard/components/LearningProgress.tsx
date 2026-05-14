@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import type { LearningProgressItem } from '../types';
 
 interface LearningProgressProps {
@@ -23,6 +24,8 @@ function normalizeColor(color: string | undefined) {
 }
 
 export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => {
+    const router = useRouter();
+
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
             <h3 className="text-sm font-bold text-gray-900 mb-3">Tiến độ học tập</h3>
@@ -31,35 +34,63 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                 {items.map((item) => {
                     const pct = Math.max(0, Math.min(100, Math.round(item.completionPercent)));
                     const accentColor = normalizeColor(item.color);
+                    const canNavigate = Boolean(item.courseSlug);
                     return (
-                        <div key={item.id} className="flex items-center gap-3">
-                            <div
-                                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm"
-                                style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
-                            >
-                                {item.icon}
-                            </div>
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                                if (!item.courseSlug) return;
+                                router.push(`/courses/${item.courseSlug}`);
+                            }}
+                            className={`relative w-full overflow-hidden rounded-xl border border-gray-100 text-left transition-all duration-200 ${
+                                canNavigate
+                                    ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40'
+                                    : 'cursor-default'
+                            }`}
+                        >
+                            {item.imageUrl ? (
+                                <div
+                                    className="pointer-events-none absolute inset-0"
+                                    style={{
+                                        opacity: 0.15,
+                                        backgroundImage: `url("${item.imageUrl}")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'center center',
+                                        backgroundSize: '130% 130%',
+                                    }}
+                                    aria-hidden
+                                />
+                            ) : null}
+                            <div className="relative flex items-center gap-3 p-3">
+                                <div
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm"
+                                    style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
+                                >
+                                    {item.icon}
+                                </div>
 
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                    <p className="text-xs font-medium text-gray-800 truncate">{item.subject}</p>
-                                    <span className="text-[10px] text-gray-400 ml-2 flex-shrink-0">
-                                        {pct}%
-                                    </span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <p className="text-xs font-medium text-gray-800 truncate">{item.subject}</p>
+                                        <span className="text-[10px] text-gray-500 ml-2 flex-shrink-0">
+                                            {pct}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-gray-100/90 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-700 shadow-[0_0_8px_rgba(59,130,246,0.2)]"
+                                            style={{
+                                                width: pct === 0 ? '0%' : `${pct}%`,
+                                                minWidth: pct > 0 ? '10px' : undefined,
+                                                background: `linear-gradient(90deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-0.5">{pct}% hoàn thành</p>
                                 </div>
-                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full transition-all duration-700 shadow-[0_0_8px_rgba(59,130,246,0.2)]"
-                                        style={{
-                                            width: pct === 0 ? '0%' : `${pct}%`,
-                                            minWidth: pct > 0 ? '10px' : undefined,
-                                            background: `linear-gradient(90deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
-                                        }}
-                                    />
-                                </div>
-                                <p className="text-[10px] text-gray-400 mt-0.5">{pct}% hoàn thành</p>
                             </div>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
