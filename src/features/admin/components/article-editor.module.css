@@ -411,6 +411,7 @@
 }
 
 .componentItem {
+    position: relative;
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -446,6 +447,21 @@
     align-items: center;
     gap: 12px;
     min-width: 0;
+    flex-wrap: wrap;
+}
+
+.dragHandle {
+    font-size: 16px;
+    color: #94a3b8;
+    letter-spacing: -0.06em;
+    line-height: 1;
+    cursor: grab;
+}
+
+.componentSummaryActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .componentName {
@@ -465,8 +481,88 @@
     text-transform: uppercase;
 }
 
+.componentLevel {
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.branchToggleButton {
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #334155;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 9px;
+    cursor: pointer;
+}
+
+.branchToggleButton:hover {
+    background: #f8fafc;
+}
+
 .componentBody {
     padding: 0 14px 14px;
+}
+
+.componentItemDragging {
+    opacity: 0.82;
+}
+
+.dropIndicatorTop,
+.dropIndicatorBottom {
+    height: 4px;
+    background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.inlineUpload {
+    margin-top: 12px;
+    border: 1px dashed #bae6fd;
+    border-radius: 12px;
+    background: #f8fdff;
+    padding: 10px 12px;
+}
+
+.uploadLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #0369a1;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fileInput {
+    font: inherit;
+    color: #334155;
+    font-size: 12px;
+}
+
+.uploadError {
+    margin-top: 8px;
+    color: #b91c1c;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.uploadPreview {
+    margin-top: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.uploadPreview img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+    display: block;
 }
 
 .studentFrame {
@@ -524,13 +620,24 @@
     margin: 28px 0 12px;
     font-size: 28px;
     line-height: 1.15;
+    font-weight: 800;
     color: #0f172a;
 }
 
 .studentArticle h3 {
-    margin: 0 0 10px;
-    font-size: 20px;
-    color: #7c2d12;
+    margin: 22px 0 10px;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.studentArticle h4 {
+    margin: 16px 0 8px;
+    font-size: 18px;
+    line-height: 1.24;
+    font-weight: 600;
+    color: #334155;
 }
 
 .studentArticle p {
@@ -551,6 +658,28 @@
     border: 1px solid #dbeafe;
     border-radius: 16px;
     background: linear-gradient(135deg, #dbeafe, #f0f9ff);
+}
+
+.imageViewWithPhoto {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding: 0;
+    background: #f8fafc;
+}
+
+.imageViewPhoto {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    max-height: min(52vh, 480px);
+    object-fit: contain;
+    background: #0f172a05;
+}
+
+.imageViewWithPhoto .imageCaption {
+    margin-top: auto;
 }
 
 .imageView::before {
@@ -596,6 +725,12 @@
 
 .warningBody {
     padding: 16px;
+}
+
+.warningBody h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    color: #7c2d12;
 }
 
 .warningBody ul {
@@ -659,6 +794,10 @@
     margin-top: 8px;
 }
 
+.tocSubitemDeep {
+    padding-left: 14px;
+}
+
 .tocSubitem {
     color: #475569;
     font-size: 13px;
@@ -695,6 +834,14 @@
 
     .studentArticle h2 {
         font-size: 24px;
+    }
+
+    .studentArticle h3 {
+        font-size: 20px;
+    }
+
+    .studentArticle h4 {
+        font-size: 17px;
     }
 
     .field {

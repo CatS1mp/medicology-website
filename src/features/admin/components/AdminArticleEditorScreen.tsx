@@ -15,15 +15,19 @@ import {
     adminListComponents,
     adminListTags,
     adminPublishArticle,
+    adminUploadDictionaryAsset,
     adminUnpublishArticle,
     adminUpdateArticle,
 } from '@/shared/api/admin-dictionary';
 import {
+    ARTICLE_CONTENT_SCHEMA_VERSION,
     buildArticlePreview,
     buildMarkdownFromArticleContent,
     createArticleBlockId,
     parseArticleContentJson,
+    resolveHeadingLevel,
     stringifyArticleContent,
+    type ArticleHeadingLevel,
     type ArticleContentBlock,
 } from '@/shared/utils/article-content';
 
@@ -37,7 +41,7 @@ type SchemaField = {
 type TocGroup = {
     id: string;
     label: string;
-    children: Array<{ id: string; label: string }>;
+    children: Array<{ id: string; label: string; level: ArticleHeadingLevel }>;
 };
 
 function asString(value: unknown): string {
@@ -48,6 +52,18 @@ function asString(value: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function clampBlockLevel(value: unknown, fallback: ArticleHeadingLevel = 1): ArticleHeadingLevel {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    if (parsed <= 1) return 1;
+    if (parsed === 2) return 2;
+    return 3;
+}
+
+function getBlockLevel(block: ArticleContentBlock): ArticleHeadingLevel {
+    return clampBlockLevel(block.level, 1);
 }
 
 function normalizeSlug(value: string): string {
@@ -79,35 +95,8 @@ function readDescriptionFromBlocks(blocks: ArticleContentBlock[]): string {
     return paragraph ? readBlockText(paragraph) : '';
 }
 
-function createFallbackBlocks(article: DictionaryArticleResponse): ArticleContentBlock[] {
-    const content = (article.contentMarkdown ?? '').replace(/^\s*#\s+.*\n+/, '').trim();
-    const blocks: ArticleContentBlock[] = [
-        {
-            id: createArticleBlockId(),
-            componentCode: 'H1',
-            componentType: 'heading',
-            name: 'Tiêu đề chính',
-            data: { content: article.name },
-        },
-    ];
-
-    if (content) {
-        blocks.push({
-            id: createArticleBlockId(),
-            componentCode: 'Lead',
-            componentType: 'text',
-            name: 'Đoạn dẫn mở đầu',
-            data: { content },
-        });
-    }
-
-    return blocks;
-}
-
 function normalizeBlocks(article: DictionaryArticleResponse): ArticleContentBlock[] {
-    const parsed = parseArticleContentJson(article.contentJson);
-    if (parsed.blocks.length > 0) return parsed.blocks;
-    return createFallbackBlocks(article);
+    return parseArticleContentJson(article.contentJson).blocks;
 }
 
 function stripMetaBlocks(blocks: ArticleContentBlock[]): ArticleContentBlock[] {
@@ -149,6 +138,7 @@ function buildPreviewBlocks(
             componentType: 'heading',
             name: 'Tiêu đề chính',
             data: { content: title },
+            level: 1,
         });
     }
 
@@ -163,6 +153,7 @@ function buildPreviewBlocks(
                 componentType: 'text',
                 name: 'Đoạn dẫn mở đầu',
                 data: { content: description.trim() },
+                level: 1,
             });
         }
     }
@@ -278,12 +269,14 @@ function parseDefaultData(defaultDataJson?: string | null): Record<string, unkno
 }
 
 function buildBlockFromDefinition(definition: DictionaryComponentDefinitionResponse): ArticleContentBlock {
+    const data = parseDefaultData(definition.defaultDataJson);
     return {
         id: createArticleBlockId(),
         componentCode: definition.code,
         componentType: definition.componentType,
         name: definition.name,
-        data: parseDefaultData(definition.defaultDataJson),
+        data,
+        level: clampBlockLevel(data.level ?? data.headingLevel, 1),
     };
 }
 
@@ -351,6 +344,28 @@ function getMediaCaption(block: ArticleContentBlock): string {
     return block.name || 'Tệp phương tiện';
 }
 
+function getBlockImageUrl(block: ArticleContentBlock): string {
+    return asString(block.data.imageUrl ?? block.data.url ?? block.data.src).trim();
+}
+
+function isVideoLikeUrl(url: string): boolean {
+    const lower = url.toLowerCase();
+    return (
+        lower.includes('youtube.com') ||
+        lower.includes('youtu.be') ||
+        lower.includes('vimeo.com') ||
+        /\.(mp4|webm|ogg)(\?|$)/i.test(lower)
+    );
+}
+
+function getImageFigureCaption(block: ArticleContentBlock, imageUrl: string): string {
+    for (const key of ['caption', 'title', 'heading', 'label', 'description']) {
+        const value = asString(block.data[key]).trim();
+        if (value && value !== imageUrl) return value;
+    }
+    return block.name || 'Hình minh họa';
+}
+
 function isWarningLikeBlock(block: ArticleContentBlock): boolean {
     return blockMatches(block, ['warning', 'alert', 'caution', 'canh bao']);
 }
@@ -360,6 +375,10 @@ function isMediaLikeBlock(block: ArticleContentBlock): boolean {
         blockMatches(block, ['image', 'media', 'video', 'youtube', 'file', 'gallery']) ||
         ['imageUrl', 'url', 'src', 'videoUrl', 'youtubeUrl'].some((key) => Boolean(asString(block.data[key]).trim()))
     );
+}
+
+function isInfographicLikeBlock(block: ArticleContentBlock): boolean {
+    return blockMatches(block, ['infographic', 'media', 'image']);
 }
 
 function isHeadingLikeBlock(block: ArticleContentBlock): boolean {
@@ -373,10 +392,11 @@ function getHeadingText(block: ArticleContentBlock): string {
 function buildTocGroupsFromBlocks(blocks: ArticleContentBlock[], fallbackLabel: string): TocGroup[] {
     const rootLabel = fallbackLabel.trim() || 'Bài viết chưa đặt tên';
     const children = blocks
-        .filter((block) => blockMatches(block, ['h2', 'h3', 'heading']))
+        .filter((block) => isHeadingLikeBlock(block))
         .map((block) => ({
             id: `preview-heading-${block.id}`,
             label: getHeadingText(block),
+            level: resolveHeadingLevel(block),
         }))
         .filter((item) => item.label && item.label !== rootLabel);
 
@@ -402,11 +422,17 @@ export const AdminArticleEditorScreen: React.FC = () => {
     const [description, setDescription] = React.useState('');
     const [slugTouched, setSlugTouched] = React.useState(false);
     const [blocks, setBlocks] = React.useState<ArticleContentBlock[]>([]);
-    const [contentVersion, setContentVersion] = React.useState(1);
+    const [contentVersion, setContentVersion] = React.useState(ARTICLE_CONTENT_SCHEMA_VERSION);
     const [loading, setLoading] = React.useState(true);
     const [busyAction, setBusyAction] = React.useState<'save' | 'publish' | 'unpublish' | ''>('');
     const [error, setError] = React.useState<string | null>(null);
     const [activeBlockId, setActiveBlockId] = React.useState<string | null>(null);
+    const [collapsedBranches, setCollapsedBranches] = React.useState<Record<string, boolean>>({});
+    const [draggedBlockId, setDraggedBlockId] = React.useState<string | null>(null);
+    const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
+    const [dropPosition, setDropPosition] = React.useState<'before' | 'after' | null>(null);
+    const [uploadingByBlock, setUploadingByBlock] = React.useState<Record<string, boolean>>({});
+    const [uploadErrorByBlock, setUploadErrorByBlock] = React.useState<Record<string, string | null>>({});
 
     React.useEffect(() => {
         if (slugTouched) return;
@@ -445,9 +471,12 @@ export const AdminArticleEditorScreen: React.FC = () => {
                 setSlug(nextArticle.slug);
                 setDescription(readDescriptionFromBlocks(sourceBlocks));
                 setBlocks(nextBlocks);
-                setContentVersion(nextArticle.contentVersion ?? 1);
+                setContentVersion(nextArticle.contentVersion ?? ARTICLE_CONTENT_SCHEMA_VERSION);
                 setSlugTouched(false);
                 setActiveBlockId(nextBlocks[0]?.id ?? null);
+                setCollapsedBranches({});
+                setUploadingByBlock({});
+                setUploadErrorByBlock({});
             } catch (nextError) {
                 if (!cancelled) {
                     setError(nextError instanceof Error ? nextError.message : 'Không tải được dữ liệu editor.');
@@ -477,7 +506,7 @@ export const AdminArticleEditorScreen: React.FC = () => {
         () => buildPreviewBlocks(blocks, name.trim(), description.trim()),
         [blocks, description, name]
     );
-    const previewJson = stringifyArticleContent({ version: contentVersion || 1, blocks: previewBlocks });
+    const previewJson = stringifyArticleContent({ version: contentVersion || ARTICLE_CONTENT_SCHEMA_VERSION, blocks: previewBlocks });
     const previewModel = buildArticlePreview(previewJson, name || 'Nội dung bài viết');
     const tocGroups = React.useMemo(
         () => buildTocGroupsFromBlocks(blocks, name || previewModel.sections[0]?.heading || ''),
@@ -491,6 +520,41 @@ export const AdminArticleEditorScreen: React.FC = () => {
         });
     }, [blocks]);
 
+    const hiddenBlockIds = React.useMemo(() => {
+        const hidden = new Set<string>();
+        const collapsedLevelStack: number[] = [];
+
+        for (const block of blocks) {
+            const level = getBlockLevel(block);
+            while (collapsedLevelStack.length > 0 && level <= collapsedLevelStack[collapsedLevelStack.length - 1]) {
+                collapsedLevelStack.pop();
+            }
+
+            if (collapsedLevelStack.length > 0) {
+                hidden.add(block.id);
+            }
+
+            if (collapsedBranches[block.id]) {
+                collapsedLevelStack.push(level);
+            }
+        }
+        return hidden;
+    }, [blocks, collapsedBranches]);
+
+    function branchHasChildren(index: number): boolean {
+        const current = blocks[index];
+        if (!current) return false;
+        const currentLevel = getBlockLevel(current);
+        for (let i = index + 1; i < blocks.length; i += 1) {
+            const nextLevel = getBlockLevel(blocks[i]);
+            if (nextLevel <= currentLevel) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
     async function refreshArticle() {
         if (!articleId) return;
         const nextArticle = await adminGetArticleById(articleId);
@@ -502,7 +566,10 @@ export const AdminArticleEditorScreen: React.FC = () => {
         setSlug(nextArticle.slug);
         setDescription(readDescriptionFromBlocks(sourceBlocks));
         setBlocks(nextBlocks);
-        setContentVersion(nextArticle.contentVersion ?? 1);
+        setContentVersion(nextArticle.contentVersion ?? ARTICLE_CONTENT_SCHEMA_VERSION);
+        setCollapsedBranches({});
+        setUploadingByBlock({});
+        setUploadErrorByBlock({});
     }
 
     async function persistArticle(action: 'save' | 'publish' | 'unpublish') {
@@ -516,8 +583,8 @@ export const AdminArticleEditorScreen: React.FC = () => {
             return;
         }
 
-        const nextJson = stringifyArticleContent({ version: contentVersion || 1, blocks });
-        const previewContentJson = stringifyArticleContent({ version: contentVersion || 1, blocks: previewBlocks });
+        const nextJson = stringifyArticleContent({ version: contentVersion || ARTICLE_CONTENT_SCHEMA_VERSION, blocks });
+        const previewContentJson = stringifyArticleContent({ version: contentVersion || ARTICLE_CONTENT_SCHEMA_VERSION, blocks: previewBlocks });
 
         setBusyAction(action);
         setError(null);
@@ -527,7 +594,7 @@ export const AdminArticleEditorScreen: React.FC = () => {
                 name: trimmedName,
                 slug: trimmedSlug,
                 contentJson: nextJson,
-                contentVersion: contentVersion || 1,
+                contentVersion: contentVersion || ARTICLE_CONTENT_SCHEMA_VERSION,
                 contentMarkdown: buildMarkdownFromArticleContent(trimmedName, previewContentJson),
             });
             await adminAssignArticleTags(articleId, selectedTagIds);
@@ -570,6 +637,19 @@ export const AdminArticleEditorScreen: React.FC = () => {
         );
     }
 
+    function updateBlockLevel(blockId: string, direction: -1 | 1) {
+        setBlocks((current) =>
+            current.map((block) =>
+                block.id === blockId
+                    ? {
+                          ...block,
+                          level: clampBlockLevel((block.level ?? 1) + direction, 1),
+                      }
+                    : block
+            )
+        );
+    }
+
     function moveBlock(blockId: string, direction: -1 | 1) {
         setBlocks((current) => {
             const index = current.findIndex((block) => block.id === blockId);
@@ -585,12 +665,112 @@ export const AdminArticleEditorScreen: React.FC = () => {
 
     function removeBlock(blockId: string) {
         setBlocks((current) => current.filter((block) => block.id !== blockId));
+        setCollapsedBranches((current) => {
+            const next = { ...current };
+            delete next[blockId];
+            return next;
+        });
+        setUploadErrorByBlock((current) => {
+            const next = { ...current };
+            delete next[blockId];
+            return next;
+        });
+        setUploadingByBlock((current) => {
+            const next = { ...current };
+            delete next[blockId];
+            return next;
+        });
+    }
+
+    function toggleCollapseBranch(blockId: string) {
+        setCollapsedBranches((current) => ({
+            ...current,
+            [blockId]: !current[blockId],
+        }));
+    }
+
+    function reorderBlocksByDrag(sourceId: string, targetId: string, position: 'before' | 'after') {
+        setBlocks((current) => {
+            const sourceIndex = current.findIndex((block) => block.id === sourceId);
+            const targetIndex = current.findIndex((block) => block.id === targetId);
+            if (sourceIndex < 0 || targetIndex < 0) return current;
+            if (sourceIndex === targetIndex) return current;
+
+            const next = [...current];
+            const [moved] = next.splice(sourceIndex, 1);
+            const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+            const insertIndex = position === 'after' ? adjustedTarget + 1 : adjustedTarget;
+            next.splice(insertIndex, 0, moved);
+            return next;
+        });
+    }
+
+    function handleDragStart(event: React.DragEvent<HTMLElement>, blockId: string) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', blockId);
+        setDraggedBlockId(blockId);
+    }
+
+    function handleDragOver(event: React.DragEvent<HTMLElement>, blockId: string) {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        const isAfter = event.clientY > rect.top + rect.height / 2;
+        setDropTargetId(blockId);
+        setDropPosition(isAfter ? 'after' : 'before');
+        event.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDrop(event: React.DragEvent<HTMLElement>, blockId: string) {
+        event.preventDefault();
+        const sourceId = draggedBlockId || event.dataTransfer.getData('text/plain');
+        if (!sourceId) return;
+        const position = dropTargetId === blockId && dropPosition ? dropPosition : 'after';
+        reorderBlocksByDrag(sourceId, blockId, position);
+        setDraggedBlockId(null);
+        setDropTargetId(null);
+        setDropPosition(null);
+    }
+
+    function handleDragEnd() {
+        setDraggedBlockId(null);
+        setDropTargetId(null);
+        setDropPosition(null);
     }
 
     function addBlock(definition: DictionaryComponentDefinitionResponse) {
         const nextBlock = buildBlockFromDefinition(definition);
         setBlocks((current) => [...current, nextBlock]);
         setActiveBlockId(nextBlock.id);
+    }
+
+    async function uploadInfographicImage(blockId: string, file: File) {
+        if (!file) return;
+        setUploadingByBlock((current) => ({ ...current, [blockId]: true }));
+        setUploadErrorByBlock((current) => ({ ...current, [blockId]: null }));
+        try {
+            const uploaded = await adminUploadDictionaryAsset(file);
+            setBlocks((current) =>
+                current.map((block) =>
+                    block.id === blockId
+                        ? {
+                              ...block,
+                              data: {
+                                  ...block.data,
+                                  imageUrl: uploaded.url,
+                                  assetId: uploaded.assetId,
+                              },
+                          }
+                        : block
+                )
+            );
+        } catch (nextError) {
+            setUploadErrorByBlock((current) => ({
+                ...current,
+                [blockId]: nextError instanceof Error ? nextError.message : 'Tải ảnh thất bại.',
+            }));
+        } finally {
+            setUploadingByBlock((current) => ({ ...current, [blockId]: false }));
+        }
     }
 
     if (loading) {
@@ -785,27 +965,64 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                 <div className={styles.panelBody}>
                                     <div className={styles.componentList}>
                                         {blocks.map((block, index) => {
+                                            if (hiddenBlockIds.has(block.id)) {
+                                                return null;
+                                            }
                                             const definition = definitionMap.get(block.componentCode.toLowerCase());
                                             const fields = parseSchemaFields(definition?.schemaJson, block);
                                             const isActive = activeBlockId === block.id;
+                                            const level = getBlockLevel(block);
+                                            const hasChildren = branchHasChildren(index);
+                                            const isCollapsed = !!collapsedBranches[block.id];
+                                            const isDragging = draggedBlockId === block.id;
+                                            const showDropBefore = dropTargetId === block.id && dropPosition === 'before';
+                                            const showDropAfter = dropTargetId === block.id && dropPosition === 'after';
+                                            const isInfographicBlock = isInfographicLikeBlock(block);
+                                            const imagePreviewUrl = asString(
+                                                block.data.imageUrl ?? block.data.url ?? block.data.src
+                                            ).trim();
 
                                             return (
                                                 <details
                                                     key={block.id}
-                                                    className={`${styles.componentItem} ${isActive ? styles.componentItemActive : ''}`}
-                                                    open={index === 0 ? true : undefined}
+                                                    className={`${styles.componentItem} ${isActive ? styles.componentItemActive : ''} ${isDragging ? styles.componentItemDragging : ''}`}
+                                                    open={isActive}
+                                                    draggable
+                                                    onDragStart={(event) => handleDragStart(event, block.id)}
+                                                    onDragOver={(event) => handleDragOver(event, block.id)}
+                                                    onDrop={(event) => handleDrop(event, block.id)}
+                                                    onDragEnd={handleDragEnd}
+                                                    style={{ marginLeft: `${(level - 1) * 18}px` }}
                                                 >
+                                                    {showDropBefore && <div className={styles.dropIndicatorTop} />}
                                                     <summary
                                                         className={styles.componentSummary}
                                                         onClick={() => setActiveBlockId(block.id)}
                                                     >
                                                         <div className={styles.componentSummaryMain}>
+                                                            <span className={styles.dragHandle} aria-hidden>⋮⋮</span>
                                                             <div className={styles.componentName}>
                                                                 {block.name || definition?.name || block.componentCode}
                                                             </div>
                                                             <div className={styles.componentCode}>{block.componentCode}</div>
+                                                            <div className={styles.componentLevel}>Cấp {level}</div>
                                                         </div>
-                                                        <span className={styles.componentArrow}>⌄</span>
+                                                        <div className={styles.componentSummaryActions}>
+                                                            {hasChildren && (
+                                                                <button
+                                                                    type="button"
+                                                                    className={styles.branchToggleButton}
+                                                                    onClick={(event) => {
+                                                                        event.preventDefault();
+                                                                        event.stopPropagation();
+                                                                        toggleCollapseBranch(block.id);
+                                                                    }}
+                                                                >
+                                                                    {isCollapsed ? 'Mở nhánh con' : 'Thu nhánh con'}
+                                                                </button>
+                                                            )}
+                                                            <span className={styles.componentArrow}>⌄</span>
+                                                        </div>
                                                     </summary>
 
                                                     <div className={styles.componentBody}>
@@ -865,7 +1082,55 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                                             })}
                                                         </div>
 
+                                                        {isInfographicBlock && (
+                                                            <div className={styles.inlineUpload}>
+                                                                <label className={styles.uploadLabel}>
+                                                                    Upload ảnh infographic
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                                                        className={styles.fileInput}
+                                                                        onChange={(event) => {
+                                                                            const file = event.currentTarget.files?.[0];
+                                                                            if (file) {
+                                                                                void uploadInfographicImage(block.id, file);
+                                                                            }
+                                                                            event.currentTarget.value = '';
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                                {uploadingByBlock[block.id] && (
+                                                                    <p className={styles.inlineHint}>Đang tải ảnh...</p>
+                                                                )}
+                                                                {uploadErrorByBlock[block.id] && (
+                                                                    <p className={styles.uploadError}>{uploadErrorByBlock[block.id]}</p>
+                                                                )}
+                                                                {imagePreviewUrl && (
+                                                                    <div className={styles.uploadPreview}>
+                                                                        {/* eslint-disable-next-line @next/next/no-img-element -- admin preview allows external URL */}
+                                                                        <img src={imagePreviewUrl} alt="Preview infographic" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
                                                         <div className={styles.miniTools}>
+                                                            <button
+                                                                type="button"
+                                                                className={styles.miniButton}
+                                                                onClick={() => updateBlockLevel(block.id, -1)}
+                                                                disabled={level <= 1}
+                                                            >
+                                                                Giảm cấp
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className={styles.miniButton}
+                                                                onClick={() => updateBlockLevel(block.id, 1)}
+                                                                disabled={level >= 3}
+                                                            >
+                                                                Tăng cấp
+                                                            </button>
                                                             <button
                                                                 type="button"
                                                                 className={styles.miniButton}
@@ -891,6 +1156,7 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                                             </button>
                                                         </div>
                                                     </div>
+                                                    {showDropAfter && <div className={styles.dropIndicatorBottom} />}
                                                 </details>
                                             );
                                         })}
@@ -937,10 +1203,18 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                     {blocks.map((block) => {
                                         if (isHeadingLikeBlock(block)) {
                                             const heading = getHeadingText(block);
+                                            const headingLevel = resolveHeadingLevel(block);
+                                            const headingId = `preview-heading-${block.id}`;
                                             return (
-                                                <h2 key={block.id} id={`preview-heading-${block.id}`}>
-                                                    {heading}
-                                                </h2>
+                                                <React.Fragment key={block.id}>
+                                                    {headingLevel === 1 ? (
+                                                        <h2 id={headingId}>{heading}</h2>
+                                                    ) : headingLevel === 2 ? (
+                                                        <h3 id={headingId}>{heading}</h3>
+                                                    ) : (
+                                                        <h4 id={headingId}>{heading}</h4>
+                                                    )}
+                                                </React.Fragment>
                                             );
                                         }
 
@@ -962,6 +1236,21 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                         }
 
                                         if (isMediaLikeBlock(block)) {
+                                            const imageUrl = getBlockImageUrl(block);
+                                            if (imageUrl && !isVideoLikeUrl(imageUrl)) {
+                                                const caption = getImageFigureCaption(block, imageUrl);
+                                                return (
+                                                    <figure key={block.id} className={`${styles.imageView} ${styles.imageViewWithPhoto}`}>
+                                                        {/* eslint-disable-next-line @next/next/no-img-element -- preview may be Supabase or external URL */}
+                                                        <img
+                                                            className={styles.imageViewPhoto}
+                                                            src={imageUrl}
+                                                            alt={caption}
+                                                        />
+                                                        <figcaption className={styles.imageCaption}>{caption}</figcaption>
+                                                    </figure>
+                                                );
+                                            }
                                             return (
                                                 <div key={block.id} className={styles.imageView}>
                                                     <div className={styles.imageCaption}>{getMediaCaption(block)}</div>
@@ -996,7 +1285,12 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                                     {group.children.length > 0 && (
                                                         <ul>
                                                             {group.children.map((child) => (
-                                                                <li key={child.id}>
+                                                                <li
+                                                                    key={child.id}
+                                                                    className={
+                                                                        child.level === 3 ? styles.tocSubitemDeep : undefined
+                                                                    }
+                                                                >
                                                                     <a href={`#${child.id}`} className={styles.tocSubitem}>
                                                                         {child.label}
                                                                     </a>
