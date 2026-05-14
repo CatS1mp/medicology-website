@@ -11,6 +11,14 @@ import { normalizeSpringListPayload } from '@/shared/types/admin';
 
 const DICTIONARY = '/api/dictionary';
 
+export interface DictionaryAssetUploadResponse {
+    assetId: string;
+    url: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+}
+
 export async function adminListArticles(): Promise<DictionaryArticleResponse[]> {
     const { items } = await adminListArticlesPaged({ page: 0, size: 1000 });
     return items;
@@ -57,7 +65,7 @@ export async function adminCreateArticle(body: {
     name: string;
     slug: string;
     contentJson: string;
-    contentVersion?: number;
+    contentVersion: number;
     contentMarkdown?: string;
     authorAdminId?: string;
 }): Promise<string> {
@@ -195,5 +203,19 @@ export async function adminUnpublishArticle(articleId: string): Promise<void> {
             ),
         [],
         [cacheKeys.admin.dictionaryPrefix(), cacheKeys.dictionary.articles(), cacheKeys.dictionary.articlePrefix()]
+    );
+}
+
+export async function adminUploadDictionaryAsset(file: File): Promise<DictionaryAssetUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return requestApi<DictionaryAssetUploadResponse>(
+        `${DICTIONARY}/admin/assets`,
+        {
+            method: 'POST',
+            headers: buildHeaders({ includeJsonContentType: false }),
+            body: formData,
+        },
+        { unwrapData: false }
     );
 }
