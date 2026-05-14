@@ -9,6 +9,7 @@ import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { TRENDING_TAGS } from '../types';
 import { useEncyclopediaLandingArticles } from '../hooks/useEncyclopedia';
+import { EncyclopediaReadingBubble } from './EncyclopediaReadingBubble';
 
 export const EncyclopediaLanding: React.FC = () => {
     const router = useRouter();
@@ -34,9 +35,11 @@ export const EncyclopediaLanding: React.FC = () => {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AppHeader streak={streakDays ?? 0} onLogout={handleLogout} />
 
+                <EncyclopediaReadingBubble />
+
                 <div className="flex-1 overflow-y-auto">
                     {/* Chiếm ít nhất một khung nhìn: danh sách bài nằm bên dưới, chỉ thấy khi cuộn */}
-                    <div className="min-h-[calc(100dvh-5.5rem)] flex flex-col items-center justify-center px-6 py-14 box-border">
+                    <div className="min-h-[calc(100dvh-5.5rem)] flex flex-col items-center justify-center px-6 py-14 pb-44 sm:pb-40 box-border">
                         <div className="relative z-10 w-full max-w-xl text-center flex flex-col items-center">
                             <span className="text-[#1CA1F2] text-[13px] font-bold uppercase tracking-[0.18em] mb-3">
                                 Bách khoa Y học
@@ -105,7 +108,6 @@ export const EncyclopediaLanding: React.FC = () => {
                             {articlesLoading && (
                                 <div className="flex flex-col gap-4 animate-pulse">
                                     {Array.from({ length: 4 }).map((_, i) => (
-                                        // eslint-disable-next-line react/no-array-index-key -- static skeleton placeholders
                                         <div key={i} className="w-full rounded-2xl border border-gray-100 bg-white p-5 h-[108px]" />
                                     ))}
                                 </div>
