@@ -577,8 +577,8 @@ function parseOrderingItems(payload: GenericPayload): OrderingItem[] {
             }
             const data = (item ?? {}) as GenericPayload;
             const label = readText(data, ['text', 'label', 'content'], `Item ${index + 1}`);
-            const stableKey = readText(data, ['stableKey', 'key', 'id'], '');
-            return { id: stableKey || label, label };
+            const itemId = readText(data, ['id', 'stableKey', 'key'], '');
+            return { id: itemId || label, label };
         })
         .filter((item) => item.label.length > 0);
 }

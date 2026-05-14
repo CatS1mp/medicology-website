@@ -1,4 +1,4 @@
-export type LessonStatus = 'completed' | 'active' | 'locked' | 'next';
+export type LessonStatus = 'completed' | 'failed' | 'active' | 'locked' | 'next';
 export type LessonType = 'lesson' | 'test';
 
 export interface LessonNode {
