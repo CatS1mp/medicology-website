@@ -40,27 +40,32 @@ export async function listAssessmentsAdmin(): Promise<AssessmentAdminListItem[]>
     return [];
 }
 
-export async function createAssessmentAdmin(_body: {
+export async function createAssessmentAdmin(body: {
     title: string;
     courseId: string;
     sectionId: string;
     passScore: number;
     timeLimitMinutes?: number | null;
 }): Promise<AssessmentAdminListItem> {
+    void body;
     throw new Error('Quản lý bài kiểm tra độc lập đã gỡ bỏ. Nội dung chấm điểm nằm trong từng khối nội dung (content).');
 }
 
-export async function deleteAssessmentAdmin(_assessmentId: string): Promise<void> {
+export async function deleteAssessmentAdmin(assessmentId: string): Promise<void> {
+    void assessmentId;
     return;
 }
 
-export async function getAssessmentAdmin(_assessmentId: string): Promise<AssessmentAdminDetail> {
+export async function getAssessmentAdmin(assessmentId: string): Promise<AssessmentAdminDetail> {
+    void assessmentId;
     throw new Error('API bài kiểm tra độc lập đã gỡ bỏ; nội dung nằm trong khối content.');
 }
 
 export async function putAssessmentAdmin(
-    _assessmentId: string,
-    _body: Partial<AssessmentAdminDetail> & { title?: string; passScore?: number }
+    assessmentId: string,
+    body: Partial<AssessmentAdminDetail> & { title?: string; passScore?: number }
 ): Promise<AssessmentAdminDetail> {
+    void assessmentId;
+    void body;
     throw new Error('API bài kiểm tra độc lập đã gỡ bỏ; nội dung nằm trong khối content.');
 }
