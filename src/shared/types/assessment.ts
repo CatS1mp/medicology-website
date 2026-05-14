@@ -68,6 +68,7 @@ export interface AttemptSummaryResponse {
     startedAt: string;
     submittedAt: string | null;
     score: number | null;
+    maxScore: number | null;
     passed: boolean | null;
 }
 
