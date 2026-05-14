@@ -4,27 +4,31 @@ import React from 'react';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { HeroBanner } from './HeroBanner';
 import { StatsCards } from './StatsCards';
 import { LessonProgressChart } from './LessonProgressChart';
-import { ContinueLearning } from './ContinueLearning';
 import { LearningResultsChart } from './LearningResultsChart';
 import { LearningProgress } from './LearningProgress';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { getCurrentProfile, getCurrentUser } from '@/features/auth/api';
 import { getCourses, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
-import { ChartDataPoint, CourseCard, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
+import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
+import { ChartDataPoint, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
+
+function scoreToTenScale(score: number, maxScore: number): number {
+    if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) {
+        return 0;
+    }
+
+    return Math.max(0, Math.min(10, (score / maxScore) * 10));
+}
 
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
-    const [userName, setUserName] = React.useState('Bạn');
     const [lessonActivityDataset, setLessonActivityDataset] = React.useState<LessonActivityDataset | null>(null);
     const [activeRange, setActiveRange] = React.useState<LessonActivityRange>('last7');
     const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(true);
-    const [courseCards, setCourseCards] = React.useState<CourseCard[]>([]);
     const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>([]);
     const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>([]);
     const [totalLessons, setTotalLessons] = React.useState(0);
@@ -43,21 +47,33 @@ export const DashboardScreen: React.FC = () => {
         async function run() {
             setIsDashboardLoading(true);
             try {
-                const [profile, user, progress, courses, attempts] = await Promise.all([
-                    getCurrentProfile().catch(() => null),
-                    getCurrentUser().catch(() => null),
+                const [progress, courses, attempts] = await Promise.all([
                     getProgress().catch(() => []),
                     getCourses().catch(() => []),
                     getMyAttempts().catch(() => []),
                 ]);
                 if (cancelled) return;
 
-                const name = profile?.displayName || user?.username || 'Bạn';
                 const finalizedAttempts = attempts.filter((item) => item.status === 'FINALIZED' && item.score !== null);
-                const averageScore = finalizedAttempts.length
-                    ? finalizedAttempts.reduce((sum, item) => sum + Number(item.score ?? 0), 0) / finalizedAttempts.length
-                    : 0;
                 const sortedCourses = courses.slice().sort((a, b) => a.orderIndex - b.orderIndex);
+                const finalizedGradedAttempts = finalizedAttempts.filter(
+                    (item) => typeof item.maxScore === 'number' && item.maxScore > 0
+                );
+                const finalizedAttemptsOnTenScale = finalizedGradedAttempts.map((item) => {
+                    const score = Number(item.score ?? 0);
+                    const maxScore = typeof item.maxScore === 'number' && item.maxScore > 0 ? item.maxScore : 0;
+                    const scoreOnTenScale = scoreToTenScale(score, maxScore);
+
+                    return {
+                        ...item,
+                        scoreOnTenScale,
+                    };
+                });
+
+                const averageScore = finalizedAttemptsOnTenScale.length
+                    ? finalizedAttemptsOnTenScale.reduce((sum, item) => sum + item.scoreOnTenScale, 0) /
+                      finalizedAttemptsOnTenScale.length
+                    : 0;
                 const finalizedContentIds = new Set(finalizedAttempts.map((item) => item.contentId));
                 const completionByCourseId = new Map<string, number>();
                 sortedCourses.forEach((course) => {
@@ -67,37 +83,30 @@ export const DashboardScreen: React.FC = () => {
                 });
                 const lessonCount = sortedCourses.reduce((sum, course) => sum + (course.sections ?? []).reduce((sectionSum, section) => sectionSum + (section.contents?.length ?? 0), 0), 0);
 
-                setUserName(name);
                 setAverageScore(averageScore);
                 setActiveCourseCount(progress.length);
                 setTotalLessons(lessonCount);
-                setCourseCards(sortedCourses.slice(0, 3).map((course) => {
-                    const currentProgress = completionByCourseId.get(course.id) ?? 0;
-                    const lessons = course.sections?.flatMap((section) => section.contents ?? []) ?? [];
-                    const completed = Math.round((currentProgress / 100) * Math.max(lessons.length, 1));
-                    return {
-                        id: course.id,
-                        category: course.name.toUpperCase(),
-                        categoryColor: course.colorCode || '#3B82F6',
-                        title: course.description || course.name,
-                        nextLesson: lessons[Math.min(completed, Math.max(lessons.length - 1, 0))]?.name || 'Bắt đầu khóa học',
-                        progress: currentProgress,
-                        total: Math.max(lessons.length, 1),
-                        completed,
-                    };
-                }));
-                setLearningResults(finalizedAttempts.slice(-6).map((attempt) => ({
+                setLearningResults(finalizedAttemptsOnTenScale.slice(-6).map((attempt) => ({
                     label: new Date(attempt.submittedAt ?? attempt.startedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
-                    actual: Math.max(0, Math.min(10, Number(attempt.score ?? 0))),
+                    actual: attempt.scoreOnTenScale,
                     target: 8,
                 })));
-                setLearningProgress(progress.slice(0, 5).map((item) => ({
-                    id: item.courseId,
-                    subject: item.courseName,
-                    completionPercent: completionByCourseId.get(item.courseId) ?? 0,
-                    color: sortedCourses.find((course) => course.slug === item.courseSlug)?.colorCode || '#3B82F6',
-                    icon: '📘',
-                })));
+                setLearningProgress(
+                    progress
+                        .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
+                        .slice(0, 5)
+                        .map((item) => ({
+                            id: item.courseId,
+                            subject: item.courseName,
+                            courseSlug: item.courseSlug,
+                            completionPercent: completionByCourseId.get(item.courseId) ?? 0,
+                            color: sortedCourses.find((course) => course.slug === item.courseSlug)?.colorCode || '#3B82F6',
+                            icon: '📘',
+                            imageUrl: resolveCourseIconSrc(
+                                sortedCourses.find((course) => course.id === item.courseId || course.slug === item.courseSlug)?.iconFileName
+                            ),
+                        }))
+                );
             } catch {
                 if (cancelled) return;
             } finally {
@@ -184,8 +193,6 @@ export const DashboardScreen: React.FC = () => {
                         <DashboardSkeleton />
                     ) : (
                         <div className="flex min-h-full flex-col gap-5 p-3 sm:p-5">
-                            <HeroBanner userName={userName} />
-
                             <div className="flex flex-col gap-5 xl:flex-row">
                                 <div className="flex-1 min-w-0 flex flex-col gap-5">
                                     <div>
@@ -207,8 +214,6 @@ export const DashboardScreen: React.FC = () => {
                                             isLoading={isLessonActivityLoading}
                                         />
                                     </div>
-
-                                    <ContinueLearning courses={courseCards} />
                                 </div>
 
                                 <div className="w-full flex-shrink-0 flex flex-col gap-4 xl:w-72">
