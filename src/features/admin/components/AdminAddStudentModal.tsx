@@ -17,7 +17,7 @@ export const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({ onCl
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [audience, setAudience] = useState('');
+    const audience = '';
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
