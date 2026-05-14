@@ -22,62 +22,46 @@ const Sparkle = ({ size, style }: { size: number; style: React.CSSProperties }) 
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ userName }) => {
     return (
-        <div style={{ position: 'relative', marginBottom: '32px' }}>
-            <div
-                style={{
-                    position: 'relative',
-                    height: '220px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(90deg, #3B8BF5 0%, #62C8FF 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 44px',
-                    overflow: 'hidden',
-                }}
-            >
-                <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', width: 320, height: 320, top: -100, right: 310, pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', width: 200, height: 200, bottom: -70, right: 280, pointerEvents: 'none' }} />
+        <div className="relative mb-6 sm:mb-8">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#3B8BF5] to-[#62C8FF] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+                <div
+                    className="pointer-events-none absolute -right-16 top-[-90px] h-56 w-56 rounded-full bg-white/15 sm:-right-20 sm:h-72 sm:w-72"
+                    aria-hidden
+                />
+                <div
+                    className="pointer-events-none absolute -right-8 bottom-[-72px] h-40 w-40 rounded-full bg-white/10 sm:-right-14 sm:h-52 sm:w-52"
+                    aria-hidden
+                />
 
-                <Sparkle size={56} style={{ top: 16, right: 420, animation: 'twinkle 2.4s ease-in-out infinite' }} />
-                <Sparkle size={34} style={{ bottom: 18, right: 390, animation: 'twinkle 3.2s ease-in-out infinite 0.6s' }} />
-                <Sparkle size={22} style={{ top: 42, right: 370, animation: 'twinkle 1.8s ease-in-out infinite 0.2s' }} />
+                <Sparkle size={36} style={{ top: 14, right: '28%', animation: 'twinkle 2.4s ease-in-out infinite' }} />
+                <Sparkle size={24} style={{ bottom: 16, right: '24%', animation: 'twinkle 3.2s ease-in-out infinite 0.6s' }} />
+                <Sparkle size={18} style={{ top: 48, right: '21%', animation: 'twinkle 1.8s ease-in-out infinite 0.2s' }} />
 
-                <div style={{ position: 'relative', zIndex: 1, maxWidth: 420 }}>
-                    <p style={{ color: 'rgba(219,234,254,0.95)', fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
+                <div className="relative z-[1] max-w-xl pr-0 lg:pr-44 xl:pr-52">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:mb-3 sm:text-[11px]">
                         KIẾN THỨC SỨC KHỎE
                     </p>
-                    <h2 style={{ color: 'white', fontSize: 21, fontWeight: 800, lineHeight: 1.4, marginBottom: 22 }}>
-                        Xin chào, {userName}! Hãy Nâng cao hiểu biết y tế với các khóa học trực tuyến của Medicology
+                    <h2 className="mb-5 text-lg font-extrabold leading-relaxed text-white sm:text-xl">
+                        Xin chào, {userName}! Hãy nâng cao hiểu biết y tế với các khóa học trực tuyến của Medicology
                     </h2>
                     <button
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', color: '#2563EB', fontWeight: 700, fontSize: 13, padding: '10px 22px', borderRadius: 999, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)'; }}
+                        className="inline-flex items-center gap-2 rounded-full border-none bg-white px-4 py-2.5 text-xs font-bold text-blue-600 shadow-[0_4px_16px_rgba(0,0,0,0.18)] transition-transform transition-shadow hover:scale-105 hover:shadow-[0_6px_20px_rgba(0,0,0,0.25)] sm:px-5 sm:text-sm"
                     >
                         Bắt đầu bài học hôm nay
-                        <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 sm:h-[22px] sm:w-[22px]">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
                         </span>
                     </button>
                 </div>
-            </div>
 
-            <div
-                style={{
-                    position: 'absolute',
-                    right: 380,
-                    bottom: '-68px',
-                    width: '420px',
-                    height: '420px',
-                    backgroundImage: 'url(/images/Mascot/5.svg)',
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'bottom center',
-                    zIndex: 10,
-                    filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.15))',
-                    pointerEvents: 'none',
-                }}
-            />
+                <div
+                    className="pointer-events-none absolute bottom-0 right-2 z-[2] h-28 w-28 bg-contain bg-bottom bg-no-repeat drop-shadow-[0_8px_20px_rgba(0,0,0,0.15)] sm:h-36 sm:w-36 md:h-44 md:w-44 lg:right-6 lg:h-52 lg:w-52 xl:h-60 xl:w-60"
+                    style={{ backgroundImage: 'url(/images/Mascot/5.svg)' }}
+                    aria-hidden
+                />
+            </div>
         </div>
     );
 };
