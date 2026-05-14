@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import styles from '../admin.module.css';
 import { BaseAdminLayout } from './BaseAdminLayout';
 import { adminListBlockTemplates, adminUpdateContent } from '@/shared/api/admin-learning';
@@ -9,6 +9,7 @@ import { getContentDetail } from '@/shared/api/learning';
 import type { ContentBlockKind, ContentBlockResponse, ContentBlockTemplateResponse } from '@/shared/types/learning';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { LessonBlockStep } from '@/features/courses/components/lesson/LessonBlockStep';
+import { useToast } from '@/shared/contexts/ToastContext';
 
 function difficultyLabel(raw?: string | null): string {
     if (!raw) return 'CƠ BẢN';
@@ -202,15 +203,15 @@ function normalizePayloadForKind(kind: ContentBlockKind, payload: string): strin
         const items = rawItems.map((it, index) => {
             const o = (it ?? {}) as Record<string, unknown>;
             const text = String(o.text ?? o.label ?? '').trim();
-            const stableKey = String(o.stableKey ?? o.key ?? o.id ?? '').trim() || `k${index + 1}`;
-            return { stableKey, text: text || `Bước ${index + 1}` };
+            const id = String(o.id ?? o.stableKey ?? o.key ?? '').trim() || `k${index + 1}`;
+            return { id, text: text || `Bước ${index + 1}` };
         });
         const safeItems =
             items.length >= 2
                 ? items
                 : [
-                      { stableKey: 'k1', text: 'Bước thứ nhất' },
-                      { stableKey: 'k2', text: 'Bước thứ hai' },
+                      { id: 'k1', text: 'Bước thứ nhất' },
+                      { id: 'k2', text: 'Bước thứ hai' },
                   ];
         return JSON.stringify({ ...parsed, prompt, items: safeItems });
     }
@@ -547,20 +548,20 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
     if (block.kind === 'ORDERING') {
         const prompt = String(parsed.prompt ?? '');
         const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-        const items: { stableKey: string; text: string }[] =
+        const items: { id: string; text: string }[] =
             rawItems.length >= 2
                 ? rawItems.map((it, index) => {
                       const o = (it ?? {}) as Record<string, unknown>;
                       const text = String(o.text ?? o.label ?? '');
-                      const stableKey = String(o.stableKey ?? o.key ?? o.id ?? '').trim() || `k${index + 1}`;
-                      return { stableKey, text };
+                      const id = String(o.id ?? o.stableKey ?? o.key ?? '').trim() || `k${index + 1}`;
+                      return { id, text };
                   })
                 : [
-                      { stableKey: 'k1', text: '' },
-                      { stableKey: 'k2', text: '' },
+                      { id: 'k1', text: '' },
+                      { id: 'k2', text: '' },
                   ];
 
-        const commitItems = (next: { stableKey: string; text: string }[]) => {
+        const commitItems = (next: { id: string; text: string }[]) => {
             commitPayload({ ...parsed, prompt, items: next });
         };
 
@@ -576,7 +577,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
         return (
             <div style={{ display: 'grid', gap: 14 }}>
                 <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
-                    Người học kéo–thả để sắp xếp các dòng theo đúng thứ tự. <strong>Mã bước</strong> (k1, k2…) dùng nội bộ để lưu đáp án; có thể để mặc định.
+                    Người học kéo–thả để sắp xếp các dòng theo đúng thứ tự. <strong>ID bước</strong> (k1, k2...) dùng nội bộ để lưu đáp án; có thể để mặc định.
                 </p>
                 <label style={{ display: 'grid', gap: 6 }}>
                     <span style={compactLabel}>Yêu cầu</span>
@@ -586,7 +587,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                     <span style={compactLabel}>Thứ tự đúng (từ trên xuống)</span>
                     {items.map((item, idx) => (
                         <div
-                            key={`${item.stableKey}-${idx}`}
+                            key={`${item.id}-${idx}`}
                             style={{
                                 display: 'grid',
                                 gridTemplateColumns: '88px 1fr auto',
@@ -600,10 +601,10 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                         >
                             <input
                                 style={{ ...compactInput, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
-                                value={item.stableKey}
+                                value={item.id}
                                 onChange={(e) => {
                                     const v = e.target.value.trim() || `k${idx + 1}`;
-                                    const next = items.map((row, j) => (j === idx ? { ...row, stableKey: v } : row));
+                                    const next = items.map((row, j) => (j === idx ? { ...row, id: v } : row));
                                     commitItems(next);
                                 }}
                                 title="Mã định danh bước (không trùng nhau)"
@@ -653,7 +654,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                         type="button"
                         onClick={() => {
                             const n = items.length + 1;
-                            commitItems([...items, { stableKey: `k${n}`, text: '' }]);
+                            commitItems([...items, { id: `k${n}`, text: '' }]);
                         }}
                         style={{ alignSelf: 'start', fontSize: 12, padding: '8px 12px', borderRadius: 8, border: '1px dashed #94a3b8', background: '#f8fafc', fontWeight: 600 }}
                     >
@@ -789,8 +790,11 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
 }
 
 export const AdminTestDetailScreen: React.FC = () => {
+    const router = useRouter();
+    const { showToast } = useToast();
     const searchParams = useSearchParams();
     const contentId = searchParams.get('contentId') ?? searchParams.get('lessonId');
+    const courseId = searchParams.get('courseId');
     const [detail, setDetail] = useState<ContentEditorDetail | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -944,6 +948,7 @@ export const AdminTestDetailScreen: React.FC = () => {
                     blocks: previous.blocks.map((block, index) => ({ ...block, displayOrder: index, isNew: false })),
                 };
             });
+            showToast('Lưu cấu hình nội dung thành công.', 'success');
         } catch (e) {
             window.alert(e instanceof Error ? e.message : 'Lưu thất bại.');
         } finally {
@@ -958,6 +963,14 @@ export const AdminTestDetailScreen: React.FC = () => {
                 style={{ flexDirection: 'column', alignItems: 'stretch', gap: 0, marginBottom: 24 }}
             >
                 <div className={styles.reportTitleGroup}>
+                    <button
+                        type="button"
+                        className={styles.btnSecondary}
+                        style={{ marginBottom: 12, width: 'fit-content' }}
+                        onClick={() => router.push(courseId ? `/admin/courses/${encodeURIComponent(courseId)}/curriculum` : '/admin/courses')}
+                    >
+                        ← Quay lại roadmap
+                    </button>
                     <h1>Chi tiết nội dung bài học</h1>
                     <p>Hiển thị danh sách khối học tập của content và cấu hình thời lượng hiển thị.</p>
                 </div>
