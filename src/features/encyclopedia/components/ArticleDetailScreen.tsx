@@ -3,7 +3,6 @@
 import DOMPurify from 'dompurify';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
@@ -23,8 +22,25 @@ import {
 import type { ArticleComment } from '../types';
 import { ArticleDetailSkeleton } from './ArticleDetailSkeleton';
 
+function isSafeHttpImageUrl(url: string): boolean {
+    const t = url.trim();
+    return t.length > 0 && /^https?:\/\//i.test(t) && !/\s/.test(t);
+}
+
 interface ArticleDetailScreenProps {
     slug: string;
+}
+
+function sectionHeadingTypography(level: 1 | 2 | 3): string {
+    if (level === 1) return 'text-[30px] font-extrabold md:text-[36px]';
+    if (level === 2) return 'text-[24px] font-bold md:text-[30px]';
+    return 'text-[20px] font-semibold md:text-[24px]';
+}
+
+function sectionHeadingBar(level: 1 | 2 | 3): string {
+    if (level === 1) return 'h-7 w-1.5';
+    if (level === 2) return 'h-6 w-1.5';
+    return 'h-5 w-1';
 }
 
 export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }) => {
@@ -317,19 +333,42 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
 
                             {article.sections.map(section => (
                                 <div key={section.id} id={section.id} className="mb-10 scroll-mt-6">
-                                    <h2 className="mb-5 flex items-center gap-3 text-[34px] font-extrabold leading-tight text-[#2f3946] md:text-[40px]">
-                                        <div className="w-1.5 h-6 bg-[#1CA1F2] rounded-r-md flex-shrink-0" />
-                                        {section.heading}
-                                    </h2>
+                                    {(() => {
+                                        const headingLevel = section.headingLevel ?? 2;
+                                        if (headingLevel === 1) {
+                                            return (
+                                                <h2 className={`mb-5 flex items-center gap-3 leading-tight text-[#2f3946] ${sectionHeadingTypography(headingLevel)}`}>
+                                                    <div className={`${sectionHeadingBar(headingLevel)} rounded-r-md bg-[#1CA1F2] flex-shrink-0`} />
+                                                    {section.heading}
+                                                </h2>
+                                            );
+                                        }
+                                        if (headingLevel === 2) {
+                                            return (
+                                                <h3 className={`mb-4 flex items-center gap-3 leading-tight text-[#2f3946] ${sectionHeadingTypography(headingLevel)}`}>
+                                                    <div className={`${sectionHeadingBar(headingLevel)} rounded-r-md bg-[#1CA1F2]/90 flex-shrink-0`} />
+                                                    {section.heading}
+                                                </h3>
+                                            );
+                                        }
+                                        return (
+                                            <h4 className={`mb-4 flex items-center gap-2.5 leading-tight text-[#2f3946] ${sectionHeadingTypography(headingLevel)}`}>
+                                                <div className={`${sectionHeadingBar(headingLevel)} rounded-r-md bg-[#1CA1F2]/80 flex-shrink-0`} />
+                                                {section.heading}
+                                            </h4>
+                                        );
+                                    })()}
 
-                                    {section.imageUrl && (
+                                    {section.imageUrl && isSafeHttpImageUrl(section.imageUrl) && (
                                         <div className="w-full mb-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                                            <Image
-                                                src={section.imageUrl}
+                                            {/* Native img: URLs come from CMS/Storage and may use any Supabase project host without next.config allowlist. */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={section.imageUrl.trim()}
                                                 alt={section.heading}
-                                                width={900}
-                                                height={600}
-                                                className="w-full h-auto object-contain"
+                                                className="w-full h-auto max-h-[min(80vh,720px)] object-contain bg-gray-50"
+                                                loading="lazy"
+                                                decoding="async"
                                             />
                                         </div>
                                     )}
@@ -505,7 +544,9 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                                 key={item.id}
                                                 href={`#${item.id}`}
                                                 onClick={() => setActiveSection(item.id)}
-                                                className={`text-[12px] leading-snug transition-colors ${item.level === 2 ? 'pl-4' : ''} ${
+                                                className={`text-[12px] leading-snug transition-colors ${
+                                                    item.level === 2 ? 'pl-4' : item.level === 3 ? 'pl-8 text-[11px]' : ''
+                                                } ${
                                                     activeSection === item.id ? 'text-[#1CA1F2] font-semibold' : 'text-gray-500 hover:text-gray-700'
                                                 }`}
                                             >
