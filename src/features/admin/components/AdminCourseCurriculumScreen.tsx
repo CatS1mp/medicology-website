@@ -990,7 +990,7 @@ export const AdminCourseCurriculumScreen: React.FC = () => {
                                                                             onClick={() => {
                                                                                 setOpenMenu(null);
                                                                                 router.push(
-                                                                                    `/admin/tests/edit?contentId=${encodeURIComponent(lesson.id)}`
+                                                                                    `/admin/tests/edit?contentId=${encodeURIComponent(lesson.id)}&courseId=${encodeURIComponent(courseId)}`
                                                                                 );
                                                                             }}
                                                                         >
