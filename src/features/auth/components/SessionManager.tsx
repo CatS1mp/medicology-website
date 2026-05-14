@@ -118,8 +118,26 @@ export function SessionManager() {
         }, delay);
     }, [refreshSessionIfNeeded]);
 
+    const redirectToDashboardIfAuthenticated = React.useCallback(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (!isAuthPage(pathname)) {
+            return;
+        }
+
+        const refreshToken = getStoredRefreshToken();
+        if (!refreshToken) {
+            return;
+        }
+
+        router.replace('/dashboard');
+    }, [pathname, router]);
+
     React.useEffect(() => {
         void syncSessionState();
+        redirectToDashboardIfAuthenticated();
         scheduleRefresh();
 
         const handleVisibilityChange = () => {
@@ -135,6 +153,7 @@ export function SessionManager() {
         };
 
         const handleSessionUpdated = () => {
+            redirectToDashboardIfAuthenticated();
             scheduleRefresh();
         };
 
@@ -150,7 +169,7 @@ export function SessionManager() {
                 window.clearTimeout(timerRef.current);
             }
         };
-    }, [scheduleRefresh, syncSessionState]);
+    }, [redirectToDashboardIfAuthenticated, scheduleRefresh, syncSessionState]);
 
     return null;
 }
