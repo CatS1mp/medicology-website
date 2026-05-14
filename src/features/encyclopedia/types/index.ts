@@ -21,12 +21,13 @@ export interface ArticleSummary {
 export interface TableOfContentsItem {
     id: string;
     label: string;
-    level: 1 | 2;
+    level: 1 | 2 | 3;
 }
 
 export interface ArticleSection {
     id: string;
     heading: string;
+    headingLevel: 1 | 2 | 3;
     content: string;
     imageUrl?: string;
 }

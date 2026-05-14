@@ -34,12 +34,14 @@ export const mockArticles: Record<string, ArticleDetail> = {
             {
                 id: 'hieu-benh',
                 heading: 'Hiểu về bệnh lý',
+                headingLevel: 2,
                 imageUrl: '/images/Others/Main.svg',
                 content: `Nhồi máu cơ tim (MI), thường được gọi là đau tim, xảy ra khi dòng máu đến một phần cơ tim bị tắc nghẽn, thường do **cục máu đông**. Sự tắc nghẽn này ngăn oxy đến mô tim, gây tổn thương hoặc hoại tử vùng đó.\n\nNhồi máu cơ tim là một trong những trường hợp **khẩn cấp tim mạch** nghiêm trọng nhất và cần được điều trị y tế ngay lập tức để ngăn ngừa tổn thương vĩnh viễn hoặc tử vong.\n\nMức độ nghiêm trọng và kết quả phụ thuộc vào nhiều yếu tố liên kết nhau, bao gồm vị trí tắc nghẽn, thời gian thiếu máu, và quan trọng nhất — tốc độ điều trị. Nhận biết sớm và can thiệp y tế kịp thời có vai trò quyết định đến khả năng sống sót và phục hồi.`,
             },
             {
                 id: 'yeu-to-nguy-co',
                 heading: 'Yếu tố nguy cơ',
+                headingLevel: 2,
                 content: `Nhiều yếu tố làm tăng nguy cơ bị nhồi máu cơ tim:\n\n- **Tăng huyết áp** — gây tổn hại thành động mạch theo thời gian\n- **Hút thuốc lá** — làm hỏng mạch máu và giảm oxy máu\n- **Cholesterol cao** — dẫn đến tích tụ mảng bám trong động mạch\n- **Tiểu đường** — tăng tốc xơ vữa động mạch\n- **Béo phì** — gây thêm áp lực cho tim\n- **Tiền sử gia đình** — yếu tố di truyền đóng vai trò quan trọng`,
             },
         ],

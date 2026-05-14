@@ -15,8 +15,8 @@ export interface DictionaryArticleResponse {
     id: string;
     name: string;
     slug: string;
-    contentJson?: string | null;
-    contentVersion?: number | null;
+    contentJson: string;
+    contentVersion: number;
     contentMarkdown?: string | null;
     authorAdminId: string;
     isPublished: boolean;
@@ -79,6 +79,35 @@ export interface DictionaryViewStatisticsResponse {
 
 export interface DictionaryBookmarkArticleResponse extends DictionaryArticleResponse {
     bookmarkedAt?: string | null;
+}
+
+export interface DictionaryRecommendationAttemptPayload {
+    contentId?: string | null;
+    contentName?: string | null;
+    tags?: string[] | null;
+    submittedAt?: string | null;
+    passed?: boolean | null;
+}
+
+export interface DictionaryArticleRecommendationRequest {
+    recentAttempts: DictionaryRecommendationAttemptPayload[];
+    limit?: number;
+}
+
+export interface DictionaryArticleRecommendationItem {
+    articleId: string;
+    title: string;
+    slug: string;
+    matchScore: number;
+    reason: string;
+    source: 'ai' | 'fallback_popular_unread';
+    totalViews: number;
+    tags: string[];
+}
+
+export interface DictionaryArticleRecommendationResponse {
+    strategy: 'ai' | 'fallback_popular_unread';
+    items: DictionaryArticleRecommendationItem[];
 }
 
 function normalizeDictionaryError(error: unknown) {
@@ -231,4 +260,10 @@ export function listBookmarkedArticles(): Promise<DictionaryBookmarkArticleRespo
     return cachedGet(cacheKeys.dictionary.bookmarks(), CACHE_TTL.SHORT, () =>
         getJson<DictionaryBookmarkArticleResponse[]>(`${DICTIONARY}/users/me/bookmarks`)
     );
+}
+
+export function recommendArticlesFromAttempts(
+    body: DictionaryArticleRecommendationRequest
+): Promise<DictionaryArticleRecommendationResponse> {
+    return postJson<DictionaryArticleRecommendationResponse>(`${DICTIONARY}/recommendations/articles`, body);
 }
