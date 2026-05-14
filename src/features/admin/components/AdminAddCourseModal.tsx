@@ -395,6 +395,8 @@ export const AdminAddCourseModal: React.FC<AdminAddCourseModalProps> = ({ onClos
                                             className={styles.addCourseCropFrame}
                                             onPointerDown={onPointerDown}
                                         >
+                                            {/* Using native img intentionally for draggable crop preview */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={iconPreviewUrl}
                                                 alt="Course preview"
