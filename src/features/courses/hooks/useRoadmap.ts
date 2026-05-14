@@ -17,18 +17,44 @@ function normalizeRouteParam(param: string): string {
     }
 }
 
-/** Content đã nộp attempt (có submittedAt) được coi là đã hoàn thành trên roadmap. */
-function buildCompletedContentIdsFromAttempts(
-    attempts: { contentId: string; submittedAt: string | null; status: string }[],
+type AttemptSummaryLite = {
+    contentId: string;
+    submittedAt: string | null;
+    startedAt: string;
+    status: string;
+    passed: boolean | null;
+};
+
+function toAttemptTimestamp(attempt: AttemptSummaryLite): number {
+    const value = Date.parse(attempt.submittedAt ?? attempt.startedAt);
+    return Number.isNaN(value) ? 0 : value;
+}
+
+/**
+ * Quy ước roadmap:
+ * - completed: attempt FINALIZED mới nhất có passed=true
+ * - failed: attempt FINALIZED mới nhất có passed=false
+ */
+function buildLatestFinalizedOutcomeByContentId(
+    attempts: AttemptSummaryLite[],
     courseContentIds: Set<string>
-): Set<string> {
-    const done = new Set<string>();
-    for (const a of attempts) {
-        if (!courseContentIds.has(a.contentId) || !a.submittedAt) continue;
-        if (a.status === 'IN_PROGRESS') continue;
-        done.add(a.contentId);
+): Map<string, 'completed' | 'failed'> {
+    const latestAttemptByContentId = new Map<string, AttemptSummaryLite>();
+    for (const attempt of attempts) {
+        if (!courseContentIds.has(attempt.contentId)) continue;
+        if (attempt.status !== 'FINALIZED') continue;
+        if (!attempt.submittedAt) continue;
+        const prev = latestAttemptByContentId.get(attempt.contentId);
+        if (!prev || toAttemptTimestamp(attempt) >= toAttemptTimestamp(prev)) {
+            latestAttemptByContentId.set(attempt.contentId, attempt);
+        }
     }
-    return done;
+
+    const outcome = new Map<string, 'completed' | 'failed'>();
+    for (const [contentId, attempt] of latestAttemptByContentId.entries()) {
+        outcome.set(contentId, attempt.passed ? 'completed' : 'failed');
+    }
+    return outcome;
 }
 
 export const useRoadmap = (slug: string) => {
@@ -68,7 +94,17 @@ export const useRoadmap = (slug: string) => {
                     (section.contents ?? []).slice().sort((x, y) => x.orderIndex - y.orderIndex)
                 );
                 const courseContentIds = new Set(flattenedLessons.map((c) => c.id));
-                const completedContentIds = buildCompletedContentIdsFromAttempts(myAttempts, courseContentIds);
+                const finalizedOutcomeByContentId = buildLatestFinalizedOutcomeByContentId(myAttempts, courseContentIds);
+                const completedContentIds = new Set(
+                    [...finalizedOutcomeByContentId.entries()]
+                        .filter(([, outcome]) => outcome === 'completed')
+                        .map(([contentId]) => contentId)
+                );
+                const failedContentIds = new Set(
+                    [...finalizedOutcomeByContentId.entries()]
+                        .filter(([, outcome]) => outcome === 'failed')
+                        .map(([contentId]) => contentId)
+                );
                 const completedCount = flattenedLessons.filter((c) => completedContentIds.has(c.id)).length;
                 const totalLessons = Math.max(1, flattenedLessons.length);
                 const incompleteOrdered = flattenedLessons.filter((c) => !completedContentIds.has(c.id));
@@ -100,6 +136,8 @@ export const useRoadmap = (slug: string) => {
                                     status = 'completed';
                                 } else if (attemptId) {
                                     status = 'active';
+                                } else if (failedContentIds.has(lesson.id)) {
+                                    status = 'failed';
                                 } else if (firstOpen && lesson.id === firstOpen.id) {
                                     status = 'active';
                                 } else if (secondOpen && lesson.id === secondOpen.id) {

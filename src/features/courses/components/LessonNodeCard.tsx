@@ -42,6 +42,14 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             iconBg: 'bg-[#E8F5E9]',
             iconText: 'text-[#4CAF50]'
         },
+        failed: {
+            border: 'border-red-400',
+            bg: 'bg-white',
+            textInfo: 'text-red-600 font-medium',
+            title: 'text-gray-900',
+            iconBg: 'bg-red-100',
+            iconText: 'text-red-700'
+        },
         active: {
             border: 'border-[#1CA1F2]',
             bg: 'bg-white',
@@ -72,16 +80,21 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
     const isTest = node.type === 'test';
 
     const isDone = node.status === 'completed' && !isInProgress;
+    const isFailed = node.status === 'failed' && !isInProgress;
     const cardSurfaceClass = isInProgress
         ? 'border-amber-400 bg-gradient-to-br from-amber-50 to-amber-100/80 shadow-[0_1px_0_rgba(251,191,36,0.35)]'
         : isDone
             ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50/90 shadow-[0_1px_0_rgba(16,185,129,0.2)]'
-            : `${style.border} ${style.bg}`;
+            : isFailed
+                ? 'border-red-500 bg-gradient-to-br from-red-50 to-rose-50/90 shadow-[0_1px_0_rgba(239,68,68,0.2)]'
+                : `${style.border} ${style.bg}`;
     const iconSurfaceClass = isInProgress
         ? 'bg-amber-200 text-amber-900'
         : isDone
             ? 'bg-emerald-100 text-emerald-700'
-            : `${style.iconBg} ${style.iconText}`;
+            : isFailed
+                ? 'bg-red-100 text-red-700'
+                : `${style.iconBg} ${style.iconText}`;
 
     const renderIcon = () => {
         if (isInProgress) {
@@ -107,6 +120,13 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             return (
                 <svg className="w-6 h-6 text-[#4CAF50]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+            );
+        }
+        if (node.status === 'failed') {
+            return (
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86l-7.73 13.4A1 1 0 003.42 19h15.16a1 1 0 00.86-1.74l-7.73-13.4a1 1 0 00-1.72 0z" />
                 </svg>
             );
         }
@@ -143,7 +163,7 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                     </div>
 
                     <div>
-                        <h3 className={`text-[15px] font-bold mb-0.5 flex flex-wrap items-center gap-2 ${isInProgress ? 'text-gray-900' : isDone ? 'text-emerald-950' : style.title}`}>
+                        <h3 className={`text-[15px] font-bold mb-0.5 flex flex-wrap items-center gap-2 ${isInProgress ? 'text-gray-900' : isDone ? 'text-emerald-950' : isFailed ? 'text-red-900' : style.title}`}>
                             {node.title}
                             {isInProgress ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-amber-900">
@@ -153,6 +173,10 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                             ) : isDone ? (
                                 <span className="rounded-full border border-emerald-400/60 bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-900">
                                     Đã hoàn thành
+                                </span>
+                            ) : isFailed ? (
+                                <span className="rounded-full border border-red-300 bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-red-900">
+                                    Chưa đạt
                                 </span>
                             ) : null}
                         </h3>
@@ -164,6 +188,8 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                                 </span>
                             ) : isDone ? (
                                 <span className="text-[12px] font-medium text-emerald-800/90">Nhấn để vào học lại hoặc xem kết quả</span>
+                            ) : isFailed ? (
+                                <span className="text-[12px] font-medium text-red-700">Điểm chưa đạt yêu cầu — nhấn để làm lại</span>
                             ) : node.status === 'active' ? (
                                 <span className={style.textInfo}>Start now</span>
                             ) : node.type === 'test' ? (
