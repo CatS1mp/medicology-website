@@ -7,13 +7,24 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { syncLearningStreakOnFirstCompletionToday, useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCourses } from '@/shared/api/learning';
-import { getAttemptResult, getAttemptResultFresh } from '@/shared/api/assessment';
+import { getAttemptResult, getAttemptResultFresh, getMyAttempts } from '@/shared/api/assessment';
 import { AttemptResultResponse } from '@/shared/types/assessment';
+import {
+    DictionaryArticleRecommendationItem,
+    recommendArticlesFromAttempts,
+} from '@/features/encyclopedia/api';
 import { LESSON_PASS_SCORE_RATIO } from '@/features/courses/components/lessonCompleteConstants';
+import {
+    readReadingRecoFromSession,
+    readingRecoSessionKey,
+    writeReadingRecoToSession,
+} from '@/features/encyclopedia/readingRecoSessionCache';
+import { mapAttemptsToRecommendationPayload } from '@/features/encyclopedia/readingRecommendationsLearner';
 
 interface LessonMeta {
+    contentId: string;
     courseName: string;
     sectionName: string;
     name: string;
@@ -51,6 +62,15 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     const [resultFetchError, setResultFetchError] = useState('');
     const [lesson, setLesson] = useState<LessonMeta | null>(null);
     const [result, setResult] = useState<AttemptResultResponse | null>(null);
+    const [recommendationLoading, setRecommendationLoading] = useState(false);
+    const [recommendationError, setRecommendationError] = useState('');
+    const [recommendationStrategy, setRecommendationStrategy] = useState<'ai' | 'fallback_popular_unread' | null>(null);
+    const [recommendations, setRecommendations] = useState<DictionaryArticleRecommendationItem[]>([]);
+    const streakSyncedRef = React.useRef(false);
+
+    useEffect(() => {
+        streakSyncedRef.current = false;
+    }, [attemptId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -58,21 +78,34 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
             setLoading(true);
             setPageError('');
             setResultFetchError('');
+            setRecommendationError('');
+            const recoCacheKey = readingRecoSessionKey(courseSlug, lessonSlug, attemptId);
+            const cachedRecoAtStart = readReadingRecoFromSession(recoCacheKey);
+            if (!cachedRecoAtStart) {
+                setRecommendationStrategy(null);
+                setRecommendations([]);
+            }
             try {
                 const courses = await getCourses();
                 if (cancelled) return;
 
                 const course = courses.find((item) => item.slug === courseSlug);
-                const match = course?.sections?.flatMap((section) =>
-                    (section.contents ?? []).map((content) => ({
-                        courseName: course.name,
-                        sectionName: section.name,
-                        name: content.name,
-                        slug: content.slug,
-                    }))
-                ).find((item) => item.slug === lessonSlug);
-
-                setLesson(match ?? null);
+                let lessonFromCourses: LessonMeta | null = null;
+                if (course) {
+                    for (const section of course.sections ?? []) {
+                        const content = (section.contents ?? []).find((c) => c.slug === lessonSlug);
+                        if (content) {
+                            lessonFromCourses = {
+                                contentId: content.id,
+                                courseName: course.name,
+                                sectionName: section.name,
+                                name: content.name,
+                            };
+                            break;
+                        }
+                    }
+                }
+                setLesson(lessonFromCourses);
 
                 if (!attemptId) {
                     setResult(null);
@@ -88,6 +121,41 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                             );
                         }
                     }
+                }
+
+                try {
+                    if (cachedRecoAtStart) {
+                        if (!cancelled) {
+                            setRecommendationStrategy(cachedRecoAtStart.strategy);
+                            setRecommendations(cachedRecoAtStart.items ?? []);
+                        }
+                    } else {
+                        setRecommendationLoading(true);
+                        const attempts = await getMyAttempts();
+                        if (cancelled) return;
+                        const recentAttempts = mapAttemptsToRecommendationPayload(attempts, courses);
+
+                        const reco = await recommendArticlesFromAttempts({
+                            recentAttempts,
+                            limit: 3,
+                        });
+                        if (!cancelled) {
+                            setRecommendationStrategy(reco.strategy);
+                            setRecommendations(reco.items ?? []);
+                            writeReadingRecoToSession(recoCacheKey, {
+                                strategy: reco.strategy,
+                                items: reco.items ?? [],
+                            });
+                        }
+                    }
+                } catch (nextError) {
+                    if (!cancelled) {
+                        setRecommendationError(
+                            nextError instanceof Error ? nextError.message : 'Khong tai duoc de xuat bai viet lien quan.'
+                        );
+                    }
+                } finally {
+                    if (!cancelled) setRecommendationLoading(false);
                 }
             } catch (nextError) {
                 if (!cancelled) {
@@ -117,6 +185,20 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         const interval = window.setInterval(() => { void tick(); }, 4000);
         return () => window.clearInterval(interval);
     }, [attemptId, result?.resultStatus]);
+
+    useEffect(() => {
+        if (!attemptId || !result || streakSyncedRef.current) {
+            return;
+        }
+
+        const completedStatuses = new Set(['SUBMITTED', 'PENDING_REVIEW', 'FINALIZED']);
+        if (!completedStatuses.has(result.attemptStatus)) {
+            return;
+        }
+
+        streakSyncedRef.current = true;
+        void syncLearningStreakOnFirstCompletionToday().catch(() => undefined);
+    }, [attemptId, result]);
 
     const outcome: Outcome = useMemo(() => {
         if (loading) return 'loading';
@@ -301,6 +383,50 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                         </p>
                                     </>
                                 ) : null}
+
+                                <div className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                                        Bai viet nen doc tiep
+                                    </p>
+                                    {recommendationLoading ? (
+                                        <p className="mt-2 text-sm text-gray-600">Dang phan tich attempts gan nhat de de xuat bai viet...</p>
+                                    ) : null}
+                                    {!recommendationLoading && recommendationError ? (
+                                        <p className="mt-2 text-sm text-rose-600">{recommendationError}</p>
+                                    ) : null}
+                                    {!recommendationLoading && !recommendationError && recommendations.length === 0 ? (
+                                        <p className="mt-2 text-sm text-gray-600">Chua co de xuat phu hop luc nay.</p>
+                                    ) : null}
+                                    {!recommendationLoading && !recommendationError && recommendations.length > 0 ? (
+                                        <div className="mt-3 grid gap-3">
+                                            {recommendations.map((item) => (
+                                                <Link
+                                                    key={item.articleId}
+                                                    href={`/encyclopedia/${encodeURIComponent(item.slug)}`}
+                                                    className="block rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-[#2aa4e8]"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                                                            <p className="mt-1 text-xs text-gray-600">{item.reason}</p>
+                                                        </div>
+                                                        <span className="rounded-full bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
+                                                            {item.source === 'ai' ? `AI ${Math.round((item.matchScore ?? 0) * 100)}%` : 'Fallback'}
+                                                        </span>
+                                                    </div>
+                                                    {item.tags?.length ? (
+                                                        <p className="mt-2 text-[11px] text-gray-500">
+                                                            Tags: {item.tags.slice(0, 4).join(', ')}
+                                                        </p>
+                                                    ) : null}
+                                                </Link>
+                                            ))}
+                                            <p className="text-[11px] text-gray-500">
+                                                Nguon de xuat: {recommendationStrategy === 'ai' ? 'AI relevance matching' : 'Top viewed unread fallback'}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                </div>
 
                                 <div className="mt-7 flex flex-wrap gap-3">
                                     <button
