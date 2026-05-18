@@ -153,7 +153,7 @@ function textFromBlock(block: ArticleContentBlock): string {
         return preferred.join('\n');
     }
 
-    return uniqueStrings(flattenText(block.data)).join('\n');
+    return ' ';
 }
 
 function getMediaUrl(block: ArticleContentBlock): string | undefined {
