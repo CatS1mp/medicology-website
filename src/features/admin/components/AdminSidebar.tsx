@@ -6,6 +6,7 @@ import styles from '../admin.module.css';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useLogout } from '@/shared/hooks/useLogout';
 
 const ICON_COLOR = '#4A55E2';
 
@@ -83,6 +84,7 @@ const navSections = [
 export const AdminSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const { handleLogout, isLoading } = useLogout();
 
     return (
         <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`} style={{ width: collapsed ? 88 : 280 }}>
@@ -147,9 +149,14 @@ export const AdminSidebar: React.FC = () => {
                 ))}
             </nav>
 
-            <button type="button" className={styles.logoutBtn}>
+            <button
+                type="button"
+                className={styles.logoutBtn}
+                onClick={() => void handleLogout()}
+                disabled={isLoading}
+            >
                 <span className={styles.navIcon}><LogoutIcon /></span>
-                {!collapsed && <span>Đăng xuất</span>}
+                {!collapsed && <span>{isLoading ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>}
             </button>
         </aside>
     );
