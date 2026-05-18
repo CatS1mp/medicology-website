@@ -267,3 +267,49 @@ export function recommendArticlesFromAttempts(
 ): Promise<DictionaryArticleRecommendationResponse> {
     return postJson<DictionaryArticleRecommendationResponse>(`${DICTIONARY}/recommendations/articles`, body);
 }
+
+export interface DictionaryArticleQaCitation {
+    sectionId: string;
+    heading: string;
+    quote: string;
+}
+
+export interface DictionaryArticleQaConversationMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+export interface DictionaryArticleQaRequest {
+    question: string;
+    conversation?: DictionaryArticleQaConversationMessage[];
+}
+
+export interface DictionaryArticleQaResponse {
+    answer: string;
+    citations: DictionaryArticleQaCitation[];
+    outOfScope: boolean;
+    confidence: 'high' | 'medium' | 'low';
+    disclaimer: string;
+}
+
+export interface DictionaryArticleQaSuggestedQuestionsResponse {
+    questions: string[];
+}
+
+export function askArticleQuestion(
+    articleId: string,
+    body: DictionaryArticleQaRequest
+): Promise<DictionaryArticleQaResponse> {
+    return postJson<DictionaryArticleQaResponse>(
+        `${DICTIONARY}/articles/${encodeURIComponent(articleId)}/qa`,
+        body
+    );
+}
+
+export function getArticleSuggestedQuestions(
+    articleId: string
+): Promise<DictionaryArticleQaSuggestedQuestionsResponse> {
+    return getJson<DictionaryArticleQaSuggestedQuestionsResponse>(
+        `${DICTIONARY}/articles/${encodeURIComponent(articleId)}/qa/suggested-questions`
+    );
+}
