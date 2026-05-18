@@ -9,6 +9,7 @@ import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { MyCourseCard } from './MyCourseCard';
 import { MyCourseCardSkeleton } from './MyCourseCardSkeleton';
 import { useEnrolledCourses } from '../hooks/useEnrolledCourses';
+import { useUserStore } from '@/shared/store/useUserStore';
 
 export const MyCoursesScreen: React.FC = () => {
     const router = useRouter();
@@ -46,7 +47,7 @@ export const MyCoursesScreen: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (
-                                Array.from({ length: 6 }).map((_, i) => (
+                                Array.from({ length: Math.min(6, Math.max(1, totalItems || useUserStore.getState().courses.length || 3)) }).map((_, i) => (
                                     <MyCourseCardSkeleton key={`course-skel-${i}`} />
                                 ))
                             ) : courses.length > 0 ? (

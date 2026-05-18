@@ -3,6 +3,8 @@ import { Topic, TopicFiltersState } from '../types';
 import { enrollCourse, getAvailableStudentCoursesPaged } from '@/shared/api/learning';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 
+const topicsCache = new Map<number, { items: Topic[], total: number }>();
+
 export const useTopics = () => {
     const [filters, setFilters] = useState<TopicFiltersState>({
         sortBy: 'Phổ biến nhất',
@@ -11,19 +13,27 @@ export const useTopics = () => {
         courseCount: 'Tất cả'
     });
 
-    const [allTopics, setAllTopics] = useState<Topic[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [enrollingTopicId, setEnrollingTopicId] = useState<string | null>(null);
-    const [totalItems, setTotalItems] = useState(0);
-
     const [page, setPage] = useState(1);
     const limit = 6;
+
+    const [allTopics, setAllTopics] = useState<Topic[]>(() => topicsCache.get(page)?.items || []);
+    const [isLoading, setIsLoading] = useState(() => !topicsCache.has(page));
+    const [enrollingTopicId, setEnrollingTopicId] = useState<string | null>(null);
+    const [totalItems, setTotalItems] = useState(() => topicsCache.get(page)?.total || 0);
 
     useEffect(() => {
         let cancelled = false;
 
         async function fetchThemes() {
-            setIsLoading(true);
+            if (topicsCache.has(page)) {
+                const cached = topicsCache.get(page)!;
+                setAllTopics(cached.items);
+                setTotalItems(cached.total);
+                setIsLoading(false);
+            } else {
+                setIsLoading(true);
+            }
+
             try {
                 const themes = await getAvailableStudentCoursesPaged({ page: page - 1, size: limit });
                 const mapped: Topic[] = themes
@@ -50,8 +60,11 @@ export const useTopics = () => {
                             imageUrl: resolveCourseIconSrc(t.iconFileName),
                         };
                     });
-                if (!cancelled) setAllTopics(mapped);
-                if (!cancelled) setTotalItems(themes.total);
+                if (!cancelled) {
+                    setAllTopics(mapped);
+                    setTotalItems(themes.total);
+                    topicsCache.set(page, { items: mapped, total: themes.total });
+                }
             } catch {
                 if (!cancelled) {
                     setAllTopics([]);

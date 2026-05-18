@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -35,6 +36,10 @@ function isBlockGradable(block: ContentBlockResponse | null | undefined): boolea
     return Boolean(block?.isGradable);
 }
 
+function wait(ms: number): Promise<void> {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -43,6 +48,8 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     const isReviewMode = searchParams.get('mode') === 'review';
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [completionLoading, setCompletionLoading] = useState(false);
+    const [completionProgress, setCompletionProgress] = useState(0);
     const [message, setMessage] = useState('');
     const [stepIndex, setStepIndex] = useState(0);
     const [canContinue, setCanContinue] = useState(true);
@@ -54,6 +61,23 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     useEffect(() => {
         attemptIdRef.current = attemptId;
     }, [attemptId]);
+
+    useEffect(() => {
+        if (!completionLoading) return;
+
+        const start = window.performance.now();
+        const duration = 2000;
+        const target = 63;
+
+        const interval = window.setInterval(() => {
+            const elapsed = window.performance.now() - start;
+            const next = Math.min(target, Math.round((elapsed / duration) * target));
+            setCompletionProgress((previous) => Math.max(previous, next));
+        }, 50);
+
+        return () => window.clearInterval(interval);
+    }, [completionLoading]);
+
     const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
     const [prefillUserAnswer, setPrefillUserAnswer] = useState<string | null>(null);
     const [reviewByBlockId, setReviewByBlockId] = useState<Record<string, AttemptReviewAnswerResponse>>({});
@@ -170,12 +194,13 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         return () => clearInterval(id);
     }, [attemptId, courseSlug, isReviewMode, lessonSlug, router]);
 
+    const lessonBlocks = lesson?.blocks;
     const sortedBlocks = useMemo(() => {
-        if (!lesson?.blocks || lesson.blocks.length === 0) {
+        if (!lessonBlocks || lessonBlocks.length === 0) {
             return [];
         }
-        return [...lesson.blocks].sort((left, right) => left.orderIndex - right.orderIndex);
-    }, [lesson?.blocks]);
+        return [...lessonBlocks].sort((left, right) => left.orderIndex - right.orderIndex);
+    }, [lessonBlocks]);
 
     const totalSteps = sortedBlocks.length > 0 ? sortedBlocks.length : 1;
     const currentBlock = sortedBlocks[stepIndex] ?? null;
@@ -184,13 +209,16 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     const canGoBack = stepIndex > 0;
 
     useEffect(() => {
-        setStepIndex(0);
+        const timeout = window.setTimeout(() => setStepIndex(0), 0);
+        return () => window.clearTimeout(timeout);
     }, [lesson?.id]);
 
     useEffect(() => {
         if (stepIndex > totalSteps - 1) {
-            setStepIndex(totalSteps - 1);
+            const timeout = window.setTimeout(() => setStepIndex(totalSteps - 1), 0);
+            return () => window.clearTimeout(timeout);
         }
+        return undefined;
     }, [stepIndex, totalSteps]);
 
     useEffect(() => {
@@ -276,7 +304,13 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
         setMessage('');
         setSubmitting(true);
+        const isCompletingLesson = isLastStep;
+        if (isCompletingLesson) {
+            setCompletionProgress(0);
+            setCompletionLoading(true);
+        }
         try {
+            const minimumCompletionDelay = isCompletingLesson ? wait(2000) : Promise.resolve();
             const attemptAfterSave = await saveCurrentBlockProgress();
             if (!isLastStep) {
                 setStepIndex((previous) => previous + 1);
@@ -286,11 +320,18 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
             if (toSubmit) {
                 await submitAttempt(toSubmit);
             }
+            await minimumCompletionDelay;
+            setCompletionProgress(89);
+            await wait(250);
             setMessage('');
             const completedAttemptId = toSubmit ?? attemptId;
             const query = completedAttemptId ? `?attemptId=${encodeURIComponent(completedAttemptId)}` : '';
+            setCompletionProgress(100);
+            await wait(350);
             router.push(`/courses/${courseSlug}/lessons/${lessonSlug}/complete${query}`);
         } catch (error) {
+            setCompletionLoading(false);
+            setCompletionProgress(0);
             if (isAttemptTimeExpiredError(error)) {
                 setMessage('Đã hết thời gian làm bài. Hệ thống sẽ chuyển bạn tới trang kết quả.');
                 if (attemptId) {
@@ -329,6 +370,16 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                     </div>
                 </div>
             </div>
+        );
+    }
+
+    if (completionLoading) {
+        return (
+            <LessonCompletionLoadingScreen
+                streakDays={streakDays ?? 0}
+                progress={completionProgress}
+                onLogout={handleLogout}
+            />
         );
     }
 
@@ -399,6 +450,62 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                                 </article>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function LessonCompletionLoadingScreen({
+    streakDays,
+    progress,
+    onLogout,
+}: {
+    streakDays: number;
+    progress: number;
+    onLogout: () => void;
+}) {
+    const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
+
+    return (
+        <div className="flex h-screen overflow-hidden bg-white font-sans">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <AppHeader streak={streakDays} onLogout={onLogout} />
+                <div className="flex-1 overflow-hidden px-6 py-8">
+                    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center text-center">
+                        <div className="relative mb-6 flex h-40 w-40 items-center justify-center rounded-full bg-[#EAF7EF]">
+                            <Image
+                                src="/images/Mascot/24.svg"
+                                alt="Medicology mascot"
+                                width={128}
+                                height={128}
+                                className="h-32 w-32 object-contain"
+                            />
+                        </div>
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-600">
+                            Đang hoàn tất bài tập
+                        </p>
+                        <h1 className="mt-3 text-2xl font-extrabold text-gray-900">
+                            Hệ thống đang ghi nhận kết quả của bạn
+                        </h1>
+                        <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">
+                            Giữ nguyên màn hình trong giây lát để cập nhật tiến độ khóa học.
+                        </p>
+
+                        <div className="mt-8 w-full max-w-md">
+                            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+                                <span>Tiến trình</span>
+                                <span className="text-emerald-600">{safeProgress}%</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                                <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                                    style={{ width: `${safeProgress}%` }}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

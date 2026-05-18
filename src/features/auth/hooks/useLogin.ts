@@ -7,6 +7,7 @@ import { ApiError, LoginRequest } from '../types';
 import { canResendVerification, markResendVerification } from '../resend-throttle';
 import { persistAuthSession } from '../session';
 import { useToast } from '@/shared/contexts/ToastContext';
+import { useUserStore } from '@/shared/store/useUserStore';
 
 interface UseLoginReturn {
     handleLogin: (data: LoginRequest) => Promise<void>;
@@ -27,6 +28,7 @@ export function useLogin(): UseLoginReturn {
         try {
             const res = await login(data);
             persistAuthSession(res);
+            void useUserStore.getState().loadUserData();
             showToast('Đăng nhập thành công!', 'success');
             router.push('/dashboard');
         } catch (err) {

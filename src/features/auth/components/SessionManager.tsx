@@ -8,6 +8,8 @@ import {
     getStoredRefreshToken,
 } from '../session';
 import { refreshAccessTokenWithMutex } from '../token-refresh';
+import { useUserStore } from '@/shared/store/useUserStore';
+import { DashboardLoadingScreen } from '@/shared/components/DashboardLoadingScreen';
 
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -18,11 +20,13 @@ function isAuthPage(pathname: string) {
 export function SessionManager() {
     const router = useRouter();
     const pathname = usePathname();
+    const isLoadingUserData = useUserStore((state) => state.isLoading);
     const timerRef = React.useRef<number | null>(null);
     const refreshPromiseRef = React.useRef<Promise<boolean> | null>(null);
 
     const forceLogout = React.useCallback(() => {
         clearAuthSession();
+        useUserStore.getState().clearUserData();
         if (!isAuthPage(pathname)) {
             router.replace('/login');
             router.refresh();
@@ -123,11 +127,18 @@ export function SessionManager() {
             return;
         }
 
+        const refreshToken = getStoredRefreshToken();
+        if (refreshToken) {
+            const { hasLoaded, loadUserData } = useUserStore.getState();
+            if (!hasLoaded) {
+                loadUserData().catch(console.error);
+            }
+        }
+
         if (!isAuthPage(pathname)) {
             return;
         }
 
-        const refreshToken = getStoredRefreshToken();
         if (!refreshToken) {
             return;
         }

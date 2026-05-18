@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -8,9 +9,13 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { syncLearningStreakOnFirstCompletionToday, useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { getCourses } from '@/shared/api/learning';
+import { getCourses, notifyLearningProgressChanged } from '@/shared/api/learning';
 import { getAttemptResult, getAttemptResultFresh, getMyAttempts } from '@/shared/api/assessment';
 import { AttemptResultResponse } from '@/shared/types/assessment';
+import { clearEnrolledCoursesCache } from '@/features/courses/hooks/useEnrolledCourses';
+import { clearRoadmapCache } from '@/features/courses/hooks/useRoadmap';
+import { invalidateCachedValue, invalidateCachedValueByPrefix } from '@/shared/api/client-cache';
+import { cacheKeys } from '@/shared/api/cache-policy';
 import {
     DictionaryArticleRecommendationItem,
     recommendArticlesFromAttempts,
@@ -50,6 +55,21 @@ function passThresholdPoints(maxScore: number): number {
     return Math.round(maxScore * LESSON_PASS_SCORE_RATIO * 100) / 100;
 }
 
+function getResultScorePercent(result: AttemptResultResponse | null): number | null {
+    if (!result || !Number.isFinite(result.score) || !Number.isFinite(result.maxScore) || result.maxScore <= 0) {
+        return null;
+    }
+
+    return Math.max(0, Math.min(100, Math.round((result.score / result.maxScore) * 100)));
+}
+
+function getMascotByScorePercent(percent: number): string {
+    if (percent >= 100) return '/images/Mascot/15.svg';
+    if (percent >= 75) return '/images/Mascot/22.svg';
+    if (percent >= 25) return '/images/Mascot/23.svg';
+    return '/images/Mascot/21.svg';
+}
+
 export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -67,9 +87,11 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     const [recommendationStrategy, setRecommendationStrategy] = useState<'ai' | 'fallback_popular_unread' | null>(null);
     const [recommendations, setRecommendations] = useState<DictionaryArticleRecommendationItem[]>([]);
     const streakSyncedRef = React.useRef(false);
+    const progressSyncedRef = React.useRef(false);
 
     useEffect(() => {
         streakSyncedRef.current = false;
+        progressSyncedRef.current = false;
     }, [attemptId]);
 
     useEffect(() => {
@@ -200,6 +222,27 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         void syncLearningStreakOnFirstCompletionToday().catch(() => undefined);
     }, [attemptId, result]);
 
+    useEffect(() => {
+        if (!result || progressSyncedRef.current) {
+            return;
+        }
+
+        if (result.attemptStatus !== 'FINALIZED' && result.resultStatus !== 'FINAL') {
+            return;
+        }
+
+        progressSyncedRef.current = true;
+        invalidateCachedValue(
+            cacheKeys.assessment.myAttempts(),
+            cacheKeys.assessment.inProgressAttempts(),
+            cacheKeys.learning.progress()
+        );
+        invalidateCachedValueByPrefix(cacheKeys.learning.contentActivityPrefix());
+        clearEnrolledCoursesCache();
+        clearRoadmapCache(courseSlug);
+        notifyLearningProgressChanged();
+    }, [courseSlug, result]);
+
     const outcome: Outcome = useMemo(() => {
         if (loading) return 'loading';
         if (pageError) return 'page-error';
@@ -316,6 +359,9 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         }
     }, [outcome]);
 
+    const resultScorePercent = useMemo(() => getResultScorePercent(result), [result]);
+    const resultMascotSrc = resultScorePercent === null ? null : getMascotByScorePercent(resultScorePercent);
+
     return (
         <div className="flex h-screen overflow-hidden bg-[#f7f8fa] font-sans">
             <AppSidebar />
@@ -337,14 +383,33 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{pageError}</div>
                         ) : (
                             <div className={`rounded-3xl border px-8 py-10 shadow-sm ${panelClass}`}>
-                                <div className="flex items-center gap-3">
-                                    <span className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white ${iconWrapClass}`}>
-                                        {iconGlyph}
-                                    </span>
-                                    <p className={`text-xs font-bold uppercase tracking-[0.24em] ${badgeTone}`}>{badgeLabel}</p>
+                                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-3">
+                                            <span className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white ${iconWrapClass}`}>
+                                                {iconGlyph}
+                                            </span>
+                                            <p className={`text-xs font-bold uppercase tracking-[0.24em] ${badgeTone}`}>{badgeLabel}</p>
+                                        </div>
+                                        <h1 className="mt-5 text-3xl font-extrabold text-gray-900">{headline}</h1>
+                                        {subline ? <p className="mt-2 text-sm text-gray-700">{subline}</p> : null}
+                                    </div>
+
+                                    {resultMascotSrc ? (
+                                        <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/80 bg-white/70 px-4 py-3 shadow-sm">
+                                            <Image
+                                                src={resultMascotSrc}
+                                                alt="Mascot kết quả bài tập"
+                                                width={112}
+                                                height={112}
+                                                className="h-28 w-28 object-contain"
+                                            />
+                                            <span className="mt-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-700 shadow-sm">
+                                                {resultScorePercent}% điểm
+                                            </span>
+                                        </div>
+                                    ) : null}
                                 </div>
-                                <h1 className="mt-5 text-3xl font-extrabold text-gray-900">{headline}</h1>
-                                {subline ? <p className="mt-2 text-sm text-gray-700">{subline}</p> : null}
                                 {outcome === 'result-error' && resultFetchError ? (
                                     <p className="mt-2 text-xs text-gray-600">{resultFetchError}</p>
                                 ) : null}

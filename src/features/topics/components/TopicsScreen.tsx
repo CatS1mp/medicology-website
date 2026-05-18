@@ -14,6 +14,11 @@ export const TopicsScreen: React.FC = () => {
     const { streakDays } = useLearningStreak();
 
     const { handleLogout } = useLogout();
+    const [enrollStatusCard, setEnrollStatusCard] = React.useState<{
+        state: 'loading' | 'done' | 'error';
+        title: string;
+        message: string;
+    } | null>(null);
 
     const {
         topics,
@@ -25,7 +30,34 @@ export const TopicsScreen: React.FC = () => {
         isLoading,
         enrollingTopicId,
         enrollTopic,
+        totalItems,
     } = useTopics();
+
+    const handleEnrollTopic = React.useCallback(async (topicId: string) => {
+        const topic = topics.find((item) => item.id === topicId);
+        const topicTitle = topic?.title ?? 'chủ đề này';
+
+        setEnrollStatusCard({
+            state: 'loading',
+            title: 'Đang đăng ký chủ đề',
+            message: topicTitle,
+        });
+
+        try {
+            await enrollTopic(topicId);
+            setEnrollStatusCard({
+                state: 'done',
+                title: 'Đăng ký thành công',
+                message: topicTitle,
+            });
+        } catch {
+            setEnrollStatusCard({
+                state: 'error',
+                title: 'Không thể đăng ký',
+                message: 'Vui lòng thử lại sau.',
+            });
+        }
+    }, [enrollTopic, topics]);
 
     return (
         <div className="flex h-screen bg-white overflow-hidden font-sans">
@@ -45,14 +77,14 @@ export const TopicsScreen: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (
-                                Array.from({ length: 6 }).map((_, i) => <TopicCardSkeleton key={`topic-skeleton-${i}`} />)
+                                Array.from({ length: Math.min(6, Math.max(1, totalItems || 3)) }).map((_, i) => <TopicCardSkeleton key={`topic-skeleton-${i}`} />)
                             ) : topics.length > 0 ? (
                                 topics.map(topic => (
                                     <TopicCard 
                                         key={topic.id} 
                                         topic={topic} 
                                         isEnrolling={enrollingTopicId === topic.id}
-                                        onEnroll={enrollTopic}
+                                        onEnroll={handleEnrollTopic}
                                     />
                                 ))
                             ) : (
@@ -115,6 +147,75 @@ export const TopicsScreen: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {enrollStatusCard ? (
+                <TopicEnrollStatusCard
+                    state={enrollStatusCard.state}
+                    title={enrollStatusCard.title}
+                    message={enrollStatusCard.message}
+                    onOk={() => setEnrollStatusCard(null)}
+                />
+            ) : null}
         </div>
     );
 };
+
+function TopicEnrollStatusCard({
+    state,
+    title,
+    message,
+    onOk,
+}: {
+    state: 'loading' | 'done' | 'error';
+    title: string;
+    message: string;
+    onOk: () => void;
+}) {
+    const isLoading = state === 'loading';
+    const isError = state === 'error';
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/25 px-4">
+            <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 text-center shadow-[0_18px_60px_rgba(15,23,42,0.18)]">
+                <div
+                    className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
+                        isLoading ? 'bg-sky-50 text-[#1CA1F2]' : isError ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                    }`}
+                >
+                    {isLoading ? (
+                        <span className="h-7 w-7 animate-spin rounded-full border-3 border-current border-t-transparent" />
+                    ) : isError ? (
+                        <span className="text-2xl font-black">!</span>
+                    ) : (
+                        <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                    )}
+                </div>
+
+                <h2 className="mt-4 text-xl font-extrabold text-gray-900">{title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">{message}</p>
+
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                            isError ? 'bg-rose-500' : isLoading ? 'w-2/3 animate-pulse bg-[#1CA1F2]' : 'w-full bg-emerald-500'
+                        }`}
+                    />
+                </div>
+
+                {!isLoading ? (
+                    <button
+                        type="button"
+                        onClick={onOk}
+                        className={`mt-6 w-full rounded-full px-5 py-3 text-sm font-bold text-white transition-colors ${
+                            isError ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'
+                        }`}
+                    >
+                        OK
+                    </button>
+                ) : null}
+            </div>
+        </div>
+    );
+}

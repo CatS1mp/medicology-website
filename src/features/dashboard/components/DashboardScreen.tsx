@@ -8,11 +8,13 @@ import { StatsCards } from './StatsCards';
 import { LessonProgressChart } from './LessonProgressChart';
 import { LearningResultsChart } from './LearningResultsChart';
 import { LearningProgress } from './LearningProgress';
+import { DashboardLoadingScreen } from '@/shared/components/DashboardLoadingScreen';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCourses, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
+import { useUserStore } from '@/shared/store/useUserStore';
 import { ChartDataPoint, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
 
 function scoreToTenScale(score: number, maxScore: number): number {
@@ -26,6 +28,9 @@ function scoreToTenScale(score: number, maxScore: number): number {
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
+    const hasSeenDashboardLoading = useUserStore(state => state.hasSeenDashboardLoading);
+    const setHasSeenDashboardLoading = useUserStore(state => state.setHasSeenDashboardLoading);
+    
     const [lessonActivityDataset, setLessonActivityDataset] = React.useState<LessonActivityDataset | null>(null);
     const [activeRange, setActiveRange] = React.useState<LessonActivityRange>('last7');
     const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(true);
@@ -35,6 +40,7 @@ export const DashboardScreen: React.FC = () => {
     const [averageScore, setAverageScore] = React.useState(0);
     const [activeCourseCount, setActiveCourseCount] = React.useState(0);
     const [isDashboardLoading, setIsDashboardLoading] = React.useState(true);
+    const [showBotOverlay] = React.useState(!hasSeenDashboardLoading);
 
     const statCards: StatCard[] = [
         { id: 'streak', icon: '🔥', value: streakDays ?? 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
@@ -47,17 +53,45 @@ export const DashboardScreen: React.FC = () => {
         async function run() {
             setIsDashboardLoading(true);
             try {
-                const [progress, courses, attempts] = await Promise.all([
+                const promises: Promise<any>[] = [
                     getProgress().catch(() => []),
                     getCourses().catch(() => []),
                     getMyAttempts().catch(() => []),
-                ]);
+                ];
+                
+                if (!hasSeenDashboardLoading) {
+                    promises.push(new Promise(resolve => setTimeout(resolve, 2000)));
+                }
+
+                const [progress, courses, attempts] = (await Promise.all(promises)) as [any[], any[], any[]];
                 if (cancelled) return;
 
-                const finalizedAttempts = attempts.filter((item) => item.status === 'FINALIZED' && item.score !== null);
-                const sortedCourses = courses.slice().sort((a, b) => a.orderIndex - b.orderIndex);
+                // Preload courses and roadmaps in background to make subsequent visits instant!
+                if (!hasSeenDashboardLoading) {
+                    (async () => {
+                        try {
+                            const { preloadEnrolledCourses, enrolledCoursesCache } = await import('@/features/courses/hooks/useEnrolledCourses');
+                            const { preloadRoadmap } = await import('@/features/courses/hooks/useRoadmap');
+                            
+                            await preloadEnrolledCourses(1, 6);
+                            
+                            const cached = enrolledCoursesCache.get(1);
+                            if (cached && cached.items) {
+                                const topSlugs = cached.items.slice(0, 3).map(c => c.slug);
+                                for (const slug of topSlugs) {
+                                    await preloadRoadmap(slug).catch(() => {});
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to preload courses', e);
+                        }
+                    })();
+                }
+
+                const finalizedAttempts = attempts.filter((item: any) => item.status === 'FINALIZED' && item.score !== null);
+                const sortedCourses = courses.slice().sort((a: any, b: any) => a.orderIndex - b.orderIndex);
                 const finalizedGradedAttempts = finalizedAttempts.filter(
-                    (item) => typeof item.maxScore === 'number' && item.maxScore > 0
+                    (item: any) => typeof item.maxScore === 'number' && item.maxScore > 0
                 );
                 const finalizedAttemptsOnTenScale = finalizedGradedAttempts.map((item) => {
                     const score = Number(item.score ?? 0);
@@ -76,12 +110,12 @@ export const DashboardScreen: React.FC = () => {
                     : 0;
                 const finalizedContentIds = new Set(finalizedAttempts.map((item) => item.contentId));
                 const completionByCourseId = new Map<string, number>();
-                sortedCourses.forEach((course) => {
-                    const contentIds = (course.sections ?? []).flatMap((section) => (section.contents ?? []).map((content) => content.id));
-                    const completed = contentIds.filter((id) => finalizedContentIds.has(id)).length;
+                sortedCourses.forEach((course: any) => {
+                    const contentIds = (course.sections ?? []).flatMap((section: any) => (section.contents ?? []).map((content: any) => content.id));
+                    const completed = contentIds.filter((id: string) => finalizedContentIds.has(id)).length;
                     completionByCourseId.set(course.id, contentIds.length === 0 ? 0 : Math.min(100, Math.round((completed * 100) / contentIds.length)));
                 });
-                const lessonCount = sortedCourses.reduce((sum, course) => sum + (course.sections ?? []).reduce((sectionSum, section) => sectionSum + (section.contents?.length ?? 0), 0), 0);
+                const lessonCount = sortedCourses.reduce((sum: number, course: any) => sum + (course.sections ?? []).reduce((sectionSum: number, section: any) => sectionSum + (section.contents?.length ?? 0), 0), 0);
 
                 setAverageScore(averageScore);
                 setActiveCourseCount(progress.length);
@@ -91,8 +125,7 @@ export const DashboardScreen: React.FC = () => {
                     actual: attempt.scoreOnTenScale,
                     target: 8,
                 })));
-                setLearningProgress(
-                    progress
+                const resolvedProgressItems = progress
                         .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
                         .slice(0, 5)
                         .map((item) => ({
@@ -105,12 +138,27 @@ export const DashboardScreen: React.FC = () => {
                             imageUrl: resolveCourseIconSrc(
                                 sortedCourses.find((course) => course.id === item.courseId || course.slug === item.courseSlug)?.iconFileName
                             ),
-                        }))
-                );
+                        }));
+
+                setLearningProgress(resolvedProgressItems);
+
+                // Preload the Supabase course images so they appear instantly when the loading screen drops
+                const urlsToPreload = resolvedProgressItems.map(item => item.imageUrl).filter(Boolean) as string[];
+                await Promise.all(urlsToPreload.map(url => new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    img.src = url;
+                })));
             } catch {
                 if (cancelled) return;
             } finally {
-                if (!cancelled) setIsDashboardLoading(false);
+                if (!cancelled) {
+                    setIsDashboardLoading(false);
+                    if (!hasSeenDashboardLoading) {
+                        setHasSeenDashboardLoading(true);
+                    }
+                }
             }
         }
         run();
@@ -182,7 +230,8 @@ export const DashboardScreen: React.FC = () => {
     const effectiveStreak = streakDays ?? 0;
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        <div className="flex h-screen bg-gray-50 overflow-hidden relative">
+            {isDashboardLoading && showBotOverlay && <DashboardLoadingScreen />}
             <AppSidebar />
 
             <div className="flex-1 flex flex-col overflow-hidden">

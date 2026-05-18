@@ -33,7 +33,9 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
             <div className="flex flex-col gap-3">
                 {items.map((item) => {
                     const pct = Math.max(0, Math.min(100, Math.round(item.completionPercent)));
+                    const isCompleted = pct >= 100;
                     const accentColor = normalizeColor(item.color);
+                    const progressColor = isCompleted ? '#059669' : accentColor;
                     const canNavigate = Boolean(item.courseSlug);
                     return (
                         <button
@@ -43,7 +45,9 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                                 if (!item.courseSlug) return;
                                 router.push(`/courses/${item.courseSlug}`);
                             }}
-                            className={`relative w-full overflow-hidden rounded-xl border border-gray-100 text-left transition-all duration-200 ${
+                            className={`relative w-full overflow-hidden rounded-xl border text-left transition-all duration-200 ${
+                                isCompleted ? 'border-emerald-200 bg-emerald-50/80' : 'border-gray-100 bg-white'
+                            } ${
                                 canNavigate
                                     ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40'
                                     : 'cursor-default'
@@ -65,16 +69,27 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                             <div className="relative flex items-center gap-3 p-3">
                                 <div
                                     className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm"
-                                    style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
+                                    style={{
+                                        backgroundColor: isCompleted ? '#D1FAE5' : `${accentColor}18`,
+                                        color: progressColor,
+                                    }}
                                 >
-                                    {item.icon}
+                                    {isCompleted ? (
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        item.icon
+                                    )}
                                 </div>
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="text-xs font-medium text-gray-800 truncate">{item.subject}</p>
-                                        <span className="text-[10px] text-gray-500 ml-2 flex-shrink-0">
-                                            {pct}%
+                                        <span className={`ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-500'
+                                        }`}>
+                                            {isCompleted ? 'Hoàn thành' : `${pct}%`}
                                         </span>
                                     </div>
                                     <div className="w-full h-2 bg-gray-100/90 rounded-full overflow-hidden">
@@ -83,11 +98,13 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                                             style={{
                                                 width: pct === 0 ? '0%' : `${pct}%`,
                                                 minWidth: pct > 0 ? '10px' : undefined,
-                                                background: `linear-gradient(90deg, ${accentColor} 0%, ${accentColor}CC 100%)`,
+                                                background: `linear-gradient(90deg, ${progressColor} 0%, ${progressColor}CC 100%)`,
                                             }}
                                         />
                                     </div>
-                                    <p className="text-[10px] text-gray-500 mt-0.5">{pct}% hoàn thành</p>
+                                    <p className={`mt-0.5 text-[10px] ${isCompleted ? 'font-medium text-emerald-700' : 'text-gray-500'}`}>
+                                        {isCompleted ? 'Khóa học đã hoàn thành' : `${pct}% hoàn thành`}
+                                    </p>
                                 </div>
                             </div>
                         </button>

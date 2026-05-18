@@ -23,6 +23,12 @@ function notifyLearningCoursesChanged() {
     window.dispatchEvent(new Event('learning:courses-changed'));
 }
 
+export function notifyLearningProgressChanged() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('learning:progress-changed'));
+    window.dispatchEvent(new Event('learning:courses-changed'));
+}
+
 function normalizeLearningError(error: unknown): LearningApiError {
     if (error instanceof LearningApiError) return error;
     if (error instanceof ApiTransportError) {
@@ -178,10 +184,34 @@ export function enrollCourse(courseId: string): Promise<CourseResponse> {
     });
 }
 
+type CourseProgressPayload = CourseProgressResponse & {
+    completionPercentage?: number;
+    completedPercentage?: number;
+    progressPercent?: number;
+    percentComplete?: number;
+};
+
+function normalizeCourseProgress(raw: CourseProgressPayload): CourseProgressResponse {
+    return {
+        ...raw,
+        completionPercent:
+            raw.completionPercent ??
+            raw.completionPercentage ??
+            raw.completedPercentage ??
+            raw.progressPercent ??
+            raw.percentComplete ??
+            0,
+    };
+}
+
 export function getProgress(): Promise<CourseProgressResponse[]> {
-    return cachedGet(cacheKeys.learning.progress(), CACHE_TTL.SHORT, () =>
-        jsonGet<CourseProgressResponse[]>(`${API}/progress`)
-    );
+    return cachedGet(cacheKeys.learning.progress(), CACHE_TTL.SHORT, async () => {
+        const raw = await jsonGet<unknown>(`${API}/progress`);
+        const items = Array.isArray(raw)
+            ? raw
+            : normalizeSpringListPayload<CourseProgressPayload>(raw).items;
+        return (items as CourseProgressPayload[]).map(normalizeCourseProgress);
+    });
 }
 
 export function getContentActivity(days: number = 7): Promise<ContentActivitySummaryResponse> {

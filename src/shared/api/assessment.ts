@@ -1,6 +1,7 @@
 import { buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
+import { notifyLearningProgressChanged } from '@/shared/api/learning';
 import type {
     AttemptAnswerLookupResponse,
     AttemptAnswerRequest,
@@ -59,8 +60,17 @@ export function getMyInProgressAttempts(): Promise<AttemptInProgressItem[]> {
 export function submitAttempt(attemptId: string): Promise<AttemptResultResponse> {
     return mutateAndInvalidate(
         () => post<AttemptResultResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/submit`),
-        [cacheKeys.assessment.myAttempts(), cacheKeys.assessment.attemptResult(attemptId), cacheKeys.assessment.inProgressAttempts()]
-    );
+        [
+            cacheKeys.assessment.myAttempts(),
+            cacheKeys.assessment.attemptResult(attemptId),
+            cacheKeys.assessment.inProgressAttempts(),
+            cacheKeys.learning.progress(),
+        ],
+        [cacheKeys.learning.contentActivityPrefix()]
+    ).then((result) => {
+        notifyLearningProgressChanged();
+        return result;
+    });
 }
 
 export function getAttemptResult(attemptId: string): Promise<AttemptResultResponse> {

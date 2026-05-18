@@ -77,6 +77,15 @@ export function clearAuthSession() {
     localStorage.removeItem('enrolledCoursesLocal');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+
+    // Wipe all API response caches stored in sessionStorage
+    if (typeof window !== 'undefined') {
+        const keysToRemove = Object.keys(window.sessionStorage).filter((k) =>
+            k.startsWith('medicology:api-cache:')
+        );
+        keysToRemove.forEach((k) => window.sessionStorage.removeItem(k));
+    }
+
     window.dispatchEvent(new Event('user-profile-updated'));
     window.dispatchEvent(new Event('auth-session-updated'));
 
