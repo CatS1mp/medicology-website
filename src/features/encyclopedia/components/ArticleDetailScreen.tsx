@@ -21,6 +21,7 @@ import {
 } from '../api';
 import type { ArticleComment } from '../types';
 import { ArticleDetailSkeleton } from './ArticleDetailSkeleton';
+import { ArticleQaPanel } from './ArticleQaPanel';
 
 function isSafeHttpImageUrl(url: string): boolean {
     const t = url.trim();
@@ -395,6 +396,16 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                 </div>
                             ))}
 
+                            <ArticleQaPanel
+                                articleId={article.id}
+                                tableOfContents={article.tableOfContents.map((item) => ({
+                                    id: item.id,
+                                    label: item.label,
+                                }))}
+                                isLoggedIn={!!currentViewer}
+                                variant="inline"
+                            />
+
                             <div className="mb-2 overflow-x-hidden rounded-2xl border border-gray-200 bg-[#f8f9fb] p-5 md:p-7">
                                 <h2 className="mb-2 flex items-center gap-3 text-[34px] font-extrabold leading-none text-[#e78d14] md:text-[38px]">
                                     <span className="h-8 w-1 rounded-full bg-[#f39b19]" />
@@ -555,6 +566,16 @@ export const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ slug }
                                         ))}
                                     </nav>
                                 </div>
+
+                                <ArticleQaPanel
+                                    articleId={article.id}
+                                    tableOfContents={article.tableOfContents.map((item) => ({
+                                        id: item.id,
+                                        label: item.label,
+                                    }))}
+                                    isLoggedIn={!!currentViewer}
+                                    variant="sidebar"
+                                />
 
                                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_6px_20px_rgba(15,23,42,0.04)]">
                                     <h4 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#2b9de5]">BÀI VIẾT LIÊN QUAN</h4>
