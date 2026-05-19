@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getCourses, getEnrolledCoursesPaged, getProgress } from '@/shared/api/learning';
-import { getMyAttempts } from '@/shared/api/assessment';
+import { getEnrolledCoursesPaged, getProgress } from '@/shared/api/learning';
 import type { MyCourseCardModel } from '../components/MyCourseCard';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 import { invalidateCachedValue } from '@/shared/api/client-cache';
 import { cacheKeys } from '@/shared/api/cache-policy';
-import type { AttemptSummaryResponse } from '@/shared/types/assessment';
-import type { CourseProgressResponse, CourseResponse } from '@/shared/types/learning';
+import type { CourseProgressResponse } from '@/shared/types/learning';
 
 interface EnrolledCourseListItem {
     id: string;
@@ -32,65 +30,19 @@ function toClampedPercent(value: unknown): number {
     return Math.max(0, Math.min(100, Math.round(numeric)));
 }
 
-function getProgressPercent(progress: CourseProgressResponse | undefined): number {
-    if (!progress) return 0;
-    const aliases = progress as CourseProgressResponse & {
-        completionPercentage?: number;
-        completedPercentage?: number;
-        progressPercent?: number;
-        percentComplete?: number;
-    };
-    return toClampedPercent(
-        aliases.completionPercent ??
-        aliases.completionPercentage ??
-        aliases.completedPercentage ??
-        aliases.progressPercent ??
-        aliases.percentComplete
-    );
-}
-
-function getAttemptCompletionPercent(course: CourseResponse, attempts: AttemptSummaryResponse[]): number {
-    const contentIds = (course.sections ?? []).flatMap((section) => (section.contents ?? []).map((content) => content.id));
-    if (contentIds.length === 0) return 0;
-
-    const courseContentIds = new Set(contentIds);
-    const completedContentIds = new Set(
-        attempts
-            .filter((attempt) => attempt.status === 'FINALIZED' && attempt.score !== null && courseContentIds.has(attempt.contentId))
-            .map((attempt) => attempt.contentId)
-    );
-
-    return toClampedPercent((completedContentIds.size * 100) / contentIds.length);
-}
-
 async function fetchAndMapCourses(page: number, limit: number): Promise<{ items: EnrolledCourseListItem[]; total: number }> {
-    // Always bust the progress cache so we get the latest completion percentages
     invalidateCachedValue(cacheKeys.learning.progress());
 
-    const [enrolledCourses, progress, attempts, allCourses] = await Promise.all([
+    const [enrolledCourses, progress] = await Promise.all([
         getEnrolledCoursesPaged({ page: page - 1, size: limit }),
-        getProgress().catch(() => [] as Awaited<ReturnType<typeof getProgress>>),
-        getMyAttempts().catch(() => [] as AttemptSummaryResponse[]),
-        getCourses().catch(() => [] as CourseResponse[]),
+        getProgress().catch(() => [] as CourseProgressResponse[]),
     ]);
 
     const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
     const progressById = new Map(progress.map((item) => [item.courseId, item]));
-    const courseDetailBySlug = new Map(allCourses.map((course) => [course.slug, course]));
-    const courseDetailById = new Map(allCourses.map((course) => [course.id, course]));
 
     const mappedCourses: EnrolledCourseListItem[] = enrolledCourses.items.map((course) => {
-        const fullCourse = courseDetailBySlug.get(course.slug) ?? courseDetailById.get(course.id) ?? course;
-        const sections = fullCourse.sections ?? course.sections ?? [];
-        const lessonCount =
-            fullCourse.contentCount ??
-            course.contentCount ??
-            sections.reduce((sum, section) => sum + (section.contents?.length ?? 0), 0);
-        const sectionCount = fullCourse.sectionCount ?? course.sectionCount ?? sections.length;
         const courseProgress = progressBySlug.get(course.slug) ?? progressById.get(course.id);
-        const apiPercent = getProgressPercent(courseProgress);
-        const attemptPercent = getAttemptCompletionPercent(fullCourse, attempts);
-        const completionPercent = Math.max(apiPercent, attemptPercent);
 
         return {
             id: course.id,
@@ -98,9 +50,9 @@ async function fetchAndMapCourses(page: number, limit: number): Promise<{ items:
             slug: course.slug,
             description: course.description ?? 'Khóa học đang được cá nhân hóa cho hành trình học tập của bạn.',
             iconFileName: resolveCourseIconSrc(course.iconFileName),
-            sectionCount,
-            lessonCount,
-            completionPercent,
+            sectionCount: course.sectionCount ?? course.sections?.length ?? 0,
+            lessonCount: course.contentCount ?? 0,
+            completionPercent: toClampedPercent(courseProgress?.completionPercent ?? 0),
             lastStudiedAt: courseProgress?.lastStudiedAt ?? null,
         };
     });
@@ -111,7 +63,6 @@ async function fetchAndMapCourses(page: number, limit: number): Promise<{ items:
 }
 
 export async function preloadEnrolledCourses(page: number, limit: number) {
-    // Always re-fetch — don't rely on stale cache for progress
     try {
         await fetchAndMapCourses(page, limit);
     } catch {
@@ -131,7 +82,6 @@ export function useEnrolledCourses() {
         let cancelled = false;
 
         async function fetchEnrolledCourses() {
-            // Show cached data instantly if available
             const cached = enrolledCoursesCache.get(page);
             if (cached) {
                 setCourses(cached.items);
@@ -141,7 +91,6 @@ export function useEnrolledCourses() {
                 setIsLoading(true);
             }
 
-            // Always re-fetch to get latest progress
             try {
                 const fresh = await fetchAndMapCourses(page, limit);
                 if (!cancelled) {

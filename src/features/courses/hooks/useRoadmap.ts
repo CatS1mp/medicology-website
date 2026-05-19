@@ -1,255 +1,367 @@
 import { useEffect, useState } from 'react';
-import { getCourseDetail, getCourses } from '@/shared/api/learning';
-import { getMyAttempts, getMyInProgressAttempts } from '@/shared/api/assessment';
-import { CourseResponse } from '@/shared/types/learning';
-import { LessonStatus, RoadmapData } from '../types';
+
+import { getLearnerRoadmap, invalidateLearnerRoadmapCache } from '@/shared/api/learning';
+
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 
-function isLikelyCourseUuid(param: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
-}
+import { LessonStatus, RoadmapData } from '../types';
 
-function normalizeRouteParam(param: string): string {
-    try {
-        return decodeURIComponent(param).trim();
-    } catch {
-        return param.trim();
-    }
-}
+import type { CourseRoadmapApiResponse } from '@/shared/types/learning';
 
-type AttemptSummaryLite = {
-    contentId: string;
-    submittedAt: string | null;
-    startedAt: string;
-    status: string;
-    score: number | null;
-    passed: boolean | null;
-};
+import { normalizeCourseRouteParam, resolveCourseRoadmapKey } from '../utils/course-route';
 
-function toAttemptTimestamp(attempt: AttemptSummaryLite): number {
-    const value = Date.parse(attempt.submittedAt ?? attempt.startedAt);
-    return Number.isNaN(value) ? 0 : value;
-}
 
-/**
- * Quy ước roadmap:
- * - completed: attempt FINALIZED mới nhất có passed=true
- * - failed: attempt FINALIZED mới nhất có passed=false
- */
-function buildLatestFinalizedOutcomeByContentId(
-    attempts: AttemptSummaryLite[],
-    courseContentIds: Set<string>
-): Map<string, 'completed' | 'failed'> {
-    const latestAttemptByContentId = new Map<string, AttemptSummaryLite>();
-    for (const attempt of attempts) {
-        if (!courseContentIds.has(attempt.contentId)) continue;
-        if (attempt.status !== 'FINALIZED') continue;
-        if (attempt.score === null) continue;
-        if (!attempt.submittedAt) continue;
-        const prev = latestAttemptByContentId.get(attempt.contentId);
-        if (!prev || toAttemptTimestamp(attempt) >= toAttemptTimestamp(prev)) {
-            latestAttemptByContentId.set(attempt.contentId, attempt);
-        }
+
+function toLessonStatus(status: string): LessonStatus {
+
+    if (status === 'completed' || status === 'failed' || status === 'active' || status === 'locked' || status === 'next') {
+
+        return status;
+
     }
 
-    const outcome = new Map<string, 'completed' | 'failed'>();
-    for (const [contentId, attempt] of latestAttemptByContentId.entries()) {
-        outcome.set(contentId, attempt.passed ? 'completed' : 'failed');
-    }
-    return outcome;
+    return 'locked';
+
 }
+
+
+
+function mapRoadmapResponse(api: CourseRoadmapApiResponse): RoadmapData {
+
+    const courseSlug = api.courseSlug;
+
+    return {
+
+        topicTitle: api.topicTitle,
+
+        courseImageUrl: resolveCourseIconSrc(api.courseImageUrl),
+
+        progress: api.progress,
+
+        streak: {
+
+            days: 0,
+
+            message: 'Bạn đang xây dựng một thói quen học tập vững chắc. Tiếp tục phát huy nhé!',
+
+        },
+
+        sections: api.sections.map((section) => ({
+
+            id: section.id,
+
+            title: section.title,
+
+            nodes: section.nodes.map((node) => {
+
+                const hrefBase = `/courses/${courseSlug}/lessons/${node.slug}`;
+
+                const attemptId = node.inProgressAttemptId ?? undefined;
+
+                return {
+
+                    id: node.id,
+
+                    orderIndex: node.orderIndex,
+
+                    title: node.title,
+
+                    status: toLessonStatus(node.status),
+
+                    type: 'lesson' as const,
+
+                    href: attemptId ? `${hrefBase}?attempt=${encodeURIComponent(attemptId)}` : hrefBase,
+
+                    inProgressAttemptId: attemptId,
+
+                    description: node.description ?? undefined,
+
+                };
+
+            }),
+
+        })),
+
+        continueLesson: api.continueLesson
+
+            ? (() => {
+
+                  const cl = api.continueLesson!;
+
+                  const base = `/courses/${courseSlug}/lessons/${cl.contentSlug}`;
+
+                  const link = cl.inProgressAttemptId
+
+                      ? `${base}?attempt=${encodeURIComponent(cl.inProgressAttemptId)}`
+
+                      : base;
+
+                  return {
+
+                      courseInfo: cl.courseInfo,
+
+                      title: cl.title,
+
+                      description: cl.description,
+
+                      link,
+
+                  };
+
+              })()
+
+            : undefined,
+
+    };
+
+}
+
+
 
 export const roadmapCache = new Map<string, RoadmapData>();
 
+
+
 export function clearRoadmapCache(slug?: string) {
+
     if (slug) {
-        roadmapCache.delete(slug);
+
+        const key = normalizeCourseRouteParam(slug);
+
+        roadmapCache.delete(key);
+
+        invalidateLearnerRoadmapCache(key);
+
         return;
+
     }
+
     roadmapCache.clear();
+
+    invalidateLearnerRoadmapCache();
+
 }
+
+
 
 export async function preloadRoadmap(slug: string, options?: { force?: boolean }) {
-    if (!options?.force && roadmapCache.has(slug)) return;
+
+    const routeKey = normalizeCourseRouteParam(slug);
+
+    if (!routeKey) return;
+
+    if (!options?.force && roadmapCache.has(routeKey)) return;
+
+
+
     try {
-        const key = normalizeRouteParam(slug);
-        const byId = isLikelyCourseUuid(key);
-        const [courses, courseById, inProgress, myAttempts] = await Promise.all([
-            byId ? Promise.resolve<CourseResponse[]>([]) : getCourses().catch(() => [] as CourseResponse[]),
-            byId ? getCourseDetail(key).catch(() => null) : Promise.resolve(null),
-            getMyInProgressAttempts().catch(() => []),
-            getMyAttempts().catch(() => []),
-        ]);
-        const attemptByContentId = new Map(inProgress.map((a) => [a.contentId, a.attemptId]));
-        const course = byId
-            ? courseById ?? undefined
-            : courses.find(
-                  (item) =>
-                      item.slug === key ||
-                      item.slug?.toLowerCase() === key.toLowerCase() ||
-                      item.id === key
-              );
-        if (!course) return;
 
-        const sections = (course.sections ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
-        const flattenedLessons = sections.flatMap((section) =>
-            (section.contents ?? []).slice().sort((x, y) => x.orderIndex - y.orderIndex)
-        );
-        const courseContentIds = new Set(flattenedLessons.map((c) => c.id));
-        const finalizedOutcomeByContentId = buildLatestFinalizedOutcomeByContentId(myAttempts, courseContentIds);
-        const completedContentIds = new Set(
-            [...finalizedOutcomeByContentId.entries()]
-                .filter(([, outcome]) => outcome === 'completed')
-                .map(([contentId]) => contentId)
-        );
-        const failedContentIds = new Set(
-            [...finalizedOutcomeByContentId.entries()]
-                .filter(([, outcome]) => outcome === 'failed')
-                .map(([contentId]) => contentId)
-        );
-        const finalizedContentIds = new Set([...completedContentIds, ...failedContentIds]);
-        const completedCount = flattenedLessons.filter((c) => finalizedContentIds.has(c.id)).length;
-        const totalLessons = Math.max(1, flattenedLessons.length);
-        const incompleteOrdered = flattenedLessons.filter((c) => !finalizedContentIds.has(c.id));
-        const firstOpen = incompleteOrdered[0];
-        const secondOpen = incompleteOrdered[1];
-        let lessonOrder = 0;
-        const mapped: RoadmapData = {
-            topicTitle: course.name,
-            courseImageUrl: resolveCourseIconSrc(course.iconFileName),
-            progress: {
-                current: completedCount,
-                total: totalLessons,
-            },
-            streak: {
-                days: 0,
-                message: 'Bạn đang xây dựng một thói quen học tập vững chắc. Tiếp tục phát huy nhé!',
-            },
-            sections: sections
-                .map((section) => ({
-                    id: section.id,
-                    title: section.name,
-                    nodes: [...(section.contents ?? [])]
-                        .sort((x, y) => x.orderIndex - y.orderIndex)
-                        .map((lesson) => {
-                        const attemptId = attemptByContentId.get(lesson.id);
+        const apiKey = await resolveCourseRoadmapKey(routeKey);
 
-                        let status: LessonStatus;
-                        if (completedContentIds.has(lesson.id)) {
-                            status = 'completed';
-                        } else if (attemptId) {
-                            status = 'active';
-                        } else if (failedContentIds.has(lesson.id)) {
-                            status = 'failed';
-                        } else if (firstOpen && lesson.id === firstOpen.id) {
-                            status = 'active';
-                        } else if (secondOpen && lesson.id === secondOpen.id) {
-                            status = 'next';
-                        } else {
-                            status = 'locked';
-                        }
+        const api = await getLearnerRoadmap(apiKey);
 
-                        const hrefBase = `/courses/${course.slug}/lessons/${lesson.slug}`;
-                        return {
-                            id: lesson.id,
-                            orderIndex: ++lessonOrder,
-                            title: lesson.name,
-                            status,
-                            type: 'lesson' as const,
-                            href: attemptId ? `${hrefBase}?attempt=${encodeURIComponent(attemptId)}` : hrefBase,
-                            inProgressAttemptId: attemptId,
-                            description: lesson.estimatedDurationMinutes
-                                ? `${lesson.estimatedDurationMinutes} phút học`
-                                : lesson.difficultyLevel ?? undefined,
-                        };
-                    }),
-                })),
-            continueLesson: (() => {
-                const inProgressLesson = flattenedLessons.find((c) => attemptByContentId.has(c.id));
-                const target = inProgressLesson ?? incompleteOrdered[0];
-                if (!target) return undefined;
-                const aid = attemptByContentId.get(target.id);
-                const base = `/courses/${course.slug}/lessons/${target.slug}`;
-                const link = aid ? `${base}?attempt=${encodeURIComponent(aid)}` : base;
-                return {
-                    courseInfo: course.name,
-                    title: target.name,
-                    description:
-                        target.description ??
-                        (inProgressLesson
-                            ? 'Tiếp tục bài học đang làm dở.'
-                            : 'Tiếp tục bài học tiếp theo.'),
-                    link,
-                };
-            })(),
-        };
+        const mapped = mapRoadmapResponse(api);
 
-        roadmapCache.set(slug, mapped);
+        roadmapCache.set(routeKey, mapped);
+
+        if (apiKey !== routeKey) {
+
+            roadmapCache.set(apiKey, mapped);
+
+        }
+
     } catch {
-        // fail silently for preload
+
+        // preload — im lặng
+
     }
+
 }
 
+
+
 export const useRoadmap = (slug: string) => {
-    const [data, setData] = useState<RoadmapData | null>(() => roadmapCache.get(slug) || null);
-    const [isLoading, setIsLoading] = useState(() => !roadmapCache.has(slug));
+
+    const routeKey = normalizeCourseRouteParam(slug);
+
+    const [data, setData] = useState<RoadmapData | null>(() => roadmapCache.get(routeKey) || null);
+
+    const [isLoading, setIsLoading] = useState(() => !roadmapCache.has(routeKey));
+
+    const [error, setError] = useState<string | null>(null);
+
+
 
     useEffect(() => {
+
         let cancelled = false;
+
+
 
         async function fetchRoadmap() {
-            if (roadmapCache.has(slug)) {
-                setData(roadmapCache.get(slug)!);
+
+            if (!routeKey) {
+
+                setData(null);
+
+                setError('Thiếu thông tin khóa học trên đường dẫn.');
+
                 setIsLoading(false);
+
+                return;
+
+            }
+
+
+
+            if (roadmapCache.has(routeKey)) {
+
+                setData(roadmapCache.get(routeKey)!);
+
+                setError(null);
+
+                setIsLoading(false);
+
             } else {
+
                 setIsLoading(true);
+
             }
-            
+
+
+
             try {
-                await preloadRoadmap(slug);
-                if (!cancelled && roadmapCache.has(slug)) {
-                    setData(roadmapCache.get(slug)!);
+
+                const apiKey = await resolveCourseRoadmapKey(routeKey);
+
+                const api = await getLearnerRoadmap(apiKey);
+
+                const mapped = mapRoadmapResponse(api);
+
+                if (cancelled) return;
+
+                roadmapCache.set(routeKey, mapped);
+
+                if (apiKey !== routeKey) {
+
+                    roadmapCache.set(apiKey, mapped);
+
                 }
-            } catch {
-                if (!cancelled) setData(null);
+
+                setData(mapped);
+
+                setError(null);
+
+            } catch (e) {
+
+                if (!cancelled) {
+
+                    setData(null);
+
+                    setError(e instanceof Error ? e.message : 'Không tải được lộ trình khóa học.');
+
+                }
+
             } finally {
+
                 if (!cancelled) setIsLoading(false);
+
             }
+
         }
 
-        fetchRoadmap();
+
+
+        void fetchRoadmap();
+
         return () => {
+
             cancelled = true;
+
         };
-    }, [slug]);
+
+    }, [routeKey]);
+
+
 
     useEffect(() => {
+
         let cancelled = false;
 
+
+
         async function refreshRoadmap() {
-            clearRoadmapCache(slug);
+
+            clearRoadmapCache(routeKey);
+
             setIsLoading(true);
+
             try {
-                await preloadRoadmap(slug, { force: true });
-                if (!cancelled) {
-                    setData(roadmapCache.get(slug) ?? null);
+
+                const apiKey = await resolveCourseRoadmapKey(routeKey);
+
+                const api = await getLearnerRoadmap(apiKey);
+
+                const mapped = mapRoadmapResponse(api);
+
+                if (cancelled) return;
+
+                roadmapCache.set(routeKey, mapped);
+
+                if (apiKey !== routeKey) {
+
+                    roadmapCache.set(apiKey, mapped);
+
                 }
-            } catch {
-                if (!cancelled) setData(null);
+
+                setData(mapped);
+
+                setError(null);
+
+            } catch (e) {
+
+                if (!cancelled) {
+
+                    setData(null);
+
+                    setError(e instanceof Error ? e.message : 'Không tải được lộ trình khóa học.');
+
+                }
+
             } finally {
+
                 if (!cancelled) setIsLoading(false);
+
             }
+
         }
 
+
+
         window.addEventListener('learning:progress-changed', refreshRoadmap);
+
         return () => {
+
             cancelled = true;
+
             window.removeEventListener('learning:progress-changed', refreshRoadmap);
+
         };
-    }, [slug]);
+
+    }, [routeKey]);
+
+
 
     return {
+
         data,
-        isLoading
+
+        isLoading,
+
+        error,
+
     };
+
 };
+
+

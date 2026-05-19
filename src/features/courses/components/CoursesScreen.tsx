@@ -21,7 +21,7 @@ interface CoursesScreenProps {
 
 export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
     const router = useRouter();
-    const { data, isLoading } = useRoadmap(slug);
+    const { data, isLoading, error } = useRoadmap(slug);
     const { streakDays } = useLearningStreak();
     const [selectedCompletedLesson, setSelectedCompletedLesson] = useState<LessonNode | null>(null);
 
@@ -75,8 +75,15 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                             {isLoading ? (
                                 <RoadmapSkeleton />
                             ) : !data ? (
-                                <div className="flex-1 flex justify-center items-center text-gray-500">
-                                    Không tìm thấy khóa học.
+                                <div className="flex-1 flex flex-col justify-center items-center gap-3 text-center text-gray-500 px-6">
+                                    <p>{error ?? 'Không tìm thấy khóa học.'}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.location.reload()}
+                                        className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Thử lại
+                                    </button>
                                 </div>
                             ) : (
                                 <>
