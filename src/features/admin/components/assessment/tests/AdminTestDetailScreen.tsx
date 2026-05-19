@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import styles from '../admin.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import styles from '@/features/admin/admin.module.css';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import { adminListBlockTemplates, adminUpdateContent } from '@/shared/api/admin-learning';
 import { getContentDetail } from '@/shared/api/learning';
 import type { ContentBlockKind, ContentBlockResponse, ContentBlockTemplateResponse } from '@/shared/types/learning';

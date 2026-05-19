@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import styles from '../admin.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import styles from '@/features/admin/admin.module.css';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import { deleteAdminUser, fetchAdminUserProfile, fetchAdminUsers, patchAdminUserStatus } from '@/shared/api/admin-users';
 import {
     mapAdminUserToStudentRow,
@@ -10,9 +10,9 @@ import {
     type StudentStatusUi,
     type StudentTableRow,
 } from '@/shared/types/admin';
-import { AdminAddStudentModal } from './AdminAddStudentModal';
-import { AdminStudentProfileModal } from './AdminStudentProfileModal';
-import { AdminTableSkeleton } from './AdminTableSkeleton';
+import { AdminAddStudentModal } from '@/features/admin/components/users/AdminAddStudentModal';
+import { AdminStudentProfileModal } from '@/features/admin/components/users/AdminStudentProfileModal';
+import { AdminTableSkeleton } from '@/features/admin/components/shared/AdminTableSkeleton';
 
 function statusClass(status: StudentStatusUi): string {
     if (status === 'Hoạt động') return styles.studentStatusActive;

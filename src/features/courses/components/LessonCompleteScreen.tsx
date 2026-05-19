@@ -9,26 +9,23 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { LessonCompletionLoadingScreen } from '@/features/courses/components/LessonCompletionLoadingScreen';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { syncLearningStreakForCompletedAttempt, useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { getCourses, notifyLearningProgressChanged } from '@/shared/api/learning';
+import { getCourses, getRecommendationContext, notifyLearningProgressChanged } from '@/shared/api/learning';
 import type { LearningProgressChangedDetail } from '@/shared/api/learning';
-import { getAttemptResult, getAttemptResultFresh, getMyAttempts } from '@/shared/api/assessment';
+import { getAttemptResult, getAttemptResultFresh } from '@/shared/api/assessment';
 import { AttemptResultResponse } from '@/shared/types/assessment';
-import { patchEnrolledCoursesCache } from '@/features/courses/hooks/useEnrolledCourses';
-import { patchRoadmapCaches } from '@/features/courses/hooks/useRoadmap';
 import { invalidateCachedValue, invalidateCachedValueByPrefix } from '@/shared/api/client-cache';
 import { cacheKeys } from '@/shared/api/cache-policy';
 import {
     DictionaryArticleRecommendationItem,
     recommendArticlesFromAttempts,
 } from '@/features/encyclopedia/api';
-import { LESSON_PASS_SCORE_RATIO } from '@/features/courses/components/lessonCompleteConstants';
 import {
     readReadingRecoFromSession,
     readingRecoSessionKey,
     writeReadingRecoToSession,
 } from '@/features/encyclopedia/readingRecoSessionCache';
-import { mapAttemptsToRecommendationPayload } from '@/features/encyclopedia/readingRecommendationsLearner';
 import { useUserStore } from '@/shared/store/useUserStore';
+import { mapDisplayOutcomeToUi, resolveMascotSrc, type LessonCompleteOutcome } from '@/shared/utils/attempt-display';
 
 interface LessonMeta {
     contentId: string;
@@ -37,14 +34,7 @@ interface LessonMeta {
     name: string;
 }
 
-type Outcome =
-    | 'loading'
-    | 'page-error'
-    | 'result-error'
-    | 'grading'
-    | 'passed'
-    | 'failed'
-    | 'neutral';
+type Outcome = LessonCompleteOutcome;
 
 function formatScore(value: number): string {
     if (!Number.isFinite(value)) return '—';
@@ -53,11 +43,10 @@ function formatScore(value: number): string {
     return String(rounded);
 }
 
-function passThresholdPoints(maxScore: number): number {
-    return Math.round(maxScore * LESSON_PASS_SCORE_RATIO * 100) / 100;
-}
-
 function getResultScorePercent(result: AttemptResultResponse | null): number | null {
+    if (result?.scorePercent != null) {
+        return result.scorePercent;
+    }
     if (!result || !Number.isFinite(result.score) || !Number.isFinite(result.maxScore) || result.maxScore <= 0) {
         return null;
     }
@@ -190,12 +179,17 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                     } else {
                         setRecommendationLoading(true);
                         setLoadingProgress(82);
-                        const attempts = await getMyAttempts();
+                        const recentAttempts = await getRecommendationContext(8);
                         if (cancelled) return;
-                        const recentAttempts = mapAttemptsToRecommendationPayload(attempts, courses);
 
                         const reco = await recommendArticlesFromAttempts({
-                            recentAttempts,
+                            recentAttempts: recentAttempts.map((item) => ({
+                                contentId: item.contentId,
+                                contentName: item.contentName,
+                                tags: [item.courseName, item.sectionName].filter(Boolean) as string[],
+                                submittedAt: item.submittedAt,
+                                passed: item.passed,
+                            })),
                             limit: 3,
                         });
                         if (!cancelled) {
@@ -294,8 +288,6 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
             score: result.score,
             maxScore: result.maxScore,
         };
-        patchEnrolledCoursesCache(progressDetail);
-        patchRoadmapCaches(progressDetail);
         useUserStore.getState().recordLearningProgressChange(progressDetail);
         notifyLearningProgressChanged(progressDetail);
     }, [attemptId, courseSlug, result]);
@@ -305,6 +297,9 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         if (pageError) return 'page-error';
         if (attemptId && resultFetchError) return 'result-error';
         if (!attemptId || !result) return 'neutral';
+        if (result.displayOutcome) {
+            return mapDisplayOutcomeToUi(result.displayOutcome);
+        }
         if (result.resultStatus === 'PROVISIONAL' || result.attemptStatus === 'PENDING_REVIEW') return 'grading';
         if (result.resultStatus === 'FINAL' && result.passed) return 'passed';
         if (result.resultStatus === 'FINAL' && !result.passed) return 'failed';
@@ -418,11 +413,12 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
 
     const resultScorePercent = useMemo(() => getResultScorePercent(result), [result]);
     const resultMascotSrc = result
-        ? resultScorePercent === null
-            ? '/images/Mascot/26.svg'
-            : getMascotByScorePercent(resultScorePercent)
+        ? resolveMascotSrc(result.mascotKey, resultScorePercent) ??
+          (resultScorePercent === null ? '/images/Mascot/26.svg' : getMascotByScorePercent(resultScorePercent))
         : null;
     const resultMascotLabel = resultScorePercent === null ? 'Bài học' : `${resultScorePercent}% điểm`;
+    const passThreshold =
+        result?.passThresholdScore != null ? result.passThresholdScore : result ? result.maxScore * 0.5 : 0;
 
     if (outcome === 'loading') {
         return (
@@ -510,8 +506,8 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                             <p className="mt-3 break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
                                                 <span className="font-semibold text-gray-900">Điều kiện đạt:</span>
                                                 {' '}
-                                                tổng điểm ≥ {formatScore(passThresholdPoints(result.maxScore))} / {formatScore(result.maxScore)}
-                                                {' '}(≥ {LESSON_PASS_SCORE_RATIO * 100}% điểm tối đa; cùng quy tắc với hệ thống chấm).
+                                                tổng điểm ≥ {formatScore(passThreshold)} / {formatScore(result.maxScore)}
+                                                {' '}(ngưỡng đạt do hệ thống chấm).
                                             </p>
                                         ) : null}
                                         <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">

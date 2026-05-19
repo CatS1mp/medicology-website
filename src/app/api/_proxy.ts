@@ -81,7 +81,7 @@ export async function proxyToBackend(
 
     const segments = params.path ?? [];
     if (!validatePathSegments(segments)) {
-        return NextResponse.json({ message: 'Invalid path' }, { status: 400 });
+        return NextResponse.json({ message: 'Đường dẫn không hợp lệ' }, { status: 400 });
     }
 
     const targetUrl = buildTargetUrl(req, segments, { ...config, backendUrl: backend });
@@ -122,6 +122,6 @@ export async function proxyToBackend(
         });
     } catch (error) {
         logProxyError(error);
-        return NextResponse.json({ message: 'Internal Server Error (Proxy)' }, { status: 500 });
+        return NextResponse.json({ message: 'Lỗi máy chủ nội bộ (proxy)' }, { status: 500 });
     }
 }

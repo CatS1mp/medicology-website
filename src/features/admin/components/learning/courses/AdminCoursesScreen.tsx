@@ -2,12 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../admin.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
-import { AdminAddCourseModal } from './AdminAddCourseModal';
+import styles from '@/features/admin/admin.module.css';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
+import { AdminAddCourseModal } from '@/features/admin/components/learning/courses/AdminAddCourseModal';
 import { adminDeleteCourse, adminListCoursesPaged } from '@/shared/api/admin-learning';
 import type { CourseResponse } from '@/shared/types/learning';
-import { AdminTableSkeleton } from './AdminTableSkeleton';
+import { AdminTableSkeleton } from '@/features/admin/components/shared/AdminTableSkeleton';
 
 type CourseLevel = 'General' | 'Teen' | 'Adult';
 

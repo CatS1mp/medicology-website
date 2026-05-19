@@ -8,11 +8,12 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { getCourses } from '@/shared/api/learning';
+import { getContentDetail, getLearnerRoadmap } from '@/shared/api/learning';
 import {
     getAttemptAnswer,
     getAttemptReview,
-    getMyAttempts,
+    getLatestSubmittedAttempt,
+    getMyInProgressAttempts,
     saveAttemptAnswer,
     startAttempt,
     submitAttempt,
@@ -47,6 +48,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
     const isReviewMode = searchParams.get('mode') === 'review';
+    const attemptFromQuery = searchParams.get('attempt')?.trim() || null;
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [completionLoading, setCompletionLoading] = useState(false);
@@ -98,38 +100,40 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         let cancelled = false;
         async function run() {
             try {
-                const courses = await getCourses();
-                const course = courses.find((item) => item.slug === courseSlug);
-                const match = course?.sections?.flatMap((section) =>
-                    (section.contents ?? []).map((lessonItem) => ({
-                        id: lessonItem.id,
-                        courseName: course.name,
-                        sectionName: section.name,
-                        name: lessonItem.name,
-                        description: lessonItem.description,
-                        difficulty: lessonItem.difficultyLevel,
-                        estimatedDurationMinutes: lessonItem.estimatedDurationMinutes,
-                        content: lessonItem.content,
-                        blocks: lessonItem.blocks,
-                        slug: lessonItem.slug,
-                    }))
-                ).find((item) => item.slug === lessonSlug);
+                const roadmap = await getLearnerRoadmap(courseSlug);
+                let match: typeof lesson = null;
+                for (const section of roadmap.sections) {
+                    const node = section.nodes.find((item) => item.slug === lessonSlug);
+                    if (!node) continue;
+                    const content = await getContentDetail(node.id);
+                    match = {
+                        id: content.id,
+                        courseName: roadmap.topicTitle,
+                        sectionName: section.title,
+                        name: content.name,
+                        description: content.description,
+                        difficulty: content.difficultyLevel,
+                        estimatedDurationMinutes: content.estimatedDurationMinutes,
+                        content: content.content,
+                        blocks: content.blocks,
+                    };
+                    break;
+                }
                 if (cancelled) return;
-                setLesson(match ?? null);
+                setLesson(match);
 
                 if (!match || !isReviewMode) {
                     setReviewByBlockId({});
                     return;
                 }
 
-                const submittedAttempts = (await getMyAttempts()).filter(
-                    (item) => item.contentId === match.id && item.submittedAt
-                );
-                const latestSubmitted = [...submittedAttempts].sort(
-                    (left, right) => new Date(right.submittedAt ?? '').getTime() - new Date(left.submittedAt ?? '').getTime()
-                )[0];
-
-                const selectedAttemptId = latestSubmitted?.attemptId ?? null;
+                let selectedAttemptId: string | null = null;
+                try {
+                    const latestSubmitted = await getLatestSubmittedAttempt(match.id);
+                    selectedAttemptId = latestSubmitted.attemptId;
+                } catch {
+                    selectedAttemptId = null;
+                }
 
                 if (!selectedAttemptId) {
                     setMessage('Bài học này chưa có kết quả để xem lại.');
@@ -163,6 +167,20 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         async function ensureAttempt() {
             if (!contentId || isReviewMode) return;
             try {
+                if (attemptFromQuery) {
+                    const inProgress = await getMyInProgressAttempts();
+                    const resumed = inProgress.find(
+                        (item) => item.attemptId === attemptFromQuery && item.contentId === contentId
+                    );
+                    if (resumed) {
+                        if (cancelled) return;
+                        attemptIdRef.current = resumed.attemptId;
+                        setAttemptId(resumed.attemptId);
+                        setRemainingSeconds(resumed.remainingSeconds);
+                        return;
+                    }
+                }
+
                 const started = await startAttempt(contentId, { estimatedDurationMinutes });
                 if (cancelled) return;
                 attemptIdRef.current = started.attemptId;
@@ -174,7 +192,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
         void ensureAttempt();
         return () => { cancelled = true; };
-    }, [lesson?.id, lesson?.estimatedDurationMinutes, isReviewMode]);
+    }, [attemptFromQuery, lesson?.id, lesson?.estimatedDurationMinutes, isReviewMode]);
 
     useEffect(() => {
         if (!attemptId || isReviewMode) return;

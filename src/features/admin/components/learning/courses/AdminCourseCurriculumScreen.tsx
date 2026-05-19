@@ -2,15 +2,15 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import styles from '../admin.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import styles from '@/features/admin/admin.module.css';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import {
     adminCreateContent,
     adminCreateSection,
     adminDeleteContent,
     adminDeleteSection,
     adminGetCourse,
-    adminListCourses,
+    adminListCoursesPaged,
     adminListSections,
     adminListContents,
     adminPatchCourseActive,
@@ -68,11 +68,15 @@ async function loadSectionBundles(courseId: string): Promise<SectionBundle[]> {
 }
 
 async function resolveCourse(courseId: string): Promise<CourseResponse> {
+    const trimmed = courseId.trim();
+    if (!trimmed) {
+        throw new Error('Thiếu mã khóa học trên URL.');
+    }
     try {
-        return await adminGetCourse(courseId);
+        return await adminGetCourse(trimmed);
     } catch {
-        const all = await adminListCourses();
-        const c = all.find((x) => x.id === courseId);
+        const { items } = await adminListCoursesPaged({ page: 0, size: 1000 });
+        const c = items.find((x) => x.id === trimmed);
         if (!c) throw new Error('Không tìm thấy khóa học.');
         return c;
     }

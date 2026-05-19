@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import { updateAdminUser } from '@/shared/api/admin-users';
 import type { AdminUserApiRecord, StudentTableRow } from '@/shared/types/admin';
 import { LazyImage } from '@/shared/components/LazyImage';
@@ -297,7 +297,7 @@ export const AdminStudentProfileModal: React.FC<AdminStudentProfileModalProps> =
                                     />
                                 </label>
                                 <label className={styles.studentModalEditLabel}>
-                                    Username
+                                    Tên đăng nhập
                                     <input
                                         className={styles.studentModalEditInput}
                                         value={username}

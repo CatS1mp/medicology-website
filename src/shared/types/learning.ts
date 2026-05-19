@@ -150,6 +150,43 @@ export interface CourseProgressResponse {
     courseSlug: string;
     lastStudiedAt: string | null;
     completionPercent: number;
+    completedContentCount?: number;
+    totalContentCount?: number;
+}
+
+export interface DashboardProgressResponse {
+    courses: CourseProgressResponse[];
+    activity: ContentActivitySummaryResponse;
+    recentGradedAttempts: { submittedAt: string; scoreOnTenScale: number }[];
+    averageScoreOnTenScale: number;
+}
+
+export interface CourseRoadmapApiResponse {
+    topicTitle: string;
+    courseSlug: string;
+    courseImageUrl?: string;
+    progress: { current: number; total: number };
+    sections: {
+        id: string;
+        title: string;
+        nodes: {
+            id: string;
+            slug: string;
+            title: string;
+            status: string;
+            type: string;
+            orderIndex: number;
+            inProgressAttemptId?: string | null;
+            description?: string | null;
+        }[];
+    }[];
+    continueLesson?: {
+        courseInfo: string;
+        title: string;
+        description: string;
+        contentSlug: string;
+        inProgressAttemptId?: string | null;
+    } | null;
 }
 
 export interface UserDailyStreak {

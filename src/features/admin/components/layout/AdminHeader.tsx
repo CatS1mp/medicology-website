@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 
 export const AdminHeader: React.FC = () => {
     return (

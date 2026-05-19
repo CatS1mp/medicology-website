@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import styles from '../admin.module.css';
-import { CommunityGrowthChart } from './CommunityGrowthChart';
-import { ContentInteractionChart } from './ContentInteractionChart';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import styles from '@/features/admin/admin.module.css';
+import { CommunityGrowthChart } from '@/features/admin/components/reports/CommunityGrowthChart';
+import { ContentInteractionChart } from '@/features/admin/components/reports/ContentInteractionChart';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import { adminListCourses } from '@/shared/api/admin-learning';
 import { adminListArticles } from '@/shared/api/admin-dictionary';

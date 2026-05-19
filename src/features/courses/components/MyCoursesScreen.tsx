@@ -9,6 +9,7 @@ import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { MyCourseCard } from './MyCourseCard';
 import { MyCourseCardSkeleton } from './MyCourseCardSkeleton';
 import { useEnrolledCourses } from '../hooks/useEnrolledCourses';
+import { courseRoadmapPath } from '../utils/course-route';
 import { useUserStore } from '@/shared/store/useUserStore';
 
 export const MyCoursesScreen: React.FC = () => {
@@ -55,7 +56,7 @@ export const MyCoursesScreen: React.FC = () => {
                                     <MyCourseCard
                                         key={course.id}
                                         course={course}
-                                        onContinueLearning={(courseSlug) => router.push(`/courses/${courseSlug}`)}
+                                        onContinueLearning={(course) => router.push(courseRoadmapPath(course))}
                                     />
                                 ))
                             ) : (

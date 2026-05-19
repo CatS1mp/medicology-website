@@ -296,7 +296,7 @@ export function ConnectedProfileScreen() {
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <Field label="HỌ" value={personal.firstName} onChange={(value) => setPersonal({ ...personal, firstName: value })} />
                                             <Field label="TÊN" value={personal.lastName} onChange={(value) => setPersonal({ ...personal, lastName: value })} />
-                                            <Field label="USERNAME*" value={personal.username} onChange={(value) => setPersonal({ ...personal, username: value })} />
+                                            <Field label="TÊN ĐĂNG NHẬP*" value={personal.username} onChange={(value) => setPersonal({ ...personal, username: value })} />
                                             <Field
                                                 label="EMAIL*"
                                                 value={personal.email}
@@ -389,7 +389,7 @@ export function ConnectedProfileScreen() {
                                                 <Toggle label="Thông báo email" checked={settings.emailNotifications} onChange={(checked) => setSettings({ ...settings, emailNotifications: checked })} />
                                                 <Toggle label="Thông báo push" checked={settings.pushNotifications} onChange={(checked) => setSettings({ ...settings, pushNotifications: checked })} />
                                                 <Field label="Giờ nhắc học hằng ngày" type="time" value={settings.dailyReminderTime} onChange={(value) => setSettings({ ...settings, dailyReminderTime: value })} />
-                                                <Field label="Theme" value={settings.themePreference} onChange={(value) => setSettings({ ...settings, themePreference: value as SettingsForm['themePreference'] })} />
+                                                <Field label="Giao diện" value={settings.themePreference} onChange={(value) => setSettings({ ...settings, themePreference: value as SettingsForm['themePreference'] })} />
                                                 <Field label="Mục tiêu khóa học mỗi ngày" type="number" value={settings.dailyGoalCourses} onChange={(value) => setSettings({ ...settings, dailyGoalCourses: value })} />
                                             </div>
                                             <div className="mt-4 flex justify-end"><Button onClick={saveSettings}>Lưu cài đặt</Button></div>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import styles from './article-editor.module.css';
 import type {
     DictionaryArticleResponse,

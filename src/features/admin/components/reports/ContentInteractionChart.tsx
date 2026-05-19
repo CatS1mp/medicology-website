@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 
 // Generating some dummy data for the 31 days
 const data = Array.from({ length: 11 }, (_, i) => ({

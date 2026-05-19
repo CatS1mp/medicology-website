@@ -19,7 +19,7 @@ export interface MyCourseCardModel {
 
 interface MyCourseCardProps {
     course: MyCourseCardModel;
-    onContinueLearning?: (slug: string) => void;
+    onContinueLearning?: (course: MyCourseCardModel) => void;
 }
 
 function formatLastStudied(lastStudiedAt: string | null): string {
@@ -117,7 +117,7 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                             ? 'py-2.5 text-[13px] font-bold tracking-wide uppercase bg-emerald-500 shadow-[0_4px_0_0_#059669] hover:bg-emerald-400 hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#059669] active:translate-y-[4px] active:shadow-none transition-all'
                             : 'py-2.5 text-[13px] font-bold tracking-wide uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none transition-all'
                     }
-                    onClick={() => onContinueLearning?.(course.slug)}
+                    onClick={() => onContinueLearning?.(course)}
                 >
                     <div className="flex min-w-0 items-center justify-center gap-2 text-white">
                         {isCompleted ? (

@@ -112,9 +112,9 @@ export interface DictionaryArticleRecommendationResponse {
 
 function normalizeDictionaryError(error: unknown) {
     if (error instanceof ApiTransportError) {
-        throw new Error(`Dictionary API error (${error.status}): ${error.message}`);
+        throw new Error(`Lỗi API bách khoa (${error.status}): ${error.message}`);
     }
-    throw error instanceof Error ? error : new Error('Unknown dictionary error');
+    throw error instanceof Error ? error : new Error('Lỗi dịch vụ bách khoa không xác định');
 }
 
 function getJson<T>(url: string): Promise<T> {
@@ -266,4 +266,50 @@ export function recommendArticlesFromAttempts(
     body: DictionaryArticleRecommendationRequest
 ): Promise<DictionaryArticleRecommendationResponse> {
     return postJson<DictionaryArticleRecommendationResponse>(`${DICTIONARY}/recommendations/articles`, body);
+}
+
+export interface DictionaryArticleQaCitation {
+    sectionId: string;
+    heading: string;
+    quote: string;
+}
+
+export interface DictionaryArticleQaConversationMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+export interface DictionaryArticleQaRequest {
+    question: string;
+    conversation?: DictionaryArticleQaConversationMessage[];
+}
+
+export interface DictionaryArticleQaResponse {
+    answer: string;
+    citations: DictionaryArticleQaCitation[];
+    outOfScope: boolean;
+    confidence: 'high' | 'medium' | 'low';
+    disclaimer: string;
+}
+
+export interface DictionaryArticleQaSuggestedQuestionsResponse {
+    questions: string[];
+}
+
+export function askArticleQuestion(
+    articleId: string,
+    body: DictionaryArticleQaRequest
+): Promise<DictionaryArticleQaResponse> {
+    return postJson<DictionaryArticleQaResponse>(
+        `${DICTIONARY}/articles/${encodeURIComponent(articleId)}/qa`,
+        body
+    );
+}
+
+export function getArticleSuggestedQuestions(
+    articleId: string
+): Promise<DictionaryArticleQaSuggestedQuestionsResponse> {
+    return getJson<DictionaryArticleQaSuggestedQuestionsResponse>(
+        `${DICTIONARY}/articles/${encodeURIComponent(articleId)}/qa/suggested-questions`
+    );
 }

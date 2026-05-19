@@ -21,7 +21,7 @@ export const ProfilePersonalTab: React.FC<ProfilePersonalTabProps> = ({ form, on
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="HỌ" value={form.firstName} onChange={(v) => update('firstName', v)} />
                 <Field label="TÊN" value={form.lastName} onChange={(v) => update('lastName', v)} />
-                <Field label="USERNAME*" value={form.username} onChange={(v) => update('username', v)} />
+                <Field label="TÊN ĐĂNG NHẬP*" value={form.username} onChange={(v) => update('username', v)} />
                 <Field label="EMAIL*" value={form.email} onChange={(v) => update('email', v)} />
             </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import { adminCreateCourse } from '@/shared/api/admin-learning';
 
 export type AdminAddCourseModalProps = {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import { createAdminStudent, type AdminCreateStudentPayload } from '@/shared/api/admin-users';
 
 export type AdminAddStudentModalProps = {
@@ -200,7 +200,7 @@ export const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({ onCl
 
                             <div className={styles.addStudentRow2}>
                                 <label className={styles.addStudentLabel}>
-                                    Username *
+                                    Tên đăng nhập *
                                     <input
                                         type="text"
                                         className={styles.addStudentInput}

@@ -1,4 +1,4 @@
-import { AdminCourseCurriculumScreen } from '@/features/admin/components/AdminCourseCurriculumScreen';
+import { AdminCourseCurriculumScreen } from '@/features/admin';
 
 export default function AdminCourseCurriculumPage() {
     return <AdminCourseCurriculumScreen />;

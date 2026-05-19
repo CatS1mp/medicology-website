@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import styles from '../admin.module.css';
-import { AdminGrowthChart } from './AdminGrowthChart';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import styles from '@/features/admin/admin.module.css';
+import { AdminGrowthChart } from '@/features/admin/components/reports/AdminGrowthChart';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import { adminListCourses } from '@/shared/api/admin-learning';
 import { adminListArticles } from '@/shared/api/admin-dictionary';

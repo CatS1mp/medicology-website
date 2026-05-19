@@ -153,7 +153,7 @@ function textFromBlock(block: ArticleContentBlock): string {
         return preferred.join('\n');
     }
 
-    return uniqueStrings(flattenText(block.data)).join('\n');
+    return ' ';
 }
 
 function getMediaUrl(block: ArticleContentBlock): string | undefined {
@@ -283,7 +283,7 @@ export function sanitizeArticlePreviewText(text: string): string {
  */
 export function buildArticlePreviewLenient(
     contentJson?: string | null,
-    fallbackTitle = 'Noi dung bai viet',
+    fallbackTitle = 'Nội dung bài viết',
     contentMarkdown?: string | null
 ): ArticlePreviewModel {
     try {
@@ -310,7 +310,7 @@ export function extractTemplateComponentSeed(contentJson?: string | null): strin
     return parseArticleContentJson(contentJson).blocks.map((block) => block.name || block.componentCode);
 }
 
-export function buildArticlePreview(contentJson?: string | null, fallbackTitle = 'Noi dung bai viet'): ArticlePreviewModel {
+export function buildArticlePreview(contentJson?: string | null, fallbackTitle = 'Nội dung bài viết'): ArticlePreviewModel {
     const document = parseArticleContentJson(contentJson);
     const tableOfContents: ArticlePreviewModel['tableOfContents'] = [];
     const sections: ArticlePreviewSection[] = [];

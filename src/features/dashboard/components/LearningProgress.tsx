@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import type { LearningProgressItem } from '../types';
+import { courseRoadmapPath } from '@/features/courses/utils/course-route';
 
 interface LearningProgressProps {
     items: LearningProgressItem[];
@@ -36,14 +37,14 @@ export const LearningProgress: React.FC<LearningProgressProps> = ({ items }) => 
                     const isCompleted = pct >= 100;
                     const accentColor = normalizeColor(item.color);
                     const progressColor = isCompleted ? '#059669' : accentColor;
-                    const canNavigate = Boolean(item.courseSlug);
+                    const canNavigate = Boolean(item.courseSlug || item.id);
                     return (
                         <button
                             key={item.id}
                             type="button"
                             onClick={() => {
-                                if (!item.courseSlug) return;
-                                router.push(`/courses/${item.courseSlug}`);
+                                if (!item.courseSlug && !item.id) return;
+                                router.push(courseRoadmapPath({ slug: item.courseSlug, id: item.id }));
                             }}
                             className={`relative w-full overflow-hidden rounded-xl border text-left transition-all duration-200 ${
                                 isCompleted ? 'border-emerald-200 bg-emerald-50/80' : 'border-gray-100 bg-white'
