@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import { LazyImage } from '@/shared/components/LazyImage';
 import { DEFAULT_COURSE_ICON } from '@/shared/utils/course-icon';
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { BaseAdminLayout } from './BaseAdminLayout';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
 import styles from './article-template-select.module.css';
 import type { DictionaryArticleTemplateResponse } from '@/features/encyclopedia/api';
 import { adminCreateArticle } from '@/shared/api/admin-dictionary';

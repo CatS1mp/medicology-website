@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AdminArticleTemplateSelectScreen } from '@/features/admin/components/AdminArticleTemplateSelectScreen';
+import { AdminArticleTemplateSelectScreen } from '@/features/admin';
 
 export const metadata: Metadata = {
     title: 'Chọn Mẫu Bài Viết | Medicology Admin',

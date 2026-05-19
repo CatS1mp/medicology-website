@@ -2,9 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import styles from '../admin.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
-import { AdminTableSkeleton } from './AdminTableSkeleton';
+import styles from '@/features/admin/admin.module.css';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
+import { AdminTableSkeleton } from '@/features/admin/components/shared/AdminTableSkeleton';
 import {
     adminCreateLesson,
     adminDeleteLesson,

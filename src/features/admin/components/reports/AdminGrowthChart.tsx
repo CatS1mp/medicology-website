@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import { fetchAdminUsers } from '@/shared/api/admin-users';
 import type { AdminUserApiRecord } from '@/shared/types/admin';
 import { Skeleton } from '@/shared/components/Skeleton';

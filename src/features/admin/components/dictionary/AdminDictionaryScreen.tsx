@@ -2,10 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 import tableStyles from './admin-dictionary-screen.module.css';
-import { BaseAdminLayout } from './BaseAdminLayout';
-import { AdminTableSkeleton } from './AdminTableSkeleton';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
+import { AdminTableSkeleton } from '@/features/admin/components/shared/AdminTableSkeleton';
 import type { DictionaryArticleResponse } from '@/features/encyclopedia/api';
 import {
     adminDeleteArticle,

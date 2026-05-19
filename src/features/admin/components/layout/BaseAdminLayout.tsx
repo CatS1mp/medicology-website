@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import styles from '../admin.module.css';
-import { AdminSidebar } from './AdminSidebar';
-import { AdminHeader } from './AdminHeader';
+import styles from '@/features/admin/admin.module.css';
+import { AdminSidebar } from '@/features/admin/components/layout/AdminSidebar';
+import { AdminHeader } from '@/features/admin/components/layout/AdminHeader';
 
 interface BaseAdminLayoutProps {
     children: React.ReactNode;

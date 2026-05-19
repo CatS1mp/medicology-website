@@ -2,15 +2,15 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../admin.module.css';
-import { TopicCard } from './TopicCard';
-import { AdminAddCourseModal } from './AdminAddCourseModal';
+import styles from '@/features/admin/admin.module.css';
+import { TopicCard } from '@/features/admin/components/learning/courses/TopicCard';
+import { AdminAddCourseModal } from '@/features/admin/components/learning/courses/AdminAddCourseModal';
 import { adminDeleteCourse, adminListCoursesPaged } from '@/shared/api/admin-learning';
 import type { CourseResponse } from '@/shared/types/learning';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 
-import { BaseAdminLayout } from './BaseAdminLayout';
-import { AdminTopicCardSkeleton } from './AdminTopicCardSkeleton';
+import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
+import { AdminTopicCardSkeleton } from '@/features/admin/components/learning/courses/AdminTopicCardSkeleton';
 
 type TopicCardVm = {
     id: string;

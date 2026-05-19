@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from '../admin.module.css';
+import styles from '@/features/admin/admin.module.css';
 
 const data = [
     { month: 'Tháng 1', new: 100, returning: 50 },
