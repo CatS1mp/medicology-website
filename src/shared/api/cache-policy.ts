@@ -22,6 +22,9 @@ export const cacheKeys = {
         enrolledCourses: () => prefixed('learner', 'learning', 'courses', 'enrolled', 'v2'),
         availableCourses: () => prefixed('learner', 'learning', 'courses', 'available', 'v2'),
         progress: () => prefixed('learner', 'learning', 'progress'),
+        dashboardProgress: (activityDays: number) => prefixed('learner', 'learning', 'progress', 'dashboard', activityDays),
+        learnerRoadmap: (slug: string) => prefixed('learner', 'learning', 'roadmap', slug),
+        recommendationContext: (limit: number) => prefixed('learner', 'learning', 'recommendation-context', limit),
         contentActivity: (days: number) => prefixed('learner', 'learning', 'progress', 'activity', days),
         contentActivityPrefix: () => prefixed('learner', 'learning', 'progress', 'activity'),
         /** @deprecated use contentActivity */
