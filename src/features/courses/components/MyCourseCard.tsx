@@ -56,8 +56,8 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
             </div>
 
             {/* Content */}
-            <div className="p-5 flex flex-col flex-1">
-                <div className="flex items-start gap-3 mb-2">
+            <div className="flex min-w-0 flex-1 flex-col p-5">
+                <div className="mb-2 flex min-w-0 items-start gap-3">
                     <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border ${
                             isCompleted ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-100'
@@ -65,8 +65,8 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                     >
                         <div className={`w-3 h-3 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-[#1CA1F2]'}`}></div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 text-base leading-tight">{course.title}</h3>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="break-words text-base font-bold leading-tight text-gray-900 [overflow-wrap:anywhere]">{course.title}</h3>
                         {isCompleted && (
                             <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-1 inline-block">
                                 ✓ Đã hoàn thành
@@ -75,7 +75,7 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                     </div>
                 </div>
 
-                <p className="text-[13px] text-gray-500 line-clamp-2 mt-1 mb-4 min-h-[40px] leading-relaxed">
+                <p className="mb-4 mt-1 line-clamp-2 min-h-[40px] break-words text-[13px] leading-relaxed text-gray-500 [overflow-wrap:anywhere]">
                     {course.description}
                 </p>
 
@@ -92,8 +92,8 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                     </div>
                 </div>
 
-                <div className="mt-auto flex items-center justify-between text-xs text-gray-500 font-medium mb-4 gap-3">
-                    <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md">
+                <div className="mb-4 mt-auto flex min-w-0 items-center justify-between gap-3 text-xs font-medium text-gray-500">
+                    <div className="flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path
                                 strokeLinecap="round"
@@ -104,7 +104,7 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                         </svg>
                         <span>{course.sectionCount} chặng, {course.lessonCount} bài</span>
                     </div>
-                    <div className="text-right text-[12px] text-gray-400">
+                    <div className="min-w-0 break-words text-right text-[12px] text-gray-400 [overflow-wrap:anywhere]">
                         {formatLastStudied(course.lastStudiedAt)}
                     </div>
                 </div>
@@ -119,7 +119,7 @@ export const MyCourseCard: React.FC<MyCourseCardProps> = ({ course, onContinueLe
                     }
                     onClick={() => onContinueLearning?.(course.slug)}
                 >
-                    <div className="flex items-center justify-center gap-2 text-white">
+                    <div className="flex min-w-0 items-center justify-center gap-2 text-white">
                         {isCompleted ? (
                             <>
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

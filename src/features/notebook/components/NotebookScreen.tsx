@@ -7,7 +7,7 @@ import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { listBookmarkedArticles } from '@/features/encyclopedia/api';
-import { extractArticlePlainTextLenient } from '@/shared/utils/article-content';
+import { extractArticlePlainTextLenient, sanitizeArticlePreviewText } from '@/shared/utils/article-content';
 import { BookmarkCategory } from '../types';
 import { Skeleton } from '@/shared/components/Skeleton';
 
@@ -53,7 +53,7 @@ export const NotebookScreen: React.FC = () => {
                     slug: item.slug,
                     category: mapCategory(item.tags?.map((tag) => tag.name) ?? []),
                     title: item.name,
-                    description: stripMarkdown(extractArticlePlainTextLenient(item.contentJson, item.contentMarkdown)).slice(0, 160),
+                    description: sanitizeArticlePreviewText(stripMarkdown(extractArticlePlainTextLenient(item.contentJson, item.contentMarkdown))).slice(0, 160),
                     tags: (item.tags ?? []).map((tag) => tag.name),
                     views: '-',
                     publishedAt: item.publishedAt ? `Xuất bản ${new Date(item.publishedAt).toLocaleDateString('vi-VN')}` : 'Chưa xuất bản',
@@ -152,7 +152,9 @@ export const NotebookScreen: React.FC = () => {
                                 <article key={item.id} className="rounded-2xl border border-gray-200 bg-white p-4 min-h-[278px] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                                     <p className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-50 text-orange-500">{categoryLabelMap[item.category]}</p>
                                     <h3 className="text-[22px] leading-tight font-bold text-gray-800 mt-3 mb-2">{item.title}</h3>
-                                    <p className="text-sm text-gray-600 line-clamp-3 mb-3 min-h-[58px]">{item.description}</p>
+                                    {item.description ? (
+                                        <p className="text-sm text-gray-600 line-clamp-3 mb-3 min-h-[58px]">{item.description}</p>
+                                    ) : null}
 
                                     <div className="flex flex-wrap gap-2 mb-3">
                                         {item.tags.map((tag) => (

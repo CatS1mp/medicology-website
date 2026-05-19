@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getCourses, getEnrolledCoursesPaged, getProgress } from '@/shared/api/learning';
 import { getMyAttempts } from '@/shared/api/assessment';
+import { getCourses, getEnrolledCoursesPaged, getProgress } from '@/shared/api/learning';
 import type { MyCourseCardModel } from '../components/MyCourseCard';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
-import { invalidateCachedValue } from '@/shared/api/client-cache';
-import { cacheKeys } from '@/shared/api/cache-policy';
+import { getCachedValue, setCachedValue } from '@/shared/api/client-cache';
+import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 import type { AttemptSummaryResponse } from '@/shared/types/assessment';
+import type { LearningProgressChangedDetail } from '@/shared/api/learning';
 import type { CourseProgressResponse, CourseResponse } from '@/shared/types/learning';
+import { useUserStore } from '@/shared/store/useUserStore';
+import { getCourseAttemptProgressData, getProgressPercent, toClampedPercent } from '@/shared/utils/learning-progress';
 
 interface EnrolledCourseListItem {
     id: string;
@@ -18,6 +21,7 @@ interface EnrolledCourseListItem {
     lessonCount: number;
     completionPercent: number;
     lastStudiedAt: string | null;
+    completedContentIds?: string[];
 }
 
 export const enrolledCoursesCache = new Map<number, { items: EnrolledCourseListItem[]; total: number }>();
@@ -26,52 +30,152 @@ export function clearEnrolledCoursesCache() {
     enrolledCoursesCache.clear();
 }
 
-function toClampedPercent(value: unknown): number {
-    const numeric = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(numeric)) return 0;
-    return Math.max(0, Math.min(100, Math.round(numeric)));
-}
+function mapCourseToEnrolledListItem(
+    course: CourseResponse,
+    attempts: AttemptSummaryResponse[] = [],
+    progress?: CourseProgressResponse
+): EnrolledCourseListItem {
+    const sections = course.sections ?? [];
+    const lessonCount =
+        course.contentCount ??
+        sections.reduce((sum, section) => sum + (section.contents?.length ?? 0), 0);
+    const sectionCount = course.sectionCount ?? sections.length;
+    const courseAttemptData = getCourseAttemptProgressData(course, attempts);
 
-function getProgressPercent(progress: CourseProgressResponse | undefined): number {
-    if (!progress) return 0;
-    const aliases = progress as CourseProgressResponse & {
-        completionPercentage?: number;
-        completedPercentage?: number;
-        progressPercent?: number;
-        percentComplete?: number;
+    return {
+        id: course.id,
+        name: course.name,
+        slug: course.slug,
+        description: course.description ?? 'Khóa học đang được cá nhân hóa cho hành trình học tập của bạn.',
+        iconFileName: resolveCourseIconSrc(course.iconFileName),
+        sectionCount,
+        lessonCount,
+        completionPercent: courseAttemptData.completionPercent ?? getProgressPercent(progress),
+        lastStudiedAt: courseAttemptData.lastStudiedAt ?? progress?.lastStudiedAt ?? null,
+        completedContentIds: courseAttemptData.completedContentIds,
     };
-    return toClampedPercent(
-        aliases.completionPercent ??
-        aliases.completionPercentage ??
-        aliases.completedPercentage ??
-        aliases.progressPercent ??
-        aliases.percentComplete
-    );
 }
 
-function getAttemptCompletionPercent(course: CourseResponse, attempts: AttemptSummaryResponse[]): number {
-    const contentIds = (course.sections ?? []).flatMap((section) => (section.contents ?? []).map((content) => content.id));
-    if (contentIds.length === 0) return 0;
+function mapCoursesToEnrolledListItems(
+    courses: CourseResponse[],
+    limit: number,
+    attempts: AttemptSummaryResponse[] = [],
+    progress: CourseProgressResponse[] = []
+): EnrolledCourseListItem[] {
+    const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
+    const progressById = new Map(progress.map((item) => [item.courseId, item]));
+    return courses
+        .map((course) => mapCourseToEnrolledListItem(course, attempts, progressBySlug.get(course.slug) ?? progressById.get(course.id)))
+        .sort(sortEnrolledCourses)
+        .slice(0, limit);
+}
 
-    const courseContentIds = new Set(contentIds);
-    const completedContentIds = new Set(
-        attempts
-            .filter((attempt) => attempt.status === 'FINALIZED' && attempt.score !== null && courseContentIds.has(attempt.contentId))
-            .map((attempt) => attempt.contentId)
-    );
+export function addEnrolledCourseToCache(course: CourseResponse) {
+    const firstPage = enrolledCoursesCache.get(1);
+    const nextItem = mapCourseToEnrolledListItem(course);
 
-    return toClampedPercent((completedContentIds.size * 100) / contentIds.length);
+    if (!firstPage) {
+        enrolledCoursesCache.set(1, { items: [nextItem], total: 1 });
+        return;
+    }
+
+    if (firstPage.items.some((item) => item.id === course.id || item.slug === course.slug)) {
+        return;
+    }
+
+    enrolledCoursesCache.set(1, {
+        items: [nextItem, ...firstPage.items].slice(0, 6),
+        total: firstPage.total + 1,
+    });
+}
+
+function sortEnrolledCourses(a: EnrolledCourseListItem, b: EnrolledCourseListItem) {
+    const aCompleted = a.completionPercent >= 100;
+    const bCompleted = b.completionPercent >= 100;
+    if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+    if (!aCompleted && a.completionPercent !== b.completionPercent) {
+        return b.completionPercent - a.completionPercent;
+    }
+    return 0;
+}
+
+function patchCourseProgressFromCompletedAttempt(
+    courses: EnrolledCourseListItem[],
+    detail: LearningProgressChangedDetail | undefined
+): EnrolledCourseListItem[] | null {
+    if (!detail?.courseSlug || !detail.contentId) return null;
+    if (detail.resultStatus !== 'FINAL' && detail.attemptStatus !== 'FINALIZED') return null;
+
+    let didPatch = false;
+    const patched = courses.map((course) => {
+        if (course.slug !== detail.courseSlug) return course;
+
+        const completedContentIds = new Set(course.completedContentIds ?? []);
+        const wasAlreadyCompleted = completedContentIds.has(detail.contentId!);
+        if (detail.passed === true) {
+            completedContentIds.add(detail.contentId!);
+        }
+
+        const lessonCount = Math.max(1, course.lessonCount);
+        const completionPercent = detail.passed !== true || wasAlreadyCompleted
+            ? course.completionPercent
+            : toClampedPercent(course.completionPercent + (100 / lessonCount));
+
+        didPatch = true;
+        return {
+            ...course,
+            completionPercent,
+            lastStudiedAt: detail.completedAt ?? course.lastStudiedAt,
+            completedContentIds: [...completedContentIds],
+        };
+    }).sort(sortEnrolledCourses);
+
+    return didPatch ? patched : null;
+}
+
+function patchProgressCacheFromCourse(course: EnrolledCourseListItem, detail: LearningProgressChangedDetail) {
+    const cachedProgress = getCachedValue<CourseProgressResponse[]>(cacheKeys.learning.progress());
+    if (!cachedProgress) return;
+
+    const nextProgress = cachedProgress.map((progress) => {
+        if (progress.courseSlug !== course.slug && progress.courseId !== course.id) {
+            return progress;
+        }
+
+        return {
+            ...progress,
+            completionPercent: course.completionPercent,
+            lastStudiedAt: detail.completedAt ?? progress.lastStudiedAt,
+        };
+    });
+
+    setCachedValue(cacheKeys.learning.progress(), nextProgress, CACHE_TTL.SHORT);
+}
+
+export function patchEnrolledCoursesCache(detail: LearningProgressChangedDetail | undefined) {
+    if (!detail) return false;
+    let didPatch = false;
+    for (const [page, cached] of enrolledCoursesCache.entries()) {
+        const patchedItems = patchCourseProgressFromCompletedAttempt(cached.items, detail);
+        if (patchedItems) {
+            enrolledCoursesCache.set(page, { ...cached, items: patchedItems });
+            const patchedCourse = patchedItems.find((course) => course.slug === detail.courseSlug);
+            if (patchedCourse) {
+                patchProgressCacheFromCourse(patchedCourse, detail);
+            }
+            didPatch = true;
+        }
+    }
+    return didPatch;
 }
 
 async function fetchAndMapCourses(page: number, limit: number): Promise<{ items: EnrolledCourseListItem[]; total: number }> {
-    // Always bust the progress cache so we get the latest completion percentages
-    invalidateCachedValue(cacheKeys.learning.progress());
-
+    const storeCourses = useUserStore.getState().courses;
     const [enrolledCourses, progress, attempts, allCourses] = await Promise.all([
         getEnrolledCoursesPaged({ page: page - 1, size: limit }),
         getProgress().catch(() => [] as Awaited<ReturnType<typeof getProgress>>),
-        getMyAttempts().catch(() => [] as AttemptSummaryResponse[]),
-        getCourses().catch(() => [] as CourseResponse[]),
+        getMyAttempts().catch(() => [] as Awaited<ReturnType<typeof getMyAttempts>>),
+        storeCourses.length > 0 ? Promise.resolve(storeCourses) : getCourses().catch(() => [] as CourseResponse[]),
     ]);
 
     const progressBySlug = new Map(progress.map((item) => [item.courseSlug, item]));
@@ -88,9 +192,7 @@ async function fetchAndMapCourses(page: number, limit: number): Promise<{ items:
             sections.reduce((sum, section) => sum + (section.contents?.length ?? 0), 0);
         const sectionCount = fullCourse.sectionCount ?? course.sectionCount ?? sections.length;
         const courseProgress = progressBySlug.get(course.slug) ?? progressById.get(course.id);
-        const apiPercent = getProgressPercent(courseProgress);
-        const attemptPercent = getAttemptCompletionPercent(fullCourse, attempts);
-        const completionPercent = Math.max(apiPercent, attemptPercent);
+        const courseAttemptData = getCourseAttemptProgressData(fullCourse, attempts);
 
         return {
             id: course.id,
@@ -100,13 +202,15 @@ async function fetchAndMapCourses(page: number, limit: number): Promise<{ items:
             iconFileName: resolveCourseIconSrc(course.iconFileName),
             sectionCount,
             lessonCount,
-            completionPercent,
-            lastStudiedAt: courseProgress?.lastStudiedAt ?? null,
+            completionPercent: courseAttemptData.completionPercent ?? getProgressPercent(courseProgress),
+            lastStudiedAt: courseAttemptData.lastStudiedAt ?? courseProgress?.lastStudiedAt ?? null,
+            completedContentIds: courseAttemptData.completedContentIds,
         };
-    });
+    }).sort(sortEnrolledCourses);
 
     const result = { items: mappedCourses, total: enrolledCourses.total };
     enrolledCoursesCache.set(page, result);
+    useUserStore.getState().setLearningProgressData(progress, attempts);
     return result;
 }
 
@@ -122,10 +226,21 @@ export async function preloadEnrolledCourses(page: number, limit: number) {
 export function useEnrolledCourses() {
     const [page, setPage] = useState(1);
     const limit = 6;
+    const storeCourses = useUserStore((state) => state.courses);
+    const storeProgress = useUserStore((state) => state.courseProgress);
+    const storeAttempts = useUserStore((state) => state.attempts);
+    const initialStoreCourses = useUserStore.getState().courses;
+    const initialStoreProgress = useUserStore.getState().courseProgress;
+    const initialStoreAttempts = useUserStore.getState().attempts;
+    const initialCachedCourses = enrolledCoursesCache.get(1);
+    const initialCourses =
+        initialCachedCourses?.items ??
+        mapCoursesToEnrolledListItems(initialStoreCourses, limit, initialStoreAttempts, initialStoreProgress);
+    const initialTotalItems = initialCachedCourses?.total ?? initialStoreCourses.length;
 
-    const [courses, setCourses] = useState<EnrolledCourseListItem[]>(() => enrolledCoursesCache.get(1)?.items ?? []);
-    const [totalItems, setTotalItems] = useState(() => enrolledCoursesCache.get(1)?.total ?? 0);
-    const [isLoading, setIsLoading] = useState(() => !enrolledCoursesCache.has(1));
+    const [courses, setCourses] = useState<EnrolledCourseListItem[]>(() => initialCourses);
+    const [totalItems, setTotalItems] = useState(() => initialTotalItems);
+    const [isLoading, setIsLoading] = useState(() => initialCourses.length === 0);
 
     useEffect(() => {
         let cancelled = false;
@@ -137,8 +252,10 @@ export function useEnrolledCourses() {
                 setCourses(cached.items);
                 setTotalItems(cached.total);
                 setIsLoading(false);
-            } else {
+            } else if (courses.length === 0) {
                 setIsLoading(true);
+            } else {
+                setIsLoading(false);
             }
 
             // Always re-fetch to get latest progress
@@ -149,7 +266,7 @@ export function useEnrolledCourses() {
                     setTotalItems(fresh.total);
                 }
             } catch {
-                if (!cancelled && !cached) {
+                if (!cancelled && !cached && courses.length === 0) {
                     setCourses([]);
                     setTotalItems(0);
                 }
@@ -162,12 +279,28 @@ export function useEnrolledCourses() {
         return () => {
             cancelled = true;
         };
-    }, [page]);
+    }, [courses.length, page]);
 
     useEffect(() => {
-        function handleProgressChanged() {
-            clearEnrolledCoursesCache();
-            setIsLoading(true);
+        function handleProgressChanged(event: Event) {
+            const detail = event instanceof CustomEvent ? event.detail as LearningProgressChangedDetail | undefined : undefined;
+            const patchedCache = patchEnrolledCoursesCache(detail);
+            let patchedCurrent = false;
+            setCourses((currentCourses) => {
+                const patched = patchCourseProgressFromCompletedAttempt(currentCourses, detail);
+                if (!patched) return currentCourses;
+                patchedCurrent = true;
+                return patched;
+            });
+
+            if (patchedCurrent || patchedCache) {
+                setIsLoading(false);
+                return;
+            }
+
+            if (courses.length === 0) {
+                setIsLoading(true);
+            }
             void fetchAndMapCourses(page, limit)
                 .then((fresh) => {
                     setCourses(fresh.items);
@@ -178,14 +311,28 @@ export function useEnrolledCourses() {
         }
 
         window.addEventListener('learning:progress-changed', handleProgressChanged);
-        return () => window.removeEventListener('learning:progress-changed', handleProgressChanged);
-    }, [page]);
+        window.addEventListener('learning:courses-changed', handleProgressChanged);
+        return () => {
+            window.removeEventListener('learning:progress-changed', handleProgressChanged);
+            window.removeEventListener('learning:courses-changed', handleProgressChanged);
+        };
+    }, [courses.length, page]);
 
-    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    const displayCourses = useMemo(
+        () => courses.length > 0
+            ? courses
+            : page === 1
+                ? mapCoursesToEnrolledListItems(storeCourses, limit, storeAttempts, storeProgress)
+                : [],
+        [courses, page, storeAttempts, storeCourses, storeProgress]
+    );
+    const displayTotalItems = totalItems > 0 ? totalItems : storeCourses.length;
+    const displayIsLoading = isLoading && displayCourses.length === 0;
+    const totalPages = Math.max(1, Math.ceil(displayTotalItems / limit));
 
     const cards = useMemo<MyCourseCardModel[]>(
         () =>
-            courses.map((course) => ({
+            displayCourses.map((course) => ({
                 id: course.id,
                 slug: course.slug,
                 title: course.name,
@@ -196,15 +343,15 @@ export function useEnrolledCourses() {
                 completionPercent: course.completionPercent ?? 0,
                 lastStudiedAt: course.lastStudiedAt ?? null,
             })),
-        [courses]
+        [displayCourses]
     );
 
     return {
         courses: cards,
-        isLoading,
+        isLoading: displayIsLoading,
         page,
         setPage,
         totalPages,
-        totalItems,
+        totalItems: displayTotalItems,
     };
 }

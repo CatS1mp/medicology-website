@@ -29,24 +29,24 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
                 </div>
             </div>
 
-            <div className="p-5 flex flex-col flex-1">
-                <div className="flex items-start gap-3 mb-2">
+            <div className="flex min-w-0 flex-1 flex-col p-5">
+                <div className="mb-2 flex min-w-0 items-start gap-3">
                     <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5 border border-green-100">
                         <div className="w-3 h-3 rounded-full border-2 border-green-400"></div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900 text-base leading-tight">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="break-words text-base font-bold leading-tight text-gray-900 [overflow-wrap:anywhere]">
                             {topic.title}
                         </h3>
                     </div>
                 </div>
                 
-                <p className="text-[13px] text-gray-500 line-clamp-2 mt-1 mb-4 min-h-[40px] leading-relaxed">
+                <p className="mb-4 mt-1 line-clamp-2 min-h-[40px] break-words text-[13px] leading-relaxed text-gray-500 [overflow-wrap:anywhere]">
                     {topic.description}
                 </p>
 
                 {(hasRating || hasLessonCount) && (
-                    <div className="mt-auto flex items-center justify-between text-xs text-gray-500 font-medium mb-4">
+                    <div className="mb-4 mt-auto flex min-w-0 items-center justify-between gap-3 text-xs font-medium text-gray-500">
                         {hasRating ? (
                             <div className="flex items-center gap-1.5 bg-yellow-50 px-2 py-1 rounded-md text-yellow-700">
                                 <span className="flex text-yellow-500 text-[10px]">
@@ -63,7 +63,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
                         )}
 
                         {hasLessonCount && (
-                            <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md">
+                            <div className="flex min-w-0 items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                 </svg>
@@ -79,7 +79,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, isEnrolling = false
                     className="py-2.5 text-[13px] font-bold tracking-wide uppercase shadow-[0_4px_0_0_#3b82f6] hover:translate-y-[2px] hover:shadow-[0_2px_0_0_#3b82f6] active:translate-y-[4px] active:shadow-none transition-all"
                     onClick={() => onEnroll?.(topic.id)}
                 >
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex min-w-0 items-center justify-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

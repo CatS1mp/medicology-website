@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { getEnrolledCourses } from '@/shared/api/learning';
+import { getEnrolledCourses, getProgress } from '@/shared/api/learning';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -100,10 +100,30 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
 
         async function loadEnrolledCourses() {
             try {
-                const courses = await getEnrolledCourses();
+                const [courses, progress] = await Promise.all([
+                    getEnrolledCourses(),
+                    getProgress().catch(() => []),
+                ]);
                 if (cancelled) return;
+
+                const incompleteCourseIds = new Set(
+                    progress
+                        .filter((item) => Math.round(Number(item.completionPercent ?? 0)) < 100)
+                        .map((item) => item.courseId)
+                );
+                const incompleteCourseSlugs = new Set(
+                    progress
+                        .filter((item) => Math.round(Number(item.completionPercent ?? 0)) < 100)
+                        .map((item) => item.courseSlug)
+                );
+
                 setCourseLinks(
                     courses
+                        .filter((course) =>
+                            progress.length === 0 ||
+                            incompleteCourseIds.has(course.id) ||
+                            incompleteCourseSlugs.has(course.slug)
+                        )
                         .slice(0, 3)
                         .map((course) => ({ slug: course.slug, label: course.name }))
                 );
@@ -114,9 +134,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
 
         loadEnrolledCourses();
         window.addEventListener('learning:courses-changed', loadEnrolledCourses);
+        window.addEventListener('learning:progress-changed', loadEnrolledCourses);
         return () => {
             cancelled = true;
             window.removeEventListener('learning:courses-changed', loadEnrolledCourses);
+            window.removeEventListener('learning:progress-changed', loadEnrolledCourses);
         };
     }, []);
 
@@ -212,7 +234,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
 
                                                                 <div className="flex items-center gap-3 justify-between">
                                                                     <span
-                                                                        className={`block text-[15px] leading-tight transition-colors font-medium ${
+                                                                        className={`block min-w-0 break-words text-[15px] font-medium leading-tight transition-colors [overflow-wrap:anywhere] ${
                                                                             isCourseActive
                                                                                 ? 'text-[#4147D5]'
                                                                                 : 'text-[#344054]'

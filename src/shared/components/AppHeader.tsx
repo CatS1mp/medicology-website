@@ -26,6 +26,19 @@ const IconBell = () => (
     </svg>
 );
 
+const IconFire = ({ className }: { className?: string }) => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+        className={className}
+    >
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+);
+
 function subscribeToProfileStore(onStoreChange: () => void) {
     if (typeof window === 'undefined') {
         return () => {};
@@ -79,9 +92,28 @@ function getAvatarInitials(profileSnapshot: string | null) {
 export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isStreakBurning, setIsStreakBurning] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
+    const streakBurnTimeoutRef = useRef<number | null>(null);
+    const streakBurnAudioRef = useRef<HTMLAudioElement | null>(null);
     const profileSnapshot = useSyncExternalStore(subscribeToProfileStore, getProfileSnapshot, () => null);
     const avatarLabel = getAvatarInitials(profileSnapshot);
+    const hasActiveStreak = streak > 0;
+
+    useEffect(() => {
+        const audio = new Audio('/audio/fire-burning.mp3');
+        audio.preload = 'auto';
+        audio.volume = 0.45;
+        streakBurnAudioRef.current = audio;
+
+        return () => {
+            if (streakBurnTimeoutRef.current !== null) {
+                window.clearTimeout(streakBurnTimeoutRef.current);
+            }
+            audio.pause();
+            streakBurnAudioRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         function handleOutsideClick(event: MouseEvent) {
@@ -110,6 +142,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
         onLogout?.();
     };
 
+    const handleStreakClick = () => {
+        if (!hasActiveStreak) return;
+
+        if (streakBurnTimeoutRef.current !== null) {
+            window.clearTimeout(streakBurnTimeoutRef.current);
+        }
+
+        const audio = streakBurnAudioRef.current;
+        if (audio) {
+            audio.currentTime = 0;
+            void audio.play().catch(() => undefined);
+        }
+
+        setIsStreakBurning(false);
+        window.requestAnimationFrame(() => {
+            setIsStreakBurning(true);
+            streakBurnTimeoutRef.current = window.setTimeout(() => {
+                setIsStreakBurning(false);
+                streakBurnTimeoutRef.current = null;
+            }, 850);
+        });
+    };
+
     return (
         <header className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100">
             <div className="flex-1 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
@@ -125,8 +180,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
                 <IconFilter />
             </button>
 
-            <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors">
-                <span className="text-orange-500 font-bold text-sm">🔥 {streak}</span>
+            <button
+                type="button"
+                onClick={handleStreakClick}
+                aria-label={`Chuỗi ngày học: ${streak}`}
+                data-click-sound="off"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors ${
+                    hasActiveStreak
+                        ? 'bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100'
+                        : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'
+                } ${isStreakBurning ? 'animate-streak-badge-burn' : ''}`}
+            >
+                <IconFire className={`shrink-0 ${isStreakBurning ? 'animate-streak-fire-burn' : ''}`} />
+                <span className="font-bold text-sm">{streak}</span>
             </button>
 
             <button

@@ -24,6 +24,7 @@ import { LessonBlockStep, LessonBlockStepProgress } from '@/features/courses/com
 import { LessonStepBreadcrumb } from '@/features/courses/components/lesson/LessonStepBreadcrumb';
 import { LessonStepFooter } from '@/features/courses/components/lesson/LessonStepFooter';
 import { LessonStepProgress } from '@/features/courses/components/lesson/LessonStepProgress';
+import { LessonCompletionLoadingScreen as SharedLessonCompletionLoadingScreen } from '@/features/courses/components/LessonCompletionLoadingScreen';
 import { Skeleton } from '@/shared/components/Skeleton';
 
 function isAttemptTimeExpiredError(error: unknown): boolean {
@@ -304,13 +305,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
         }
         setMessage('');
         setSubmitting(true);
-        const isCompletingLesson = isLastStep;
-        if (isCompletingLesson) {
-            setCompletionProgress(0);
-            setCompletionLoading(true);
-        }
         try {
-            const minimumCompletionDelay = isCompletingLesson ? wait(2000) : Promise.resolve();
             const attemptAfterSave = await saveCurrentBlockProgress();
             if (!isLastStep) {
                 setStepIndex((previous) => previous + 1);
@@ -320,14 +315,9 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
             if (toSubmit) {
                 await submitAttempt(toSubmit);
             }
-            await minimumCompletionDelay;
-            setCompletionProgress(89);
-            await wait(250);
             setMessage('');
             const completedAttemptId = toSubmit ?? attemptId;
             const query = completedAttemptId ? `?attemptId=${encodeURIComponent(completedAttemptId)}` : '';
-            setCompletionProgress(100);
-            await wait(350);
             router.push(`/courses/${courseSlug}/lessons/${lessonSlug}/complete${query}`);
         } catch (error) {
             setCompletionLoading(false);
@@ -375,7 +365,7 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
 
     if (completionLoading) {
         return (
-            <LessonCompletionLoadingScreen
+            <SharedLessonCompletionLoadingScreen
                 streakDays={streakDays ?? 0}
                 progress={completionProgress}
                 onLogout={handleLogout}
@@ -399,9 +389,9 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
                             <div className="rounded-3xl border border-gray-200 bg-gray-50 px-6 py-12 text-center text-gray-500">Không tìm thấy bài học.</div>
                         ) : (
                             <div className="space-y-6">
-                                <div className="rounded-3xl border border-gray-200 bg-[#f8fbff] px-6 py-6">
+                                <div className="max-w-full overflow-hidden rounded-3xl border border-gray-200 bg-[#f8fbff] px-6 py-6">
                                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#2aa4e8]">{lesson.courseName} • {lesson.sectionName}</p>
-                                    <h1 className="mt-3 text-3xl font-extrabold text-gray-900">{lesson.name}</h1>
+                                    <h1 className="mt-3 break-words text-3xl font-extrabold text-gray-900 [overflow-wrap:anywhere]">{lesson.name}</h1>
                                     <p className="mt-3 max-w-3xl text-sm text-gray-600">{lesson.description || 'Bài học này đang sử dụng nội dung từ learning service.'}</p>
                                     <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-500">
                                         {lesson.difficulty && <span className="rounded-full bg-white px-3 py-1">{lesson.difficulty}</span>}
@@ -475,13 +465,13 @@ function LessonCompletionLoadingScreen({
                 <AppHeader streak={streakDays} onLogout={onLogout} />
                 <div className="flex-1 overflow-hidden px-6 py-8">
                     <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center text-center">
-                        <div className="relative mb-6 flex h-40 w-40 items-center justify-center rounded-full bg-[#EAF7EF]">
+                        <div className="relative mb-6 flex h-[clamp(18rem,18vw,34rem)] w-[clamp(18rem,18vw,34rem)] items-center justify-center rounded-full bg-[#EAF7EF]">
                             <Image
                                 src="/images/Mascot/24.svg"
                                 alt="Medicology mascot"
-                                width={128}
-                                height={128}
-                                className="h-32 w-32 object-contain"
+                                width={768}
+                                height={768}
+                                className="h-[clamp(32rem,34vw,64rem)] w-[clamp(32rem,34vw,64rem)] max-w-none object-contain"
                             />
                         </div>
                         <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-600">

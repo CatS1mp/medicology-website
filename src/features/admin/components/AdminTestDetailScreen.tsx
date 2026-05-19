@@ -338,7 +338,9 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
 
     if (block.kind === 'FILL_IN_THE_BLANKS') {
         const template = String(parsed.template ?? '');
-        const rawAnswers = Array.isArray(parsed.answers) ? parsed.answers.map(String) : [];
+        const rawAnswers = Array.isArray(parsed.answers)
+            ? parsed.answers.map(String)
+            : [parsed.answer ?? parsed.correctAnswer].filter((answer) => answer != null).map(String);
         const answersText = rawAnswers.join('\n');
 
         return (
@@ -348,7 +350,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                     <textarea
                         style={{ ...compactTextarea, minHeight: 56 }}
                         value={template}
-                        onChange={(e) => commitPayload({ ...parsed, template: e.target.value, answers: rawAnswers.length ? rawAnswers : ['đáp án'] })}
+                        onChange={(e) => commitPayload({ ...parsed, template: e.target.value, answers: rawAnswers })}
                     />
                 </label>
                 <label style={{ display: 'grid', gap: 6 }}>
@@ -357,8 +359,8 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                         style={compactTextarea}
                         value={answersText}
                         onChange={(e) => {
-                            const answers = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean);
-                            commitPayload({ ...parsed, template, answers: answers.length ? answers : ['đáp án'] });
+                            const answers = e.target.value.split('\n');
+                            commitPayload({ ...parsed, template, answers });
                         }}
                     />
                 </label>

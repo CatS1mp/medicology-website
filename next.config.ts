@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const appRoot = dirname(fileURLToPath(import.meta.url));
 
 /** Extra hosts for `next/image` (comma-separated, no protocol). */
 function extraImageRemoteHosts(): Array<{ protocol: "https"; hostname: string }> {
@@ -28,6 +32,10 @@ function extraImageRemoteHosts(): Array<{ protocol: "https"; hostname: string }>
 }
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: appRoot,
+  },
+
   images: {
     remotePatterns: [
       {

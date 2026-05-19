@@ -1,16 +1,53 @@
 import type { AuthSessionPayload } from './types';
 import type { UserProfile } from './types';
+import { clearAllCachedValues } from '@/shared/api/client-cache';
 
 const USER_PROFILE_KEY = 'userProfile';
 const ACCESS_TOKEN_EXPIRES_AT_KEY = 'accessTokenExpiresAt';
 
+function canUseBrowserApis() {
+    return typeof window !== 'undefined';
+}
+
+function getLocalStorageItem(key: string): string | null {
+    if (!canUseBrowserApis()) return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function setLocalStorageItem(key: string, value: string) {
+    if (!canUseBrowserApis()) return;
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
+    }
+}
+
+function removeLocalStorageItem(key: string) {
+    if (!canUseBrowserApis()) return;
+    try {
+        window.localStorage.removeItem(key);
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
+    }
+}
+
+function dispatchBrowserEvent(eventName: string) {
+    if (!canUseBrowserApis()) return;
+    window.dispatchEvent(new Event(eventName));
+}
+
 export function persistAuthSession(session: AuthSessionPayload) {
     const expiresAt = Date.now() + session.expiresIn * 1000;
 
-    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(session.userProfile));
-    localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
-    window.dispatchEvent(new Event('user-profile-updated'));
-    window.dispatchEvent(new Event('auth-session-updated'));
+    setLocalStorageItem(USER_PROFILE_KEY, JSON.stringify(session.userProfile));
+    setLocalStorageItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+    dispatchBrowserEvent('user-profile-updated');
+    dispatchBrowserEvent('auth-session-updated');
 }
 
 function getEmptyUserProfile(): UserProfile {
@@ -29,8 +66,7 @@ function getEmptyUserProfile(): UserProfile {
 }
 
 export function getCachedUserProfile(): UserProfile | null {
-    if (typeof window === 'undefined') return null;
-    const raw = localStorage.getItem(USER_PROFILE_KEY);
+    const raw = getLocalStorageItem(USER_PROFILE_KEY);
     if (!raw) return null;
     try {
         return JSON.parse(raw) as UserProfile;
@@ -40,31 +76,28 @@ export function getCachedUserProfile(): UserProfile | null {
 }
 
 export function upsertCachedUserProfile(partial: Partial<UserProfile>) {
-    if (typeof window === 'undefined') return;
     const current = getCachedUserProfile() ?? getEmptyUserProfile();
     const next: UserProfile = {
         ...current,
         ...partial,
     };
-    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event('user-profile-updated'));
+    setLocalStorageItem(USER_PROFILE_KEY, JSON.stringify(next));
+    dispatchBrowserEvent('user-profile-updated');
 }
 
 export function hasRefreshSession(): boolean {
-    if (typeof window === 'undefined') return false;
     return (
-        localStorage.getItem(USER_PROFILE_KEY) != null && localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY) != null
+        getLocalStorageItem(USER_PROFILE_KEY) != null && getLocalStorageItem(ACCESS_TOKEN_EXPIRES_AT_KEY) != null
     );
 }
 
 /** Refresh token lives in an httpOnly cookie; this returns a truthy placeholder when a session exists. */
 export function getStoredRefreshToken() {
-    if (typeof window === 'undefined') return null;
     return hasRefreshSession() ? 'cookie' : null;
 }
 
 export function getStoredAccessTokenExpiry() {
-    const raw = localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
+    const raw = getLocalStorageItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
     if (!raw) return null;
 
     const value = Number(raw);
@@ -72,24 +105,34 @@ export function getStoredAccessTokenExpiry() {
 }
 
 export function clearAuthSession() {
-    localStorage.removeItem(USER_PROFILE_KEY);
-    localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
-    localStorage.removeItem('enrolledCoursesLocal');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    const cachedUserId = getCachedUserProfile()?.userId;
+    const removeSessionKey = (key: string) => {
+        removeLocalStorageItem(key);
+        if (cachedUserId) {
+            removeLocalStorageItem(`${key}:${cachedUserId}`);
+        }
+    };
 
-    // Wipe all API response caches stored in sessionStorage
-    if (typeof window !== 'undefined') {
-        const keysToRemove = Object.keys(window.sessionStorage).filter((k) =>
-            k.startsWith('medicology:api-cache:')
-        );
-        keysToRemove.forEach((k) => window.sessionStorage.removeItem(k));
-    }
+    removeLocalStorageItem(USER_PROFILE_KEY);
+    removeLocalStorageItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
+    removeLocalStorageItem('enrolledCoursesLocal');
+    removeLocalStorageItem('accessToken');
+    removeLocalStorageItem('refreshToken');
+    removeSessionKey('learningStreakDays');
+    removeSessionKey('learningStreakLastSyncDate');
+    removeSessionKey('lastKnownStreak');
+    removeSessionKey('lastBrokenStreakAckDate');
+    removeSessionKey('lastGainedStreakAckDate');
+    removeSessionKey('lastLearningStreakAckDate');
+    removeSessionKey('pendingStreakCard');
 
-    window.dispatchEvent(new Event('user-profile-updated'));
-    window.dispatchEvent(new Event('auth-session-updated'));
+    // Wipe all API response caches (both memory and sessionStorage)
+    clearAllCachedValues();
 
-    if (typeof window !== 'undefined') {
+    dispatchBrowserEvent('user-profile-updated');
+    dispatchBrowserEvent('auth-session-updated');
+
+    if (canUseBrowserApis()) {
         void fetch('/api/auth/session', { method: 'DELETE', credentials: 'include' }).catch(() => undefined);
     }
 }

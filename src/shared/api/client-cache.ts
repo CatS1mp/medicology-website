@@ -5,16 +5,62 @@ type CacheRecord<T> = {
 };
 
 const STORAGE_PREFIX = 'medicology:api-cache:';
+const MAX_SESSION_STORAGE_RECORD_LENGTH = 1_000_000;
 const memoryCache = new Map<string, CacheRecord<unknown>>();
 const pendingRequests = new Map<string, Promise<unknown>>();
+let cacheVersion = 0;
 
 function canUseBrowserStorage() {
     return typeof window !== 'undefined';
 }
 
-function getSessionCacheKey(): string | null {
+function safeGetLocalStorageItem(key: string): string | null {
     if (!canUseBrowserStorage()) return null;
-    const raw = window.localStorage.getItem('userProfile');
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeGetSessionStorageItem(key: string): string | null {
+    if (!canUseBrowserStorage()) return null;
+    try {
+        return window.sessionStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeRemoveSessionStorageItem(key: string) {
+    if (!canUseBrowserStorage()) return;
+    try {
+        window.sessionStorage.removeItem(key);
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
+    }
+}
+
+function getSessionStorageKeys(): string[] {
+    if (!canUseBrowserStorage()) return [];
+    try {
+        return Object.keys(window.sessionStorage);
+    } catch {
+        try {
+            const keys: string[] = [];
+            for (let index = 0; index < window.sessionStorage.length; index += 1) {
+                const key = window.sessionStorage.key(index);
+                if (key) keys.push(key);
+            }
+            return keys;
+        } catch {
+            return [];
+        }
+    }
+}
+
+function getSessionCacheKey(): string | null {
+    const raw = safeGetLocalStorageItem('userProfile');
     if (!raw) return null;
     try {
         const p = JSON.parse(raw) as { userId?: string };
@@ -29,22 +75,28 @@ function getStorageKey(key: string) {
 }
 
 function readStoredRecord<T>(key: string): CacheRecord<T> | null {
-    if (!canUseBrowserStorage()) return null;
-
-    const raw = window.sessionStorage.getItem(getStorageKey(key));
+    const raw = safeGetSessionStorageItem(getStorageKey(key));
     if (!raw) return null;
 
     try {
         return JSON.parse(raw) as CacheRecord<T>;
     } catch {
-        window.sessionStorage.removeItem(getStorageKey(key));
+        safeRemoveSessionStorageItem(getStorageKey(key));
         return null;
     }
 }
 
 function persistRecord<T>(key: string, record: CacheRecord<T>) {
     if (!canUseBrowserStorage()) return;
-    window.sessionStorage.setItem(getStorageKey(key), JSON.stringify(record));
+    try {
+        const serialized = JSON.stringify(record);
+        if (serialized.length > MAX_SESSION_STORAGE_RECORD_LENGTH) {
+            return;
+        }
+        window.sessionStorage.setItem(getStorageKey(key), serialized);
+    } catch {
+        safeRemoveSessionStorageItem(getStorageKey(key));
+    }
 }
 
 function isRecordFresh(record: CacheRecord<unknown> | null, sessionKey: string | null) {
@@ -68,14 +120,33 @@ export function getCachedValue<T>(key: string): T | null {
     return null;
 }
 
+export function setCachedValue<T>(key: string, value: T, ttlMs: number) {
+    const sessionKey = getSessionCacheKey();
+    const record: CacheRecord<T> = {
+        value,
+        expiresAt: Date.now() + ttlMs,
+        sessionKey,
+    };
+    memoryCache.set(key, record);
+    persistRecord(key, record);
+}
+
 export function invalidateCachedValue(...keys: string[]) {
+    cacheVersion += 1;
     for (const key of keys) {
         memoryCache.delete(key);
         pendingRequests.delete(key);
-        if (canUseBrowserStorage()) {
-            window.sessionStorage.removeItem(getStorageKey(key));
-        }
+        safeRemoveSessionStorageItem(getStorageKey(key));
     }
+}
+
+export function clearAllCachedValues() {
+    cacheVersion += 1;
+    memoryCache.clear();
+    pendingRequests.clear();
+    getSessionStorageKeys()
+        .filter((key) => key.startsWith(STORAGE_PREFIX))
+        .forEach((key) => safeRemoveSessionStorageItem(key));
 }
 
 export function invalidateCachedValueByPrefix(...prefixes: string[]) {
@@ -85,9 +156,9 @@ export function invalidateCachedValueByPrefix(...prefixes: string[]) {
     const keysFromPending = Array.from(pendingRequests.keys());
     const keysFromStorage =
         canUseBrowserStorage()
-            ? Object.keys(window.sessionStorage)
-                  .filter((k) => k.startsWith(STORAGE_PREFIX))
-                  .map((k) => k.slice(STORAGE_PREFIX.length))
+            ? getSessionStorageKeys()
+                .filter((key) => key.startsWith(STORAGE_PREFIX))
+                .map((key) => key.slice(STORAGE_PREFIX.length))
             : [];
 
     const allKeys = new Set<string>([...keysFromMemory, ...keysFromPending, ...keysFromStorage]);
@@ -113,8 +184,12 @@ export async function getOrSetCachedValue<T>(
     }
 
     const sessionKey = getSessionCacheKey();
+    const requestVersion = cacheVersion;
     const request = factory()
         .then((value) => {
+            if (requestVersion !== cacheVersion) {
+                return value;
+            }
             const record: CacheRecord<T> = {
                 value,
                 expiresAt: Date.now() + ttlMs,

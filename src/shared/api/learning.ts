@@ -18,15 +18,26 @@ import { normalizeSpringListPayload } from '@/shared/types/admin';
 
 const API = '/api/learning';
 
+export interface LearningProgressChangedDetail {
+    attemptId?: string;
+    courseSlug?: string;
+    contentId?: string;
+    completedAt?: string;
+    attemptStatus?: string;
+    resultStatus?: string;
+    passed?: boolean;
+    score?: number;
+    maxScore?: number;
+}
+
 function notifyLearningCoursesChanged() {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new Event('learning:courses-changed'));
 }
 
-export function notifyLearningProgressChanged() {
+export function notifyLearningProgressChanged(detail?: LearningProgressChangedDetail) {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(new Event('learning:progress-changed'));
-    window.dispatchEvent(new Event('learning:courses-changed'));
+    window.dispatchEvent(new CustomEvent<LearningProgressChangedDetail>('learning:progress-changed', { detail }));
 }
 
 function normalizeLearningError(error: unknown): LearningApiError {

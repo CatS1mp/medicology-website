@@ -8,8 +8,8 @@ import {
     getStoredRefreshToken,
 } from '../session';
 import { refreshAccessTokenWithMutex } from '../token-refresh';
+import { clearAllClientCaches } from '@/shared/cache/client-cache-reset';
 import { useUserStore } from '@/shared/store/useUserStore';
-import { DashboardLoadingScreen } from '@/shared/components/DashboardLoadingScreen';
 
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -17,16 +17,33 @@ function isAuthPage(pathname: string) {
     return pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password';
 }
 
+function todayKey(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function msUntilNextLocalDay(): number {
+    const now = new Date();
+    const nextDay = new Date(now);
+    nextDay.setDate(now.getDate() + 1);
+    nextDay.setHours(0, 0, 1, 0);
+    return Math.max(nextDay.getTime() - now.getTime(), 1000);
+}
+
 export function SessionManager() {
     const router = useRouter();
     const pathname = usePathname();
-    const isLoadingUserData = useUserStore((state) => state.isLoading);
     const timerRef = React.useRef<number | null>(null);
+    const dailyStreakTimerRef = React.useRef<number | null>(null);
+    const lastStreakCheckDateRef = React.useRef<string | null>(null);
     const refreshPromiseRef = React.useRef<Promise<boolean> | null>(null);
 
     const forceLogout = React.useCallback(() => {
         clearAuthSession();
-        useUserStore.getState().clearUserData();
+        clearAllClientCaches();
         if (!isAuthPage(pathname)) {
             router.replace('/login');
             router.refresh();
@@ -122,6 +139,54 @@ export function SessionManager() {
         }, delay);
     }, [refreshSessionIfNeeded]);
 
+    const syncUserDataForCurrentDay = React.useCallback((force = false) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (!getStoredRefreshToken()) {
+            return;
+        }
+
+        const today = todayKey();
+        if (!force && lastStreakCheckDateRef.current === today) {
+            return;
+        }
+
+        useUserStore.getState().loadUserData()
+            .then(() => {
+                const { streakDays } = useUserStore.getState();
+                if (streakDays !== null) {
+                    lastStreakCheckDateRef.current = today;
+                }
+            })
+            .catch(console.error);
+    }, []);
+
+    const scheduleDailyStreakSync = React.useCallback(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (dailyStreakTimerRef.current) {
+            window.clearTimeout(dailyStreakTimerRef.current);
+            dailyStreakTimerRef.current = null;
+        }
+
+        if (!getStoredRefreshToken()) {
+            return;
+        }
+
+        const scheduleNext = () => {
+            dailyStreakTimerRef.current = window.setTimeout(() => {
+                syncUserDataForCurrentDay(true);
+                scheduleNext();
+            }, msUntilNextLocalDay());
+        };
+
+        scheduleNext();
+    }, [syncUserDataForCurrentDay]);
+
     const redirectToDashboardIfAuthenticated = React.useCallback(() => {
         if (typeof window === 'undefined') {
             return;
@@ -129,11 +194,12 @@ export function SessionManager() {
 
         const refreshToken = getStoredRefreshToken();
         if (refreshToken) {
-            const { hasLoaded, loadUserData } = useUserStore.getState();
-            if (!hasLoaded) {
+            const { hasLoaded, streakDays, loadUserData } = useUserStore.getState();
+            if (!hasLoaded || streakDays === null) {
                 loadUserData().catch(console.error);
             }
         }
+        syncUserDataForCurrentDay();
 
         if (!isAuthPage(pathname)) {
             return;
@@ -144,28 +210,34 @@ export function SessionManager() {
         }
 
         router.replace('/dashboard');
-    }, [pathname, router]);
+    }, [pathname, router, syncUserDataForCurrentDay]);
 
     React.useEffect(() => {
         void syncSessionState();
         redirectToDashboardIfAuthenticated();
         scheduleRefresh();
+        scheduleDailyStreakSync();
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 void syncSessionState();
+                syncUserDataForCurrentDay();
             }
             scheduleRefresh();
+            scheduleDailyStreakSync();
         };
 
         const handleFocus = () => {
             void syncSessionState();
+            syncUserDataForCurrentDay();
             scheduleRefresh();
+            scheduleDailyStreakSync();
         };
 
         const handleSessionUpdated = () => {
             redirectToDashboardIfAuthenticated();
             scheduleRefresh();
+            scheduleDailyStreakSync();
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -179,8 +251,11 @@ export function SessionManager() {
             if (timerRef.current) {
                 window.clearTimeout(timerRef.current);
             }
+            if (dailyStreakTimerRef.current) {
+                window.clearTimeout(dailyStreakTimerRef.current);
+            }
         };
-    }, [redirectToDashboardIfAuthenticated, scheduleRefresh, syncSessionState]);
+    }, [redirectToDashboardIfAuthenticated, scheduleDailyStreakSync, scheduleRefresh, syncSessionState, syncUserDataForCurrentDay]);
 
     return null;
 }
