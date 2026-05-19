@@ -84,6 +84,20 @@ export function getAttemptResultFresh(attemptId: string): Promise<AttemptResultR
     return get<AttemptResultResponse>(`${API}/attempts/${encodeURIComponent(attemptId)}/result`);
 }
 
+export interface LatestSubmittedAttemptResponse {
+    attemptId: string;
+    contentId: string;
+    status: string;
+    submittedAt: string;
+    passed: boolean | null;
+}
+
+export function getLatestSubmittedAttempt(contentId: string): Promise<LatestSubmittedAttemptResponse> {
+    return get<LatestSubmittedAttemptResponse>(
+        `${API}/contents/${encodeURIComponent(contentId)}/attempts/latest-submitted`
+    );
+}
+
 export function getMyAttempts(): Promise<AttemptSummaryResponse[]> {
     return cachedGet(cacheKeys.assessment.myAttempts(), CACHE_TTL.SHORT, () =>
         get<AttemptSummaryResponse[]>(`${API}/users/me/attempts`)

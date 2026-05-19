@@ -47,6 +47,8 @@ export interface AttemptInProgressItem {
     remainingSeconds: number;
 }
 
+export type AttemptDisplayOutcome = 'PASSED' | 'FAILED' | 'GRADING' | 'NEUTRAL';
+
 export interface AttemptResultResponse {
     attemptId: string;
     contentId: string;
@@ -59,6 +61,10 @@ export interface AttemptResultResponse {
     resultStatus: 'PROVISIONAL' | 'FINAL';
     attemptStatus: 'IN_PROGRESS' | 'SUBMITTED' | 'PENDING_REVIEW' | 'FINALIZED';
     pendingManualReviews: number;
+    scorePercent?: number | null;
+    displayOutcome?: AttemptDisplayOutcome | null;
+    mascotKey?: string | null;
+    passThresholdScore?: number | null;
 }
 
 export interface AttemptSummaryResponse {
