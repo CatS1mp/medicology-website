@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { getEnrolledCourses } from '@/shared/api/learning';
+import { courseRoadmapPath } from '@/features/courses/utils/course-route';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -90,7 +91,7 @@ interface AppSidebarProps {
 export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
-    const [courseLinks, setCourseLinks] = useState<Array<{ slug: string; label: string }>>([]);
+    const [courseLinks, setCourseLinks] = useState<Array<{ href: string; label: string }>>([]);
 
     const isInCourses = pathname?.startsWith('/courses');
     const [coursesOpen, setCoursesOpen] = useState(false);
@@ -104,8 +105,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
                 if (cancelled) return;
                 setCourseLinks(
                     courses
+                        .filter((course) => Boolean(course.slug?.trim() || course.id))
                         .slice(0, 3)
-                        .map((course) => ({ slug: course.slug, label: course.name }))
+                        .map((course) => ({
+                            href: courseRoadmapPath(course),
+                            label: course.name,
+                        }))
                 );
             } catch {
                 if (!cancelled) setCourseLinks([]);
@@ -129,7 +134,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
                     className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 shadow-sm transition-colors hover:bg-gray-100"
-                    aria-label="Toggle sidebar"
+                    aria-label="Thu gọn hoặc mở rộng thanh bên"
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         {collapsed ? <path d="M8 4l8 8-8 8V4z" /> : <path d="M16 4l-8 8 8 8V4z" />}
@@ -198,10 +203,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
                                                 <div className="flex flex-col">
                                                     {courseLinks.map((course, idx) => {
                                                         const isLast = idx === courseLinks.length - 1;
-                                                        const isCourseActive = pathname === `/courses/${course.slug}`;
+                                                        const isCourseActive = pathname === course.href;
 
                                                         return (
-                                                            <div key={course.slug} className="relative py-[9px] pl-[52px] pr-3">
+                                                            <div key={course.href} className="relative py-[9px] pl-[52px] pr-3">
                                                                 {!isLast && (
                                                                     <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-[#4147D5]" />
                                                                 )}
@@ -221,7 +226,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
                                                                         {course.label}
                                                                     </span>
                                                                     <Link
-                                                                        href={`/courses/${course.slug}`}
+                                                                        href={course.href}
                                                                         className="rounded-full bg-[#E5F0FF] px-3 py-1 text-[12px] font-semibold text-[#1CA1F2] hover:bg-[#d6ebff] transition-colors"
                                                                     >
                                                                         Vào học
