@@ -8,9 +8,9 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { syncLearningStreakOnFirstCompletionToday, useLearningStreak } from '@/shared/hooks/useLearningStreak';
-import { getCourses, notifyLearningProgressChanged } from '@/shared/api/learning';
-import { getAttemptResult, getAttemptResultFresh, getMyAttempts } from '@/shared/api/assessment';
+import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { getCourses, getRecommendationContext, notifyLearningProgressChanged } from '@/shared/api/learning';
+import { getAttemptResult, getAttemptResultFresh } from '@/shared/api/assessment';
 import { AttemptResultResponse } from '@/shared/types/assessment';
 import { clearEnrolledCoursesCache } from '@/features/courses/hooks/useEnrolledCourses';
 import { clearRoadmapCache } from '@/features/courses/hooks/useRoadmap';
@@ -20,13 +20,12 @@ import {
     DictionaryArticleRecommendationItem,
     recommendArticlesFromAttempts,
 } from '@/features/encyclopedia/api';
-import { LESSON_PASS_SCORE_RATIO } from '@/features/courses/components/lessonCompleteConstants';
 import {
     readReadingRecoFromSession,
     readingRecoSessionKey,
     writeReadingRecoToSession,
 } from '@/features/encyclopedia/readingRecoSessionCache';
-import { mapAttemptsToRecommendationPayload } from '@/features/encyclopedia/readingRecommendationsLearner';
+import { mapDisplayOutcomeToUi, resolveMascotSrc, type LessonCompleteOutcome } from '@/shared/utils/attempt-display';
 
 interface LessonMeta {
     contentId: string;
@@ -35,14 +34,7 @@ interface LessonMeta {
     name: string;
 }
 
-type Outcome =
-    | 'loading'
-    | 'page-error'
-    | 'result-error'
-    | 'grading'
-    | 'passed'
-    | 'failed'
-    | 'neutral';
+type Outcome = LessonCompleteOutcome;
 
 function formatScore(value: number): string {
     if (!Number.isFinite(value)) return '—';
@@ -51,23 +43,14 @@ function formatScore(value: number): string {
     return String(rounded);
 }
 
-function passThresholdPoints(maxScore: number): number {
-    return Math.round(maxScore * LESSON_PASS_SCORE_RATIO * 100) / 100;
-}
-
 function getResultScorePercent(result: AttemptResultResponse | null): number | null {
+    if (result?.scorePercent != null) {
+        return result.scorePercent;
+    }
     if (!result || !Number.isFinite(result.score) || !Number.isFinite(result.maxScore) || result.maxScore <= 0) {
         return null;
     }
-
     return Math.max(0, Math.min(100, Math.round((result.score / result.maxScore) * 100)));
-}
-
-function getMascotByScorePercent(percent: number): string {
-    if (percent >= 100) return '/images/Mascot/15.svg';
-    if (percent >= 75) return '/images/Mascot/22.svg';
-    if (percent >= 25) return '/images/Mascot/23.svg';
-    return '/images/Mascot/21.svg';
 }
 
 export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
@@ -86,11 +69,9 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     const [recommendationError, setRecommendationError] = useState('');
     const [recommendationStrategy, setRecommendationStrategy] = useState<'ai' | 'fallback_popular_unread' | null>(null);
     const [recommendations, setRecommendations] = useState<DictionaryArticleRecommendationItem[]>([]);
-    const streakSyncedRef = React.useRef(false);
     const progressSyncedRef = React.useRef(false);
 
     useEffect(() => {
-        streakSyncedRef.current = false;
         progressSyncedRef.current = false;
     }, [attemptId]);
 
@@ -153,12 +134,17 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                         }
                     } else {
                         setRecommendationLoading(true);
-                        const attempts = await getMyAttempts();
+                        const recentAttempts = await getRecommendationContext(8);
                         if (cancelled) return;
-                        const recentAttempts = mapAttemptsToRecommendationPayload(attempts, courses);
 
                         const reco = await recommendArticlesFromAttempts({
-                            recentAttempts,
+                            recentAttempts: recentAttempts.map((item) => ({
+                                contentId: item.contentId,
+                                contentName: item.contentName,
+                                tags: [item.courseName, item.sectionName].filter(Boolean) as string[],
+                                submittedAt: item.submittedAt,
+                                passed: item.passed,
+                            })),
                             limit: 3,
                         });
                         if (!cancelled) {
@@ -173,7 +159,7 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                 } catch (nextError) {
                     if (!cancelled) {
                         setRecommendationError(
-                            nextError instanceof Error ? nextError.message : 'Khong tai duoc de xuat bai viet lien quan.'
+                            nextError instanceof Error ? nextError.message : 'Không tải được đề xuất bài viết liên quan.'
                         );
                     }
                 } finally {
@@ -209,20 +195,6 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     }, [attemptId, result?.resultStatus]);
 
     useEffect(() => {
-        if (!attemptId || !result || streakSyncedRef.current) {
-            return;
-        }
-
-        const completedStatuses = new Set(['SUBMITTED', 'PENDING_REVIEW', 'FINALIZED']);
-        if (!completedStatuses.has(result.attemptStatus)) {
-            return;
-        }
-
-        streakSyncedRef.current = true;
-        void syncLearningStreakOnFirstCompletionToday().catch(() => undefined);
-    }, [attemptId, result]);
-
-    useEffect(() => {
         if (!result || progressSyncedRef.current) {
             return;
         }
@@ -248,6 +220,9 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         if (pageError) return 'page-error';
         if (attemptId && resultFetchError) return 'result-error';
         if (!attemptId || !result) return 'neutral';
+        if (result.displayOutcome) {
+            return mapDisplayOutcomeToUi(result.displayOutcome);
+        }
         if (result.resultStatus === 'PROVISIONAL' || result.attemptStatus === 'PENDING_REVIEW') return 'grading';
         if (result.resultStatus === 'FINAL' && result.passed) return 'passed';
         if (result.resultStatus === 'FINAL' && !result.passed) return 'failed';
@@ -360,7 +335,9 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     }, [outcome]);
 
     const resultScorePercent = useMemo(() => getResultScorePercent(result), [result]);
-    const resultMascotSrc = resultScorePercent === null ? null : getMascotByScorePercent(resultScorePercent);
+    const resultMascotSrc = resolveMascotSrc(result?.mascotKey, resultScorePercent);
+    const passThreshold =
+        result?.passThresholdScore != null ? result.passThresholdScore : result ? result.maxScore * 0.5 : 0;
 
     return (
         <div className="flex h-screen overflow-hidden bg-[#f7f8fa] font-sans">
@@ -433,8 +410,8 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                             <p className="mt-3 text-sm text-gray-700">
                                                 <span className="font-semibold text-gray-900">Điều kiện đạt:</span>
                                                 {' '}
-                                                tổng điểm ≥ {formatScore(passThresholdPoints(result.maxScore))} / {formatScore(result.maxScore)}
-                                                {' '}(≥ {LESSON_PASS_SCORE_RATIO * 100}% điểm tối đa; cùng quy tắc với hệ thống chấm).
+                                                tổng điểm ≥ {formatScore(passThreshold)} / {formatScore(result.maxScore)}
+                                                {' '}(ngưỡng đạt do hệ thống chấm).
                                             </p>
                                         ) : null}
                                         <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
@@ -451,16 +428,16 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
 
                                 <div className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
                                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
-                                        Bai viet nen doc tiep
+                                        Bài viết nên đọc tiếp
                                     </p>
                                     {recommendationLoading ? (
-                                        <p className="mt-2 text-sm text-gray-600">Dang phan tich attempts gan nhat de de xuat bai viet...</p>
+                                        <p className="mt-2 text-sm text-gray-600">Đang phân tích các lần làm bài gần nhất để đề xuất bài viết...</p>
                                     ) : null}
                                     {!recommendationLoading && recommendationError ? (
                                         <p className="mt-2 text-sm text-rose-600">{recommendationError}</p>
                                     ) : null}
                                     {!recommendationLoading && !recommendationError && recommendations.length === 0 ? (
-                                        <p className="mt-2 text-sm text-gray-600">Chua co de xuat phu hop luc nay.</p>
+                                        <p className="mt-2 text-sm text-gray-600">Chưa có đề xuất phù hợp lúc này.</p>
                                     ) : null}
                                     {!recommendationLoading && !recommendationError && recommendations.length > 0 ? (
                                         <div className="mt-3 grid gap-3">
@@ -476,18 +453,18 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                                             <p className="mt-1 text-xs text-gray-600">{item.reason}</p>
                                                         </div>
                                                         <span className="rounded-full bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
-                                                            {item.source === 'ai' ? `AI ${Math.round((item.matchScore ?? 0) * 100)}%` : 'Fallback'}
+                                                            {item.source === 'ai' ? `AI ${Math.round((item.matchScore ?? 0) * 100)}%` : 'Dự phòng'}
                                                         </span>
                                                     </div>
                                                     {item.tags?.length ? (
                                                         <p className="mt-2 text-[11px] text-gray-500">
-                                                            Tags: {item.tags.slice(0, 4).join(', ')}
+                                                            Thẻ: {item.tags.slice(0, 4).join(', ')}
                                                         </p>
                                                     ) : null}
                                                 </Link>
                                             ))}
                                             <p className="text-[11px] text-gray-500">
-                                                Nguon de xuat: {recommendationStrategy === 'ai' ? 'AI relevance matching' : 'Top viewed unread fallback'}
+                                                Nguồn đề xuất: {recommendationStrategy === 'ai' ? 'AI khớp nội dung học' : 'Bài xem nhiều, chưa đọc'}
                                             </p>
                                         </div>
                                     ) : null}

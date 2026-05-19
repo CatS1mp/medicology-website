@@ -96,7 +96,7 @@ function normalizeAuthError(error: unknown): ApiError {
     }
     return new ApiError({
         status: 500,
-        message: 'Unknown auth error',
+        message: 'Lỗi xác thực không xác định',
         timestamp: new Date().toISOString(),
     });
 }

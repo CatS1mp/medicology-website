@@ -154,17 +154,17 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
             )}
 
             <div
-                className={`w-full rounded-xl border-2 p-4 flex items-center justify-between shadow-sm transition-transform hover:-translate-y-0.5 ${safeHref ? 'cursor-pointer' : ''} ${cardSurfaceClass}`}
+                className={`w-full min-w-0 rounded-xl border-2 p-4 flex items-center justify-between gap-3 shadow-sm transition-transform hover:-translate-y-0.5 ${safeHref ? 'cursor-pointer' : ''} ${cardSurfaceClass}`}
             >
                 
-                <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconSurfaceClass}`}>
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                    <div className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center ${iconSurfaceClass}`}>
                         {renderIcon()}
                     </div>
 
-                    <div>
+                    <div className="min-w-0 flex-1">
                         <h3 className={`text-[15px] font-bold mb-0.5 flex flex-wrap items-center gap-2 ${isInProgress ? 'text-gray-900' : isDone ? 'text-emerald-950' : isFailed ? 'text-red-900' : style.title}`}>
-                            {node.title}
+                            <span className="min-w-0 break-words line-clamp-2">{node.title}</span>
                             {isInProgress ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-amber-900">
                                     <ClockIcon className="h-3.5 w-3.5 shrink-0" />
@@ -191,12 +191,12 @@ export const LessonNodeCard: React.FC<LessonNodeCardProps> = ({ node, isLastInSe
                             ) : isFailed ? (
                                 <span className="text-[12px] font-medium text-red-700">Điểm chưa đạt yêu cầu — nhấn để làm lại</span>
                             ) : node.status === 'active' ? (
-                                <span className={style.textInfo}>Start now</span>
+                                <span className={style.textInfo}>Bắt đầu ngay</span>
                             ) : node.type === 'test' ? (
                                 <span className={`text-[12px] opacity-80 ${style.textInfo}`}>{node.description}</span>
                             ) : node.score ? (
                                 <span className={`text-[12px] ${style.textInfo}`}>
-                                    {node.score.current} / {node.score.max} correct
+                                    {node.score.current} / {node.score.max} câu đúng
                                 </span>
                             ) : node.description ? (
                                 <span className={`text-[12px] ${style.textInfo}`}>{node.description}</span>

@@ -8,7 +8,10 @@ interface RoadmapHeaderProps {
 
 export const RoadmapHeader: React.FC<RoadmapHeaderProps> = ({ title, progress, streak }) => {
     const [showStreak, setShowStreak] = useState(true);
-    const progressPercent = Math.round((progress.current / progress.total) * 100);
+    const safeCurrent = Math.max(0, progress.current);
+    const safeTotal = Math.max(0, progress.total);
+    const progressPercent =
+        safeTotal > 0 ? Math.min(100, Math.round((safeCurrent / safeTotal) * 100)) : 0;
 
     return (
         <div className="w-full max-w-2xl mx-auto mb-12">
@@ -28,7 +31,7 @@ export const RoadmapHeader: React.FC<RoadmapHeaderProps> = ({ title, progress, s
                     />
                 </div>
                 <div className="text-xs font-bold text-gray-400 w-24 text-right">
-                    {progress.current} / {progress.total} courses
+                    {safeCurrent} / {safeTotal} bài học
                 </div>
             </div>
 
@@ -56,7 +59,7 @@ export const RoadmapHeader: React.FC<RoadmapHeaderProps> = ({ title, progress, s
 
                     <div>
                         <h4 className="font-extrabold text-orange-500 text-sm mb-0.5">
-                            {streak.days} DAY STREAK
+                            {streak.days} NGÀY LIÊN TIẾP
                         </h4>
                         <p className="text-orange-900/60 text-xs font-medium pr-6">
                             {streak.message}

@@ -112,9 +112,9 @@ export interface DictionaryArticleRecommendationResponse {
 
 function normalizeDictionaryError(error: unknown) {
     if (error instanceof ApiTransportError) {
-        throw new Error(`Dictionary API error (${error.status}): ${error.message}`);
+        throw new Error(`Lỗi API bách khoa (${error.status}): ${error.message}`);
     }
-    throw error instanceof Error ? error : new Error('Unknown dictionary error');
+    throw error instanceof Error ? error : new Error('Lỗi dịch vụ bách khoa không xác định');
 }
 
 function getJson<T>(url: string): Promise<T> {

@@ -74,7 +74,7 @@ export function EncyclopediaReadingBubble() {
                 });
             } catch (e) {
                 if (!cancelled) {
-                    setError(e instanceof Error ? e.message : 'Khong tai duoc goi y.');
+                    setError(e instanceof Error ? e.message : 'Không tải được gợi ý.');
                 }
             } finally {
                 if (!cancelled) setLoading(false);

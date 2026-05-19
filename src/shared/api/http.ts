@@ -103,7 +103,7 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
                 ? body.message
                 : typeof body.error === 'string'
                     ? body.error
-                    : res.statusText || 'Request failed';
+                    : res.statusText || 'Yêu cầu thất bại';
         const status =
             typeof body.status === 'number'
                 ? body.status
@@ -116,7 +116,7 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
 
     if (typeof body === 'string') {
         const isHtml = body.trim().startsWith('<!DOCTYPE') || body.trim().startsWith('<html');
-        const message = isHtml ? (res.statusText || 'Giao tiếp với máy chủ thất bại') : (body || res.statusText || 'Request failed');
+        const message = isHtml ? (res.statusText || 'Giao tiếp với máy chủ thất bại') : (body || res.statusText || 'Yêu cầu thất bại');
         
         return new ApiTransportError({
             status: res.status,
@@ -127,7 +127,7 @@ export async function parseErrorResponse(res: Response): Promise<ApiTransportErr
 
     return new ApiTransportError({
         status: res.status,
-        message: res.statusText || 'Request failed',
+        message: res.statusText || 'Yêu cầu thất bại',
         body,
     });
 }

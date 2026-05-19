@@ -2,6 +2,8 @@ import {
     AiLearningFeedback,
     ContentActivitySummaryResponse,
     CourseProgressResponse,
+    CourseRoadmapApiResponse,
+    DashboardProgressResponse,
     CourseResponse,
     LearningApiError,
     ContentResponse,
@@ -13,6 +15,7 @@ import {
 } from '@/shared/types/learning';
 import { ApiTransportError, buildHeaders, requestApi } from '@/shared/api/http';
 import { cachedGet, mutateAndInvalidate } from '@/shared/api/cached-request';
+import { invalidateCachedValue, invalidateCachedValueByPrefix } from '@/shared/api/client-cache';
 import { CACHE_TTL, cacheKeys } from '@/shared/api/cache-policy';
 import { normalizeSpringListPayload } from '@/shared/types/admin';
 
@@ -25,6 +28,12 @@ function notifyLearningCoursesChanged() {
 
 export function notifyLearningProgressChanged() {
     if (typeof window === 'undefined') return;
+    invalidateCachedValue(cacheKeys.learning.progress());
+    invalidateCachedValue(cacheKeys.learning.dashboardProgress(7));
+    invalidateCachedValue(cacheKeys.learning.dashboardProgress(14));
+    invalidateCachedValue(cacheKeys.learning.contentActivityPrefix());
+    invalidateCachedValue(cacheKeys.learning.recommendationContext(8));
+    invalidateLearnerRoadmapCache();
     window.dispatchEvent(new Event('learning:progress-changed'));
     window.dispatchEvent(new Event('learning:courses-changed'));
 }
@@ -41,7 +50,7 @@ function normalizeLearningError(error: unknown): LearningApiError {
 
     return new LearningApiError({
         status: 500,
-        message: 'Unknown learning error',
+        message: 'Lỗi dịch vụ học tập không xác định',
         timestamp: new Date().toISOString(),
     });
 }
@@ -212,6 +221,45 @@ export function getProgress(): Promise<CourseProgressResponse[]> {
             : normalizeSpringListPayload<CourseProgressPayload>(raw).items;
         return (items as CourseProgressPayload[]).map(normalizeCourseProgress);
     });
+}
+
+export function getDashboardProgress(activityDays: number = 7): Promise<DashboardProgressResponse> {
+    const days = Math.max(1, activityDays);
+    return cachedGet(cacheKeys.learning.dashboardProgress(days), CACHE_TTL.SHORT, () =>
+        jsonGet<DashboardProgressResponse>(`${API}/progress/dashboard?activityDays=${days}`)
+    );
+}
+
+export interface RecommendationContextItem {
+    contentId: string;
+    contentName: string;
+    courseName: string | null;
+    sectionName: string | null;
+    submittedAt: string;
+    passed: boolean;
+}
+
+export function getRecommendationContext(limit: number = 8): Promise<RecommendationContextItem[]> {
+    const normalized = Math.max(1, Math.min(limit, 20));
+    return cachedGet(cacheKeys.learning.recommendationContext(normalized), CACHE_TTL.SHORT, () =>
+        jsonGet<RecommendationContextItem[]>(`${API}/progress/recommendation-context?limit=${normalized}`)
+    );
+}
+
+export function invalidateLearnerRoadmapCache(slug?: string) {
+    if (slug) {
+        invalidateCachedValue(cacheKeys.learning.learnerRoadmap(slug.trim()));
+        return;
+    }
+    invalidateCachedValueByPrefix('learner:learning:roadmap');
+}
+
+export function getLearnerRoadmap(courseSlugOrId: string): Promise<CourseRoadmapApiResponse> {
+    const key = courseSlugOrId.trim();
+    const encoded = encodeURIComponent(key);
+    return cachedGet(cacheKeys.learning.learnerRoadmap(key), CACHE_TTL.SHORT, () =>
+        jsonGet<CourseRoadmapApiResponse>(`${API}/courses/slug/${encoded}/learner-roadmap`)
+    );
 }
 
 export function getContentActivity(days: number = 7): Promise<ContentActivitySummaryResponse> {
