@@ -9,7 +9,9 @@
 }
 
 .mainWrapper {
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
   padding: 0;
   display: flex;
   overflow: hidden;
@@ -17,6 +19,8 @@
 
 .mainContent {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
@@ -24,19 +28,21 @@
   box-shadow: none;
   padding: 16px 20px 22px;
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
 }
 
 /* Sidebar Styling */
 .sidebar {
+  flex: 0 0 auto;
+  box-sizing: border-box;
   width: 280px;
   background-color: #ffffff;
   border-right: 1px solid #ebedf2;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  flex-shrink: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
   overflow: hidden;
 }
 
@@ -229,14 +235,21 @@
   background-color: #fef2f2;
 }
 
-/* Header Styling */
+/* Header Styling — sticky: luôn dính trên khi cuộn main; z-index cao trong vùng làm việc */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
   gap: 16px;
-  padding: 0;
+  padding: 0 0 14px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 950;
+  background-color: #ffffff;
+  border-bottom: 1px solid #eef2f7;
+  box-shadow: 0 6px 16px -10px rgba(15, 23, 42, 0.12);
 }
 
 .searchContainer {
@@ -507,15 +520,20 @@
 }
 
 @media (max-width: 768px) {
-  .adminContainer { flex-direction: column; height: auto; }
+  /* Giữ sidebar + vùng làm việc cạnh nhau; main co trong flex (tránh chồng lên / xuống dòng) */
+  .adminContainer {
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
   .sidebar {
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid #ebedf2;
+    flex-shrink: 0;
+    height: 100vh;
+    border-right: 1px solid #ebedf2;
+    border-bottom: none;
   }
   .navScrollArea {
-    max-height: 220px;
+    max-height: none;
   }
   .mainContent {
     padding: 14px;
@@ -544,6 +562,9 @@
   justify-content: space-between;
   align-items: flex-end;
   margin-bottom: 24px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .reportTitleGroup h1 {
@@ -1060,16 +1081,24 @@
   background-color: #e2e8f0;
 }
 
-/* Two-Column Editor Layout */
+/* Two-Column Editor — mặc định giống bản gốc: khối cố định + cuộn trong cột */
 .editorContainer {
   display: flex;
   gap: 24px;
-  height: calc(100vh - 300px);
-  min-height: 500px;
+  flex: 1 1 auto;
+  min-height: 360px;
+  max-height: min(82dvh, 900px);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .questionListSidebar {
-  width: 320px;
+  flex: 0 1 320px;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1080,7 +1109,10 @@
 }
 
 .editorMain {
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
   background-color: #ffffff;
   padding: 32px;
   border-radius: 16px;
@@ -1089,6 +1121,16 @@
   flex-direction: column;
   gap: 32px;
   overflow-y: auto;
+}
+
+.lessonContentDetailRoot .questionListScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
 }
 
 /* Question List Cards */
@@ -1142,6 +1184,7 @@
 .settingRow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 32px;
   padding-bottom: 24px;
   border-bottom: 1px solid #f1f5f9;
@@ -1189,12 +1232,15 @@
 .infoRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 20px;
 }
 
 .infoGroup {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: 16px 28px;
 }
 
 .infoItem {
@@ -1271,18 +1317,35 @@
   font-style: italic;
 }
 
-/* Footer Status Bar */
+/* Footer Status Bar (legacy; lesson detail dùng lessonStatusStrip) */
 .statusBar {
-  position: fixed;
-  bottom: 0;
-  left: 260px; /* sidebar width */
-  right: 0;
+  position: relative;
+  margin-top: auto;
+  flex-shrink: 0;
   background-color: #ffffff;
   border-top: 1px solid #f1f5f9;
-  padding: 12px 32px;
+  padding: 12px 16px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px 16px;
+}
+
+.lessonStatusStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .statusMsg {
@@ -1295,6 +1358,7 @@
   background-color: #fef2f2;
   padding: 4px 12px;
   border-radius: 20px;
+  max-width: 100%;
 }
 
 .statusInfo {
@@ -1303,16 +1367,162 @@
   gap: 16px;
   font-size: 12px;
   color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.lessonContentDetailRoot {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.lessonContentDetailRoot .editorContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (min-width: 1201px) {
+  .lessonContentDetailRoot .editorContainer {
+    min-height: 400px;
+  }
+}
+
+.matchingPairRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.orderingItemRow {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.infographicUploadBox {
+  margin-top: 4px;
+  border: 1px dashed #bae6fd;
+  border-radius: 12px;
+  background: #f8fdff;
+  padding: 10px 12px;
+}
+
+.infographicUploadLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.infographicFileInput {
+  font: inherit;
+  color: #334155;
+  font-size: 12px;
+}
+
+.infographicUploadError {
+  margin-top: 8px;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.infographicUploadPreview {
+  margin-top: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.infographicUploadPreview img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  display: block;
 }
 
 @media (max-width: 1200px) {
-  .editorContainer { flex-direction: column; height: auto; }
-  .questionListSidebar { width: 100%; }
+  /* Trang chi tiết nội dung: cuộn cả khối main (không giam trong panel như màn rộng) */
+  .lessonContentDetailRoot {
+    flex: 0 0 auto;
+    min-height: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .lessonContentDetailRoot .editorContainer {
+    flex: 0 0 auto;
+    max-height: none;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .lessonContentDetailRoot .editorMain {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow-y: visible;
+  }
+
+  .lessonContentDetailRoot .questionListScroll {
+    flex: 0 0 auto;
+    overflow-y: visible;
+    min-height: 0;
+  }
+
+  .editorContainer {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+  .questionListSidebar {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+  .editorMain {
+    padding: 18px 16px;
+    flex: 1 1 auto;
+  }
+
+  .lessonStatusStrip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lessonStatusStrip .statusInfo {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 768px) {
   .settingRow { flex-direction: column; align-items: flex-start; gap: 16px; }
   .answerGrid { grid-template-columns: 1fr; }
+  .matchingPairRow {
+    grid-template-columns: 1fr;
+  }
+  .orderingItemRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Students Screen */

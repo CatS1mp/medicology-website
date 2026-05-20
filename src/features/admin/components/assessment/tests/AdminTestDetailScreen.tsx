@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { adminUploadDictionaryAsset } from '@/shared/api/admin-dictionary';
 import { useRouter, useSearchParams } from 'next/navigation';
 import styles from '@/features/admin/admin.module.css';
 import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
@@ -233,6 +234,24 @@ function normalizePayloadForKind(kind: ContentBlockKind, payload: string): strin
         return JSON.stringify({ ...parsed, title, events: safeEvents });
     }
 
+    if (kind === 'INFOGRAPHIC') {
+        const title = String(parsed.title ?? '').trim() || 'Infographic';
+        const mediaType = parsed.mediaType === 'video' ? 'video' : 'image';
+        const imageUrl = String(parsed.imageUrl ?? '');
+        const videoUrl = String(parsed.videoUrl ?? '');
+        const caption = String(parsed.caption ?? '');
+        const assetId = parsed.assetId;
+        return JSON.stringify({
+            ...parsed,
+            title,
+            mediaType,
+            imageUrl,
+            videoUrl,
+            caption,
+            ...(typeof assetId === 'string' && assetId.trim() ? { assetId: assetId.trim() } : {}),
+        });
+    }
+
     return JSON.stringify(parsed);
 }
 
@@ -254,7 +273,13 @@ type BlockPayloadEditorProps = {
 };
 
 function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorProps) {
+    const [infographicUploading, setInfographicUploading] = useState(false);
+    const [infographicUploadError, setInfographicUploadError] = useState<string | null>(null);
     const parsed = tryParsePayload(block.payload);
+
+    useEffect(() => {
+        setInfographicUploadError(null);
+    }, [block.id, block.kind]);
 
     const commitPayload = (merged: Record<string, unknown>) => {
         const payload = JSON.stringify(merged);
@@ -422,6 +447,30 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
         const mediaType = String(parsed.mediaType ?? 'image');
         const imageUrl = String(parsed.imageUrl ?? '');
         const videoUrl = String(parsed.videoUrl ?? '');
+        const caption = String(parsed.caption ?? '');
+
+        const runInfographicUpload = async (file: File | undefined) => {
+            if (!file) return;
+            setInfographicUploading(true);
+            setInfographicUploadError(null);
+            try {
+                const uploaded = await adminUploadDictionaryAsset(file);
+                commitPayload({
+                    ...parsed,
+                    title,
+                    mediaType: 'image',
+                    imageUrl: uploaded.url,
+                    assetId: uploaded.assetId,
+                    videoUrl,
+                    caption,
+                });
+            } catch (err) {
+                setInfographicUploadError(err instanceof Error ? err.message : 'Tải ảnh thất bại.');
+            } finally {
+                setInfographicUploading(false);
+            }
+        };
+
         return (
             <div style={{ display: 'grid', gap: 14 }}>
                 <label style={{ display: 'grid', gap: 6 }}>
@@ -433,7 +482,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                     <select
                         style={compactInput}
                         value={mediaType === 'video' ? 'video' : 'image'}
-                        onChange={(e) => commitPayload({ ...parsed, title, mediaType: e.target.value, imageUrl, videoUrl })}
+                        onChange={(e) => commitPayload({ ...parsed, title, mediaType: e.target.value, imageUrl, videoUrl, caption })}
                     >
                         <option value="image">Ảnh</option>
                         <option value="video">Video</option>
@@ -442,17 +491,46 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                 {mediaType === 'video' ? (
                     <label style={{ display: 'grid', gap: 6 }}>
                         <span style={compactLabel}>URL video</span>
-                        <input style={compactInput} value={videoUrl} onChange={(e) => commitPayload({ ...parsed, title, mediaType: 'video', videoUrl: e.target.value })} />
+                        <input style={compactInput} value={videoUrl} onChange={(e) => commitPayload({ ...parsed, title, mediaType: 'video', videoUrl: e.target.value, imageUrl, caption })} />
                     </label>
                 ) : (
-                    <label style={{ display: 'grid', gap: 6 }}>
-                        <span style={compactLabel}>URL ảnh</span>
-                        <input style={compactInput} value={imageUrl} onChange={(e) => commitPayload({ ...parsed, title, mediaType: 'image', imageUrl: e.target.value })} />
-                    </label>
+                    <>
+                        <div className={styles.infographicUploadBox}>
+                            <span style={compactLabel}>Tải ảnh từ máy</span>
+                            <label className={styles.infographicUploadLabel}>
+                                {infographicUploading ? 'Đang tải lên…' : 'Chọn file ảnh'}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className={styles.infographicFileInput}
+                                    disabled={infographicUploading}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        e.target.value = '';
+                                        void runInfographicUpload(file);
+                                    }}
+                                />
+                            </label>
+                            {infographicUploadError && <p className={styles.infographicUploadError}>{infographicUploadError}</p>}
+                            {imageUrl.trim() && (
+                                <div className={styles.infographicUploadPreview}>
+                                    <img src={imageUrl} alt="Xem trước infographic" />
+                                </div>
+                            )}
+                        </div>
+                        <label style={{ display: 'grid', gap: 6 }}>
+                            <span style={compactLabel}>Hoặc dán URL ảnh</span>
+                            <input
+                                style={compactInput}
+                                value={imageUrl}
+                                onChange={(e) => commitPayload({ ...parsed, title, mediaType: 'image', imageUrl: e.target.value, videoUrl, caption })}
+                            />
+                        </label>
+                    </>
                 )}
                 <label style={{ display: 'grid', gap: 6 }}>
                     <span style={compactLabel}>Chú thích (tuỳ chọn)</span>
-                    <input style={compactInput} value={String(parsed.caption ?? '')} onChange={(e) => commitPayload({ ...parsed, title, caption: e.target.value })} />
+                    <input style={compactInput} value={caption} onChange={(e) => commitPayload({ ...parsed, title, mediaType, imageUrl, videoUrl, caption: e.target.value })} />
                 </label>
             </div>
         );
@@ -489,19 +567,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                 <div style={{ display: 'grid', gap: 10 }}>
                     <span style={compactLabel}>Các cặp ghép</span>
                     {pairs.map((pair, idx) => (
-                        <div
-                            key={`pair-${idx}`}
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr auto',
-                                gap: 8,
-                                alignItems: 'center',
-                                padding: 10,
-                                border: '1px solid #e2e8f0',
-                                borderRadius: 10,
-                                background: '#fff',
-                            }}
-                        >
+                        <div key={`pair-${idx}`} className={styles.matchingPairRow}>
                             <input
                                 style={compactInput}
                                 value={pair.left}
@@ -586,19 +652,7 @@ function BlockPayloadEditor({ block, orderIndex, onPatch }: BlockPayloadEditorPr
                 <div style={{ display: 'grid', gap: 10 }}>
                     <span style={compactLabel}>Thứ tự đúng (từ trên xuống)</span>
                     {items.map((item, idx) => (
-                        <div
-                            key={`${item.id}-${idx}`}
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: '88px 1fr auto',
-                                gap: 8,
-                                alignItems: 'center',
-                                padding: 10,
-                                border: '1px solid #e2e8f0',
-                                borderRadius: 10,
-                                background: '#fff',
-                            }}
-                        >
+                        <div key={`${item.id}-${idx}`} className={styles.orderingItemRow}>
                             <input
                                 style={{ ...compactInput, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
                                 value={item.id}
@@ -958,9 +1012,10 @@ export const AdminTestDetailScreen: React.FC = () => {
 
     return (
         <BaseAdminLayout>
+            <div className={styles.lessonContentDetailRoot}>
             <section
                 className={styles.reportHeader}
-                style={{ flexDirection: 'column', alignItems: 'stretch', gap: 0, marginBottom: 24 }}
+                style={{ flexDirection: 'column', alignItems: 'stretch', gap: 0, marginBottom: 16, flexShrink: 0 }}
             >
                 <div className={styles.reportTitleGroup}>
                     <button
@@ -997,6 +1052,18 @@ export const AdminTestDetailScreen: React.FC = () => {
                                 autoComplete="off"
                             />
                         </label>
+                        <div className={styles.lessonStatusStrip}>
+                            <div className={styles.statusMsg}>
+                                <span>⚠️</span>{' '}
+                                {totalPoints < passScore
+                                    ? 'Tổng điểm khối có thể chưa đạt mức điểm đạt yêu cầu.'
+                                    : 'Danh sách khối đã đồng bộ từ API learning-service.'}
+                            </div>
+                            <div className={styles.statusInfo}>
+                                <span>☁️ Trạng thái: </span>
+                                <b>Đã tải</b>
+                            </div>
+                        </div>
                         <div
                             style={{
                                 display: 'flex',
@@ -1123,7 +1190,7 @@ export const AdminTestDetailScreen: React.FC = () => {
                             )}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1, minHeight: 0, paddingRight: 2 }}>
+                        <div className={styles.questionListScroll}>
                             <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 4px' }}>Khối học tập</p>
                             {blocks.length === 0 && (
                                 <p style={{ fontSize: 12, color: '#94a3b8' }}>Chưa có khối học tập từ API.</p>
@@ -1191,7 +1258,7 @@ export const AdminTestDetailScreen: React.FC = () => {
                                                 display: 'block',
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 2 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                                     <span
                                                         style={{
@@ -1362,15 +1429,7 @@ export const AdminTestDetailScreen: React.FC = () => {
                 </div>
             )}
 
-            <footer className={styles.statusBar}>
-                <div className={styles.statusMsg}>
-                    <span>⚠️</span> {totalPoints < passScore ? 'Tổng điểm khối có thể chưa đạt mức điểm đạt yêu cầu.' : 'Danh sách khối đã đồng bộ từ API learning-service.'}
-                </div>
-                <div className={styles.statusInfo}>
-                    <span>☁️ Trạng thái: </span>
-                    <b>{detail ? 'Đã tải' : '—'}</b>
-                </div>
-            </footer>
+            </div>
         </BaseAdminLayout>
     );
 };
