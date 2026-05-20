@@ -20,12 +20,6 @@ const IconFilter = () => (
     </svg>
 );
 
-const IconBell = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-gray-500">
-        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-    </svg>
-);
-
 const IconFire = ({ className }: { className?: string }) => (
     <svg
         width="16"
@@ -193,15 +187,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ streak, onLogout }) => {
             >
                 <IconFire className={`shrink-0 ${isStreakBurning ? 'animate-streak-fire-burn' : ''}`} />
                 <span className="font-bold text-sm">{streak}</span>
-            </button>
-
-            <button
-                type="button"
-                onClick={() => router.push('/notifications')}
-                className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative"
-            >
-                <IconBell />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
 
             <div className="relative" ref={menuRef}>
