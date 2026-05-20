@@ -31,8 +31,8 @@ const typeMeta: Record<string, { label: string; tone: string; icon: React.ReactN
     },
     SYSTEM: {
         label: 'Hệ thống',
-        tone: 'bg-rose-50 text-rose-700 border-rose-200',
-        icon: <path d="M11.13 2.76a1 1 0 0 1 1.74 0l8.25 14.5a1 1 0 0 1-.87 1.49H3.75a1 1 0 0 1-.87-1.49l8.25-14.5ZM12 5.28 5.47 16.75h13.06L12 5.28Zm0 3.22a.75.75 0 0 1 .75.75v3.25a.75.75 0 0 1-1.5 0V9.25A.75.75 0 0 1 12 8.5Zm0 6.75a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />,
+        tone: 'bg-blue-50 text-blue-700 border-blue-200',
+        icon: <text x="12" y="16" textAnchor="middle" className="fill-current text-[13px] font-bold">H</text>,
     },
 };
 
