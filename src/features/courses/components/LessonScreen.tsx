@@ -8,6 +8,7 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { useUserStore } from '@/shared/store/useUserStore';
 import { getContentDetail, getLearnerRoadmap } from '@/shared/api/learning';
 import {
     getAttemptAnswer,
@@ -47,6 +48,12 @@ export function LessonScreen({ courseSlug, lessonSlug }: { courseSlug: string; l
     const searchParams = useSearchParams();
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
+    const setStreakCardsBlocked = useUserStore((state) => state.setStreakCardsBlocked);
+
+    useEffect(() => {
+        setStreakCardsBlocked(true);
+        return () => setStreakCardsBlocked(false);
+    }, [setStreakCardsBlocked]);
     const isReviewMode = searchParams.get('mode') === 'review';
     const attemptFromQuery = searchParams.get('attempt')?.trim() || null;
     const [loading, setLoading] = useState(true);

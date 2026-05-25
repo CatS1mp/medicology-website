@@ -15,6 +15,9 @@ import { getContentActivity, getCourses, getDashboardProgress } from '@/shared/a
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 import { useUserStore } from '@/shared/store/useUserStore';
 import { ChartDataPoint, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
+import type { AttemptSummaryResponse } from '@/shared/types/assessment';
+import type { CourseProgressResponse, CourseResponse } from '@/shared/types/learning';
+import { getCourseAttemptProgressData, getMainFinalizedAttempts } from '@/shared/utils/learning-progress';
 
 function mapActivityToChart(
     activities: { date: string; completedContents: number }[],
@@ -32,21 +35,98 @@ function mapActivityToChart(
     return { label, data, totalCompletedLessons };
 }
 
+function scoreToTenScale(score: number, maxScore: number): number {
+    if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) return 0;
+    return Math.max(0, Math.min(10, (score / maxScore) * 10));
+}
+
+function getLessonCount(courses: CourseResponse[]): number {
+    return courses.reduce(
+        (sum, course) =>
+            sum +
+            (course.sections ?? []).reduce(
+                (sectionSum, section) => sectionSum + (section.contents?.length ?? 0),
+                0
+            ),
+        0
+    );
+}
+
+function buildRecentResults(attempts: AttemptSummaryResponse[]): LearningResultPoint[] {
+    return getMainFinalizedAttempts(attempts)
+        .filter((attempt) => typeof attempt.maxScore === 'number' && attempt.maxScore > 0)
+        .slice(-6)
+        .map((attempt) => ({
+            label: new Date(attempt.submittedAt ?? attempt.startedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
+            actual: scoreToTenScale(Number(attempt.score ?? 0), Number(attempt.maxScore ?? 0)),
+            target: 8,
+        }));
+}
+
+function buildProgressItems(
+    courses: CourseResponse[],
+    progress: CourseProgressResponse[],
+    attempts: AttemptSummaryResponse[]
+): LearningProgressItem[] {
+    const sortedCourses = courses.slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    const courseBySlug = new Map(sortedCourses.map((course) => [course.slug, course]));
+    const courseById = new Map(sortedCourses.map((course) => [course.id, course]));
+
+    return progress
+        .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
+        .map((item) => {
+            const course = courseById.get(item.courseId) ?? courseBySlug.get(item.courseSlug);
+            const attemptProgress = course ? getCourseAttemptProgressData(course, attempts) : null;
+            return {
+                id: item.courseId,
+                subject: item.courseName,
+                courseSlug: item.courseSlug,
+                completionPercent: attemptProgress?.completionPercent ?? item.completionPercent ?? 0,
+                color: course?.colorCode || '#3B82F6',
+                icon: '📘',
+                imageUrl: resolveCourseIconSrc(course?.iconFileName),
+            };
+        })
+        .sort((a, b) => {
+            const aCompleted = a.completionPercent >= 100;
+            const bCompleted = b.completionPercent >= 100;
+            if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+            if (!aCompleted && a.completionPercent !== b.completionPercent) {
+                return b.completionPercent - a.completionPercent;
+            }
+            return 0;
+        })
+        .slice(0, 5);
+}
+
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
     const hasSeenDashboardLoading = useUserStore((state) => state.hasSeenDashboardLoading);
     const setHasSeenDashboardLoading = useUserStore((state) => state.setHasSeenDashboardLoading);
+    const storeCourses = useUserStore((state) => state.courses);
+    const storeProgress = useUserStore((state) => state.courseProgress);
+    const storeAttempts = useUserStore((state) => state.attempts);
+    const canRenderFromUserData = hasSeenDashboardLoading && (storeProgress.length > 0 || storeCourses.length > 0);
+    const initialResults = canRenderFromUserData ? buildRecentResults(storeAttempts) : [];
+    const initialProgressItems = canRenderFromUserData
+        ? buildProgressItems(storeCourses, storeProgress, storeAttempts)
+        : [];
 
     const [lessonActivityDataset, setLessonActivityDataset] = React.useState<LessonActivityDataset | null>(null);
     const [activeRange, setActiveRange] = React.useState<LessonActivityRange>('last7');
-    const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(true);
-    const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>([]);
-    const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>([]);
-    const [totalLessons, setTotalLessons] = React.useState(0);
-    const [averageScore, setAverageScore] = React.useState(0);
-    const [activeCourseCount, setActiveCourseCount] = React.useState(0);
-    const [isDashboardLoading, setIsDashboardLoading] = React.useState(true);
+    const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(!canRenderFromUserData);
+    const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>(initialResults);
+    const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>(initialProgressItems);
+    const [totalLessons, setTotalLessons] = React.useState(() => canRenderFromUserData ? getLessonCount(storeCourses) : 0);
+    const [averageScore, setAverageScore] = React.useState(() => {
+        const values = initialResults.map((item) => item.actual);
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    });
+    const [activeCourseCount, setActiveCourseCount] = React.useState(() =>
+        canRenderFromUserData ? (storeProgress.length || storeCourses.length) : 0
+    );
+    const [isDashboardLoading, setIsDashboardLoading] = React.useState(!canRenderFromUserData);
     const [showBotOverlay] = React.useState(!hasSeenDashboardLoading);
 
     const statCards: StatCard[] = [
@@ -59,11 +139,13 @@ export const DashboardScreen: React.FC = () => {
         let cancelled = false;
 
         async function run() {
-            setIsDashboardLoading(true);
+            setIsDashboardLoading(!canRenderFromUserData);
             try {
                 const activityDays = 7;
                 const dashboardPromise = getDashboardProgress(activityDays);
-                const coursesPromise = getCourses().catch(() => []);
+                const coursesPromise = storeCourses.length > 0
+                    ? Promise.resolve(storeCourses)
+                    : getCourses().catch(() => []);
                 const minimumLoadingPromise = hasSeenDashboardLoading
                     ? Promise.resolve()
                     : new Promise((resolve) => window.setTimeout(resolve, 2000));
@@ -77,29 +159,7 @@ export const DashboardScreen: React.FC = () => {
                 if (cancelled) return;
 
                 const sortedCourses = courses.slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-                const lessonCount = sortedCourses.reduce(
-                    (sum, course) =>
-                        sum +
-                        (course.sections ?? []).reduce(
-                            (sectionSum, section) => sectionSum + (section.contents?.length ?? 0),
-                            0
-                        ),
-                    0
-                );
-
                 const progress = dashboard.courses ?? [];
-                setAverageScore(dashboard.averageScoreOnTenScale ?? 0);
-                setActiveCourseCount(progress.length);
-                setTotalLessons(lessonCount);
-                setLessonActivityDataset(mapActivityToChart(dashboard.activity.activities, 'last7'));
-                setLearningResults(
-                    (dashboard.recentGradedAttempts ?? []).map((attempt) => ({
-                        label: new Date(attempt.submittedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
-                        actual: attempt.scoreOnTenScale,
-                        target: 8,
-                    }))
-                );
-
                 const resolvedProgressItems = progress
                     .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
                     .slice(0, 5)
@@ -118,6 +178,17 @@ export const DashboardScreen: React.FC = () => {
                         };
                     });
 
+                setAverageScore(dashboard.averageScoreOnTenScale ?? 0);
+                setActiveCourseCount(progress.length);
+                setTotalLessons(getLessonCount(sortedCourses));
+                setLessonActivityDataset(mapActivityToChart(dashboard.activity.activities, 'last7'));
+                setLearningResults(
+                    (dashboard.recentGradedAttempts ?? []).map((attempt) => ({
+                        label: new Date(attempt.submittedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
+                        actual: attempt.scoreOnTenScale,
+                        target: 8,
+                    }))
+                );
                 setLearningProgress(resolvedProgressItems);
 
                 const urlsToPreload = resolvedProgressItems.map((item) => item.imageUrl).filter(Boolean) as string[];
@@ -137,7 +208,7 @@ export const DashboardScreen: React.FC = () => {
                     setHasSeenDashboardLoading(true);
                 }
             } catch {
-                if (cancelled) return;
+                if (cancelled || canRenderFromUserData) return;
                 setLessonActivityDataset({
                     label: 'last7',
                     data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
@@ -154,7 +225,7 @@ export const DashboardScreen: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [hasSeenDashboardLoading, setHasSeenDashboardLoading]);
+    }, [canRenderFromUserData, hasSeenDashboardLoading, setHasSeenDashboardLoading, storeCourses]);
 
     React.useEffect(() => {
         let cancelled = false;

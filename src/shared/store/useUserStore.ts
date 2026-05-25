@@ -315,12 +315,17 @@ export const useUserStore = create<UserStoreState>((set) => ({
         const lastGainAck = getScopedLocalStorageItem(LAST_GAINED_STREAK_ACK_DATE_KEY);
         const lastLearningAck = getScopedLocalStorageItem(LAST_LEARNING_STREAK_ACK_DATE_KEY);
         const isLearningCompletion = options?.source === 'learning-completion';
-        const shouldShowGain = previous !== null
-            && days > previous
-            && (isLearningCompletion ? lastLearningAck !== today : lastGainAck !== today);
+        
+        const shouldShowGain = isLearningCompletion
+            ? (lastLearningAck !== today && days > 0)
+            : (previous !== null && days > previous && lastGainAck !== today);
+
+        const fromDays = (previous !== null && days > previous)
+            ? previous
+            : (days > 0 ? days - 1 : 0);
 
         if (shouldShowGain) {
-            writePendingStreakCard({ type: 'gained', from: previous, gained: days, date: today });
+            writePendingStreakCard({ type: 'gained', from: fromDays, gained: days, date: today });
             setScopedLocalStorageItem(LAST_GAINED_STREAK_ACK_DATE_KEY, today);
             if (isLearningCompletion) {
                 setScopedLocalStorageItem(LAST_LEARNING_STREAK_ACK_DATE_KEY, today);
@@ -330,7 +335,7 @@ export const useUserStore = create<UserStoreState>((set) => ({
 
         return {
             streakDays: days,
-            ...(shouldShowGain ? { gainedStreakAmount: days, gainedFromStreak: previous } : {}),
+            ...(shouldShowGain ? { gainedStreakAmount: days, gainedFromStreak: fromDays } : {}),
         };
     }),
 

@@ -1,24 +1,32 @@
 import { NextRequest } from 'next/server';
-import { proxyThroughGateway } from '@/app/api/_proxy';
+import { proxyThroughGateway, proxyToBackend } from '@/app/api/_proxy';
 
-const LEGACY_BACKEND = process.env.NOTIFICATION_SERVICE_URL ?? '';
+const EXPLICIT_NOTIFICATION_BACKEND = process.env.NOTIFICATION_SERVICE_URL?.trim() ?? '';
+const LEGACY_BACKEND = EXPLICIT_NOTIFICATION_BACKEND || 'http://localhost:8085';
 const config = {
     gatewayBasePath: '/api/notifications',
     legacy: { backendUrl: LEGACY_BACKEND, upstreamBasePath: '/api/notifications' },
 };
 
+function proxyNotification(req: NextRequest, params: { path?: string[] }) {
+    if (EXPLICIT_NOTIFICATION_BACKEND) {
+        return proxyToBackend(req, params, config.legacy);
+    }
+    return proxyThroughGateway(req, params, config);
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
-    return proxyThroughGateway(req, await params, config);
+    return proxyNotification(req, await params);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
-    return proxyThroughGateway(req, await params, config);
+    return proxyNotification(req, await params);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
-    return proxyThroughGateway(req, await params, config);
+    return proxyNotification(req, await params);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
-    return proxyThroughGateway(req, await params, config);
+    return proxyNotification(req, await params);
 }
