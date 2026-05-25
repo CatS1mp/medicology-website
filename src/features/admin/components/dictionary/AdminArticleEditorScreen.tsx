@@ -50,6 +50,19 @@ function asString(value: unknown): string {
     return '';
 }
 
+/** Match select value to schema options (handles number in JSON vs string options). */
+function coerceSelectFieldValue(raw: unknown, options: string[]): string {
+    if (options.length === 0) return asString(raw);
+    const direct = asString(raw);
+    if (options.includes(direct)) return direct;
+    const n = typeof raw === 'number' ? raw : Number(direct);
+    if (Number.isFinite(n)) {
+        const matched = options.find((o) => Number(o) === n);
+        if (matched !== undefined) return matched;
+    }
+    return '';
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -97,25 +110,6 @@ function readDescriptionFromBlocks(blocks: ArticleContentBlock[]): string {
 
 function normalizeBlocks(article: DictionaryArticleResponse): ArticleContentBlock[] {
     return parseArticleContentJson(article.contentJson).blocks;
-}
-
-function stripMetaBlocks(blocks: ArticleContentBlock[]): ArticleContentBlock[] {
-    let skippedHeading = false;
-    let skippedLead = false;
-
-    return blocks.filter((block) => {
-        if (!skippedHeading && blockMatches(block, ['h1', 'title'])) {
-            skippedHeading = true;
-            return false;
-        }
-
-        if (!skippedLead && blockMatches(block, ['lead', 'summary', 'intro'])) {
-            skippedLead = true;
-            return false;
-        }
-
-        return true;
-    });
 }
 
 function buildPreviewBlocks(
@@ -461,15 +455,14 @@ export const AdminArticleEditorScreen: React.FC = () => {
 
                 if (cancelled) return;
 
-                const sourceBlocks = normalizeBlocks(nextArticle);
-                const nextBlocks = stripMetaBlocks(sourceBlocks);
+                const nextBlocks = normalizeBlocks(nextArticle);
                 setArticle(nextArticle);
                 setComponents(nextComponents);
                 setTags(nextTags);
                 setSelectedTagIds((nextArticle.tags ?? []).map((tag) => tag.id));
                 setName(nextArticle.name);
                 setSlug(nextArticle.slug);
-                setDescription(readDescriptionFromBlocks(sourceBlocks));
+                setDescription(readDescriptionFromBlocks(nextBlocks));
                 setBlocks(nextBlocks);
                 setContentVersion(nextArticle.contentVersion ?? ARTICLE_CONTENT_SCHEMA_VERSION);
                 setSlugTouched(false);
@@ -558,13 +551,12 @@ export const AdminArticleEditorScreen: React.FC = () => {
     async function refreshArticle() {
         if (!articleId) return;
         const nextArticle = await adminGetArticleById(articleId);
-        const sourceBlocks = normalizeBlocks(nextArticle);
-        const nextBlocks = stripMetaBlocks(sourceBlocks);
+        const nextBlocks = normalizeBlocks(nextArticle);
         setArticle(nextArticle);
         setSelectedTagIds((nextArticle.tags ?? []).map((tag) => tag.id));
         setName(nextArticle.name);
         setSlug(nextArticle.slug);
-        setDescription(readDescriptionFromBlocks(sourceBlocks));
+        setDescription(readDescriptionFromBlocks(nextBlocks));
         setBlocks(nextBlocks);
         setContentVersion(nextArticle.contentVersion ?? ARTICLE_CONTENT_SCHEMA_VERSION);
         setCollapsedBranches({});
@@ -623,17 +615,18 @@ export const AdminArticleEditorScreen: React.FC = () => {
 
     function updateBlockField(blockId: string, key: string, value: string) {
         setBlocks((current) =>
-            current.map((block) =>
-                block.id === blockId
-                    ? {
-                          ...block,
-                          data: {
-                              ...block.data,
-                              [key]: value,
-                          },
-                      }
-                    : block
-            )
+            current.map((block) => {
+                if (block.id !== blockId) return block;
+                const nextData = { ...block.data, [key]: value };
+                let nextLevel = block.level;
+                if (key === 'headingLevel' || key === 'rank') {
+                    const n = Number(value);
+                    if (Number.isFinite(n)) {
+                        nextLevel = clampBlockLevel(n, block.level);
+                    }
+                }
+                return { ...block, data: nextData, level: nextLevel };
+            })
         );
     }
 
@@ -1028,7 +1021,10 @@ export const AdminArticleEditorScreen: React.FC = () => {
                                                     <div className={styles.componentBody}>
                                                         <div className={styles.fieldGrid}>
                                                             {fields.map((field) => {
-                                                                const value = asString(block.data[field.key]);
+                                                                const value =
+                                                                    field.type === 'select'
+                                                                        ? coerceSelectFieldValue(block.data[field.key], field.options)
+                                                                        : asString(block.data[field.key]);
 
                                                                 return (
                                                                     <div key={`${block.id}-${field.key}`} className={styles.field}>

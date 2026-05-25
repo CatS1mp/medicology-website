@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '@/features/admin/admin.module.css';
 
 import Link from 'next/link';
@@ -85,6 +85,14 @@ export const AdminSidebar: React.FC = () => {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const { handleLogout, isLoading } = useLogout();
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 1024px)');
+        const sync = () => setCollapsed(mq.matches);
+        sync();
+        mq.addEventListener('change', sync);
+        return () => mq.removeEventListener('change', sync);
+    }, []);
 
     return (
         <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`} style={{ width: collapsed ? 88 : 280 }}>
