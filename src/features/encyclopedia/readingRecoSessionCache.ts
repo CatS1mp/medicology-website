@@ -2,6 +2,10 @@ import type { DictionaryArticleRecommendationItem, DictionaryArticleRecommendati
 
 const SESSION_READING_RECO_PREFIX = 'medicology:dict:reading-reco:v1';
 
+function canUseSessionStorage() {
+    return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
+}
+
 export function readingRecoSessionKey(courseSlug: string, lessonSlug: string, attemptId: string | null): string {
     return `${SESSION_READING_RECO_PREFIX}:${courseSlug}:${lessonSlug}:${attemptId ?? 'none'}`;
 }
@@ -10,9 +14,9 @@ export function readingRecoSessionKey(courseSlug: string, lessonSlug: string, at
 export const encyclopediaLandingRecoCacheKey = (): string => readingRecoSessionKey('encyclopedia', 'landing', null);
 
 export function readReadingRecoFromSession(key: string): DictionaryArticleRecommendationResponse | null {
-    if (typeof sessionStorage === 'undefined') return null;
+    if (!canUseSessionStorage()) return null;
     try {
-        const raw = sessionStorage.getItem(key);
+        const raw = window.sessionStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as unknown;
         if (!parsed || typeof parsed !== 'object') return null;
@@ -27,10 +31,22 @@ export function readReadingRecoFromSession(key: string): DictionaryArticleRecomm
 }
 
 export function writeReadingRecoToSession(key: string, data: DictionaryArticleRecommendationResponse): void {
-    if (typeof sessionStorage === 'undefined') return;
+    if (!canUseSessionStorage()) return;
     try {
-        sessionStorage.setItem(key, JSON.stringify(data));
+        window.sessionStorage.setItem(key, JSON.stringify(data));
     } catch {
         // quota / private mode
+    }
+}
+
+export function clearReadingRecoSessionCache() {
+    if (!canUseSessionStorage()) return;
+    try {
+        const keys = Object.keys(window.sessionStorage).filter((key) =>
+            key.startsWith(SESSION_READING_RECO_PREFIX)
+        );
+        keys.forEach((key) => window.sessionStorage.removeItem(key));
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
     }
 }

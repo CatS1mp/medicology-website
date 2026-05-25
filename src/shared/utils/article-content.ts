@@ -271,6 +271,13 @@ export function extractArticlePlainTextLenient(contentJson?: string | null, cont
     }
 }
 
+export function sanitizeArticlePreviewText(text: string): string {
+    return text
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 /**
  * For learner views when contentJson may still be legacy: fall back to markdown-only preview.
  */

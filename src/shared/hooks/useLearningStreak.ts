@@ -1,11 +1,39 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { pingStreak } from '@/shared/api/learning';
+import { useUserStore } from '@/shared/store/useUserStore';
 
-const STREAK_CACHE_KEY = 'learningStreakDays';
 const STREAK_LAST_SYNC_DATE_KEY = 'learningStreakLastSyncDate';
 const STREAK_UPDATED_EVENT = 'learning-streak-updated';
+const STREAK_ATTEMPT_SYNC_PREFIX = 'learningStreakAttemptSynced:';
+
+function getLocalStorageItem(key: string): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function setLocalStorageItem(key: string, value: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
+    }
+}
+
+function removeLocalStorageItem(key: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(key);
+    } catch {
+        // Storage can be unavailable in private/restricted browser modes.
+    }
+}
 
 function todayKey(): string {
     const now = new Date();
@@ -15,58 +43,81 @@ function todayKey(): string {
     return `${year}-${month}-${day}`;
 }
 
-function readCachedStreakDays(): number | null {
-    if (typeof window === 'undefined') return null;
-    const raw = localStorage.getItem(STREAK_CACHE_KEY);
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
-}
-
-function writeCachedStreakDays(value: number) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STREAK_CACHE_KEY, String(value));
+function readCurrentStreakDays(): number | null {
+    return useUserStore.getState().streakDays;
 }
 
 function markStreakSyncedToday() {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STREAK_LAST_SYNC_DATE_KEY, todayKey());
+    setLocalStorageItem(STREAK_LAST_SYNC_DATE_KEY, todayKey());
 }
 
 function hasSyncedStreakToday(): boolean {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STREAK_LAST_SYNC_DATE_KEY) === todayKey();
+    return getLocalStorageItem(STREAK_LAST_SYNC_DATE_KEY) === todayKey();
+}
+
+export function clearLearningStreakCache() {
+    removeLocalStorageItem(STREAK_LAST_SYNC_DATE_KEY);
 }
 
 export async function syncLearningStreakOnFirstCompletionToday() {
-    if (typeof window === 'undefined') return readCachedStreakDays();
+    if (typeof window === 'undefined') return readCurrentStreakDays();
 
     if (hasSyncedStreakToday()) {
-        return readCachedStreakDays();
+        const cached = readCurrentStreakDays();
+        if (cached !== null) {
+            useUserStore.getState().recordStreakSync(cached);
+        }
+        return cached;
     }
 
+    const previousStreakDays = useUserStore.getState().streakDays;
     const data = await pingStreak();
-    writeCachedStreakDays(data.currentStreak);
     markStreakSyncedToday();
+    useUserStore.getState().recordStreakSync(data.currentStreak, previousStreakDays);
+    window.dispatchEvent(new Event(STREAK_UPDATED_EVENT));
+    return data.currentStreak;
+}
+
+export async function syncLearningStreakForCompletedAttempt(attemptId: string) {
+    if (typeof window === 'undefined') return readCurrentStreakDays();
+
+    const attemptSyncKey = `${STREAK_ATTEMPT_SYNC_PREFIX}${attemptId}`;
+    if (getLocalStorageItem(attemptSyncKey) === todayKey()) {
+        return readCurrentStreakDays();
+    }
+
+    const previousStreakDays = useUserStore.getState().streakDays;
+    const data = await pingStreak();
+    markStreakSyncedToday();
+    setLocalStorageItem(attemptSyncKey, todayKey());
+
+    const previousForAnimation = previousStreakDays ?? (data.currentStreak > 0 ? data.currentStreak - 1 : null);
+    useUserStore.getState().recordStreakSync(data.currentStreak, previousForAnimation, {
+        source: 'learning-completion',
+    });
+
     window.dispatchEvent(new Event(STREAK_UPDATED_EVENT));
     return data.currentStreak;
 }
 
 export function useLearningStreak() {
-    const [streakDays, setStreakDays] = useState<number | null>(() => readCachedStreakDays());
-    const refreshFromCache = useCallback(() => {
-        setStreakDays(readCachedStreakDays());
-    }, []);
+    const storeStreakDays = useUserStore((state) => state.streakDays);
+    const isUserDataLoading = useUserStore((state) => state.isLoading);
+    const hasUserDataLoaded = useUserStore((state) => state.hasLoaded);
+    const loadUserData = useUserStore((state) => state.loadUserData);
 
     useEffect(() => {
-        const handleStreakUpdated = () => {
-            refreshFromCache();
-        };
-        window.addEventListener(STREAK_UPDATED_EVENT, handleStreakUpdated);
-        return () => {
-            window.removeEventListener(STREAK_UPDATED_EVENT, handleStreakUpdated);
-        };
-    }, [refreshFromCache]);
+        if (isUserDataLoading) {
+            return;
+        }
 
-    return { streakDays, isLoading: false };
+        if (!hasUserDataLoaded || storeStreakDays === null) {
+            void loadUserData().catch(() => undefined);
+        }
+    }, [hasUserDataLoaded, isUserDataLoading, loadUserData, storeStreakDays]);
+
+    return {
+        streakDays: storeStreakDays,
+        isLoading: isUserDataLoading || !hasUserDataLoaded,
+    };
 }

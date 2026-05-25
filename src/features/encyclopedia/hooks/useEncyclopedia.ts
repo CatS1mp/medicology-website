@@ -13,6 +13,7 @@ import {
 import {
     buildArticlePreviewLenient,
     extractArticlePlainTextLenient,
+    sanitizeArticlePreviewText,
 } from '@/shared/utils/article-content';
 
 function stripMarkdown(markdown: string): string {
@@ -43,7 +44,7 @@ function guessCategory(tags: DictionaryArticleResponse['tags']): ArticleCategory
 }
 
 function toSummary(a: DictionaryArticleResponse): ArticleSummary {
-    const plain = stripMarkdown(extractArticlePlainTextLenient(a.contentJson, a.contentMarkdown));
+    const plain = sanitizeArticlePreviewText(stripMarkdown(extractArticlePlainTextLenient(a.contentJson, a.contentMarkdown)));
     const excerpt = plain.slice(0, 220);
     const tags = (a.tags ?? [])?.map(t => ({ label: t.name, slug: t.id })) ?? [];
     const publishedAt = (a.publishedAt ?? a.createdAt ?? new Date().toISOString()).slice(0, 10);

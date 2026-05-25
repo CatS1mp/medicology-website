@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { syncLearningStreakForCompletedAttempt, useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getAttemptReview } from '@/shared/api/assessment';
 import { AttemptReviewResponse } from '@/shared/types/assessment';
 import { LessonStepProgress } from '@/features/courses/components/lesson/LessonStepProgress';
@@ -48,6 +49,11 @@ export default function AttemptReviewPage() {
             cancelled = true;
         };
     }, [params.attemptId]);
+
+    useEffect(() => {
+        if (!review?.completedAt) return;
+        void syncLearningStreakForCompletedAttempt(params.attemptId).catch(() => undefined);
+    }, [params.attemptId, review?.completedAt]);
 
     const answers = review?.answers ?? [];
     const totalSteps = Math.max(answers.length, 1);
@@ -104,14 +110,26 @@ export default function AttemptReviewPage() {
                         ) : !review || !currentAnswer ? (
                             <div className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-10 text-center text-gray-500">Không có dữ liệu câu trả lời để xem lại.</div>
                         ) : (
-                            <article className="rounded-3xl border border-gray-200 px-6 py-6">
-                                <div className="mb-5 flex items-center gap-2 text-sm text-gray-400">
+                            <article className="max-w-full overflow-hidden rounded-3xl border border-gray-200 px-6 py-6">
+                                <div className="mb-5 flex min-w-0 items-center gap-2 text-sm text-gray-400">
                                     <span>Bài làm</span>
                                     <span>›</span>
                                     <span className="font-semibold text-gray-700">Nội dung</span>
                                 </div>
+                                <div className="mb-4 flex justify-end">
+                                    <div className="flex items-center gap-2 rounded-full bg-[#f8fbff] px-3 py-1.5 text-xs font-bold text-gray-700">
+                                        <Image
+                                            src="/images/Mascot/26.svg"
+                                            alt="Mascot bài học"
+                                            width={32}
+                                            height={32}
+                                            className="h-8 w-8 object-contain"
+                                        />
+                                        Bài học
+                                    </div>
+                                </div>
                                 <LessonStepProgress currentStep={stepIndex + 1} totalSteps={totalSteps} />
-                                <div className="mb-4 rounded-xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98]">
+                                <div className="mb-4 break-words rounded-xl border border-[#bfe6fb] bg-[#f3fbff] px-4 py-3 text-sm text-[#126b98] [overflow-wrap:anywhere]">
                                     {review.resultStatus === 'PROVISIONAL'
                                         ? 'Kết quả vẫn có câu chờ manual review.'
                                         : review.passed

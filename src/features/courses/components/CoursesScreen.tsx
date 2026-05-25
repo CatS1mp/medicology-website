@@ -24,6 +24,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
     const { data, isLoading, error } = useRoadmap(slug);
     const { streakDays } = useLearningStreak();
     const [selectedCompletedLesson, setSelectedCompletedLesson] = useState<LessonNode | null>(null);
+    const [loadedRoadmapBackground, setLoadedRoadmapBackground] = useState(DEFAULT_COURSE_ICON);
 
     const { handleLogout } = useLogout();
 
@@ -43,13 +44,31 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
     }, [router, selectedCompletedLesson, slug]);
 
     const handleViewResult = useCallback(() => {
-        if (!selectedCompletedLesson?.href) return;
-        const safeHref = sanitizeAppHref(selectedCompletedLesson.href, `/courses/${slug}`);
-        router.push(`${safeHref}?mode=review`);
+        if (!selectedCompletedLesson) return;
+        const targetHref = selectedCompletedLesson.resultHref ?? selectedCompletedLesson.href;
+        if (!targetHref) return;
+        const safeHref = sanitizeAppHref(targetHref, `/courses/${slug}`);
+        router.push(selectedCompletedLesson.resultHref ? safeHref : `${safeHref}?mode=review`);
         setSelectedCompletedLesson(null);
     }, [router, selectedCompletedLesson, slug]);
 
     const roadmapBackgroundImage = data?.courseImageUrl || DEFAULT_COURSE_ICON;
+
+    React.useEffect(() => {
+        let cancelled = false;
+        const image = new Image();
+        image.onload = () => {
+            if (!cancelled) setLoadedRoadmapBackground(roadmapBackgroundImage);
+        };
+        image.onerror = () => {
+            if (!cancelled) setLoadedRoadmapBackground(DEFAULT_COURSE_ICON);
+        };
+        image.src = roadmapBackgroundImage;
+
+        return () => {
+            cancelled = true;
+        };
+    }, [roadmapBackgroundImage]);
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
@@ -63,7 +82,7 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                         <div
                             className="absolute inset-0 roadmap-course-bg transition-all duration-500 ease-out"
                             style={{
-                                backgroundImage: `url("${roadmapBackgroundImage}")`,
+                                backgroundImage: `url("${loadedRoadmapBackground}")`,
                             }}
                         />
                         <div className="absolute inset-0 backdrop-blur-[1px]" />
@@ -119,12 +138,12 @@ export const CoursesScreen: React.FC<CoursesScreenProps> = ({ slug }) => {
                     >
                         <div className="border-b border-[#bfe6fb] bg-gradient-to-r from-[#e8f6fe] via-[#f3fbff] to-[#eef9ff] px-6 py-5">
                             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#2aa4e8]">Xác nhận vào học</p>
-                            <h3 id="roadmap-complete-dialog-title" className="mt-2 text-xl font-extrabold text-[#126b98]">
+                            <h3 id="roadmap-complete-dialog-title" className="mt-2 break-words text-xl font-extrabold text-[#126b98] [overflow-wrap:anywhere]">
                                 {selectedCompletedLesson.title}
                             </h3>
                         </div>
                         <div className="px-6 py-5">
-                            <p id="roadmap-complete-dialog-desc" className="text-sm leading-relaxed text-gray-600">
+                            <p id="roadmap-complete-dialog-desc" className="break-words text-sm leading-relaxed text-gray-600 [overflow-wrap:anywhere]">
                                 Bạn đã hoàn thành nội dung này. Bạn muốn <span className="font-semibold text-gray-800">vào học lại</span> từ đầu,{' '}
                                 <span className="font-semibold text-gray-800">xem kết quả / bài đã chấm</span>, hay đóng hộp thoại?
                             </p>

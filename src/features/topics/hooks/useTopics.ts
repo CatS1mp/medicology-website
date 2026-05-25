@@ -2,8 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Topic, TopicFiltersState } from '../types';
 import { enrollCourse, getAvailableStudentCoursesPaged } from '@/shared/api/learning';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
+import { addEnrolledCourseToCache } from '@/features/courses/hooks/useEnrolledCourses';
+import { useUserStore } from '@/shared/store/useUserStore';
 
 const topicsCache = new Map<number, { items: Topic[], total: number }>();
+
+export function clearTopicsCache() {
+    topicsCache.clear();
+}
 
 export const useTopics = () => {
     const [filters, setFilters] = useState<TopicFiltersState>({
@@ -115,8 +121,16 @@ export const useTopics = () => {
 
         setEnrollingTopicId(topicId);
         try {
-            await enrollCourse(topicId);
+            const enrolledCourse = await enrollCourse(topicId);
+            addEnrolledCourseToCache(enrolledCourse);
+            useUserStore.getState().addEnrolledCourse(enrolledCourse);
             setAllTopics((current) => current.filter((topic) => topic.id !== topicId));
+            topicsCache.forEach((cached, cachePage) => {
+                topicsCache.set(cachePage, {
+                    items: cached.items.filter((topic) => topic.id !== topicId),
+                    total: Math.max(0, cached.total - 1),
+                });
+            });
         } finally {
             setEnrollingTopicId(null);
         }

@@ -15,6 +15,9 @@ import { getContentActivity, getCourses, getDashboardProgress } from '@/shared/a
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 import { useUserStore } from '@/shared/store/useUserStore';
 import { ChartDataPoint, LearningProgressItem, LearningResultPoint, LessonActivityDataset, LessonActivityRange, StatCard } from '../types';
+import type { AttemptSummaryResponse } from '@/shared/types/assessment';
+import type { CourseProgressResponse, CourseResponse } from '@/shared/types/learning';
+import { getCourseAttemptProgressData, getMainFinalizedAttempts } from '@/shared/utils/learning-progress';
 
 function mapActivityToChart(
     activities: { date: string; completedContents: number }[],
@@ -32,21 +35,98 @@ function mapActivityToChart(
     return { label, data, totalCompletedLessons };
 }
 
+function scoreToTenScale(score: number, maxScore: number): number {
+    if (!Number.isFinite(score) || !Number.isFinite(maxScore) || maxScore <= 0) return 0;
+    return Math.max(0, Math.min(10, (score / maxScore) * 10));
+}
+
+function getLessonCount(courses: CourseResponse[]): number {
+    return courses.reduce(
+        (sum, course) =>
+            sum +
+            (course.sections ?? []).reduce(
+                (sectionSum, section) => sectionSum + (section.contents?.length ?? 0),
+                0
+            ),
+        0
+    );
+}
+
+function buildRecentResults(attempts: AttemptSummaryResponse[]): LearningResultPoint[] {
+    return getMainFinalizedAttempts(attempts)
+        .filter((attempt) => typeof attempt.maxScore === 'number' && attempt.maxScore > 0)
+        .slice(-6)
+        .map((attempt) => ({
+            label: new Date(attempt.submittedAt ?? attempt.startedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
+            actual: scoreToTenScale(Number(attempt.score ?? 0), Number(attempt.maxScore ?? 0)),
+            target: 8,
+        }));
+}
+
+function buildProgressItems(
+    courses: CourseResponse[],
+    progress: CourseProgressResponse[],
+    attempts: AttemptSummaryResponse[]
+): LearningProgressItem[] {
+    const sortedCourses = courses.slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    const courseBySlug = new Map(sortedCourses.map((course) => [course.slug, course]));
+    const courseById = new Map(sortedCourses.map((course) => [course.id, course]));
+
+    return progress
+        .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
+        .map((item) => {
+            const course = courseById.get(item.courseId) ?? courseBySlug.get(item.courseSlug);
+            const attemptProgress = course ? getCourseAttemptProgressData(course, attempts) : null;
+            return {
+                id: item.courseId,
+                subject: item.courseName,
+                courseSlug: item.courseSlug,
+                completionPercent: attemptProgress?.completionPercent ?? item.completionPercent ?? 0,
+                color: course?.colorCode || '#3B82F6',
+                icon: '📘',
+                imageUrl: resolveCourseIconSrc(course?.iconFileName),
+            };
+        })
+        .sort((a, b) => {
+            const aCompleted = a.completionPercent >= 100;
+            const bCompleted = b.completionPercent >= 100;
+            if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+            if (!aCompleted && a.completionPercent !== b.completionPercent) {
+                return b.completionPercent - a.completionPercent;
+            }
+            return 0;
+        })
+        .slice(0, 5);
+}
+
 export const DashboardScreen: React.FC = () => {
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
     const hasSeenDashboardLoading = useUserStore((state) => state.hasSeenDashboardLoading);
     const setHasSeenDashboardLoading = useUserStore((state) => state.setHasSeenDashboardLoading);
+    const storeCourses = useUserStore((state) => state.courses);
+    const storeProgress = useUserStore((state) => state.courseProgress);
+    const storeAttempts = useUserStore((state) => state.attempts);
+    const canRenderFromUserData = hasSeenDashboardLoading && (storeProgress.length > 0 || storeCourses.length > 0);
+    const initialResults = canRenderFromUserData ? buildRecentResults(storeAttempts) : [];
+    const initialProgressItems = canRenderFromUserData
+        ? buildProgressItems(storeCourses, storeProgress, storeAttempts)
+        : [];
 
     const [lessonActivityDataset, setLessonActivityDataset] = React.useState<LessonActivityDataset | null>(null);
     const [activeRange, setActiveRange] = React.useState<LessonActivityRange>('last7');
-    const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(true);
-    const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>([]);
-    const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>([]);
-    const [totalLessons, setTotalLessons] = React.useState(0);
-    const [averageScore, setAverageScore] = React.useState(0);
-    const [activeCourseCount, setActiveCourseCount] = React.useState(0);
-    const [isDashboardLoading, setIsDashboardLoading] = React.useState(true);
+    const [isLessonActivityLoading, setIsLessonActivityLoading] = React.useState(!canRenderFromUserData);
+    const [learningResults, setLearningResults] = React.useState<LearningResultPoint[]>(initialResults);
+    const [learningProgress, setLearningProgress] = React.useState<LearningProgressItem[]>(initialProgressItems);
+    const [totalLessons, setTotalLessons] = React.useState(() => canRenderFromUserData ? getLessonCount(storeCourses) : 0);
+    const [averageScore, setAverageScore] = React.useState(() => {
+        const values = initialResults.map((item) => item.actual);
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    });
+    const [activeCourseCount, setActiveCourseCount] = React.useState(() =>
+        canRenderFromUserData ? (storeProgress.length || storeCourses.length) : 0
+    );
+    const [isDashboardLoading, setIsDashboardLoading] = React.useState(!canRenderFromUserData);
     const [showBotOverlay] = React.useState(!hasSeenDashboardLoading);
 
     const statCards: StatCard[] = [
@@ -57,96 +137,58 @@ export const DashboardScreen: React.FC = () => {
 
     React.useEffect(() => {
         let cancelled = false;
+
         async function run() {
-            setIsDashboardLoading(true);
+            setIsDashboardLoading(!canRenderFromUserData);
             try {
                 const activityDays = 7;
-                const promises: Promise<unknown>[] = [
-                    getDashboardProgress(activityDays).catch(() => null),
-                    getCourses().catch(() => []),
-                ];
+                const dashboardPromise = getDashboardProgress(activityDays);
+                const coursesPromise = storeCourses.length > 0
+                    ? Promise.resolve(storeCourses)
+                    : getCourses().catch(() => []);
+                const minimumLoadingPromise = hasSeenDashboardLoading
+                    ? Promise.resolve()
+                    : new Promise((resolve) => window.setTimeout(resolve, 2000));
 
-                if (!hasSeenDashboardLoading) {
-                    promises.push(new Promise((resolve) => setTimeout(resolve, 2000)));
-                }
+                const [dashboard, courses] = await Promise.all([
+                    dashboardPromise,
+                    coursesPromise,
+                    minimumLoadingPromise,
+                ]).then(([dashboardResult, coursesResult]) => [dashboardResult, coursesResult] as const);
 
-                const [dashboard, courses] = (await Promise.all(promises)) as [
-                    Awaited<ReturnType<typeof getDashboardProgress>> | null,
-                    Awaited<ReturnType<typeof getCourses>>,
-                ];
                 if (cancelled) return;
 
-                if (!hasSeenDashboardLoading) {
-                    (async () => {
-                        try {
-                            const { preloadEnrolledCourses, enrolledCoursesCache } = await import(
-                                '@/features/courses/hooks/useEnrolledCourses'
-                            );
-                            const { preloadRoadmap } = await import('@/features/courses/hooks/useRoadmap');
-
-                            await preloadEnrolledCourses(1, 6);
-
-                            const cached = enrolledCoursesCache.get(1);
-                            if (cached?.items) {
-                                const topSlugs = cached.items.slice(0, 3).map((c) => c.slug);
-                                for (const slug of topSlugs) {
-                                    await preloadRoadmap(slug).catch(() => undefined);
-                                }
-                            }
-                        } catch {
-                            // ignore preload errors
-                        }
-                    })();
-                }
-
                 const sortedCourses = courses.slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-                const lessonCount = sortedCourses.reduce(
-                    (sum, course) =>
-                        sum +
-                        (course.sections ?? []).reduce(
-                            (sectionSum, section) => sectionSum + (section.contents?.length ?? 0),
-                            0
-                        ),
-                    0
-                );
+                const progress = dashboard.courses ?? [];
+                const resolvedProgressItems = progress
+                    .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
+                    .slice(0, 5)
+                    .map((item) => {
+                        const course = sortedCourses.find(
+                            (candidate) => candidate.id === item.courseId || candidate.slug === item.courseSlug
+                        );
+                        return {
+                            id: item.courseId,
+                            subject: item.courseName,
+                            courseSlug: item.courseSlug,
+                            completionPercent: item.completionPercent ?? 0,
+                            color: course?.colorCode || '#3B82F6',
+                            icon: '📘',
+                            imageUrl: resolveCourseIconSrc(course?.iconFileName),
+                        };
+                    });
 
-                const progress = dashboard?.courses ?? [];
-                setAverageScore(dashboard?.averageScoreOnTenScale ?? 0);
+                setAverageScore(dashboard.averageScoreOnTenScale ?? 0);
                 setActiveCourseCount(progress.length);
-                setTotalLessons(lessonCount);
-
-                if (dashboard?.activity) {
-                    setLessonActivityDataset(mapActivityToChart(dashboard.activity.activities, 'last7'));
-                }
-
+                setTotalLessons(getLessonCount(sortedCourses));
+                setLessonActivityDataset(mapActivityToChart(dashboard.activity.activities, 'last7'));
                 setLearningResults(
-                    (dashboard?.recentGradedAttempts ?? []).map((attempt) => ({
+                    (dashboard.recentGradedAttempts ?? []).map((attempt) => ({
                         label: new Date(attempt.submittedAt).toLocaleDateString('vi-VN', { weekday: 'short' }),
                         actual: attempt.scoreOnTenScale,
                         target: 8,
                     }))
                 );
-
-                const resolvedProgressItems = progress
-                    .filter((item) => item.courseName.trim().toLowerCase() !== 'học tiếp thôi nào!')
-                    .slice(0, 5)
-                    .map((item) => ({
-                        id: item.courseId,
-                        subject: item.courseName,
-                        courseSlug: item.courseSlug,
-                        completionPercent: item.completionPercent ?? 0,
-                        color:
-                            sortedCourses.find(
-                                (course) => course.id === item.courseId || course.slug === item.courseSlug
-                            )?.colorCode || '#3B82F6',
-                        icon: '📘',
-                        imageUrl: resolveCourseIconSrc(
-                            sortedCourses.find(
-                                (course) => course.id === item.courseId || course.slug === item.courseSlug
-                            )?.iconFileName
-                        ),
-                    }));
-
                 setLearningProgress(resolvedProgressItems);
 
                 const urlsToPreload = resolvedProgressItems.map((item) => item.imageUrl).filter(Boolean) as string[];
@@ -161,22 +203,29 @@ export const DashboardScreen: React.FC = () => {
                             })
                     )
                 );
+
+                if (!hasSeenDashboardLoading) {
+                    setHasSeenDashboardLoading(true);
+                }
             } catch {
-                if (cancelled) return;
+                if (cancelled || canRenderFromUserData) return;
+                setLessonActivityDataset({
+                    label: 'last7',
+                    data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                    totalCompletedLessons: 0,
+                });
             } finally {
                 if (!cancelled) {
                     setIsDashboardLoading(false);
-                    if (!hasSeenDashboardLoading) {
-                        setHasSeenDashboardLoading(true);
-                    }
                 }
             }
         }
+
         run();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [canRenderFromUserData, hasSeenDashboardLoading, setHasSeenDashboardLoading, storeCourses]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -200,11 +249,13 @@ export const DashboardScreen: React.FC = () => {
             }
         }
 
-        loadLessonActivity();
+        if (!isDashboardLoading) {
+            loadLessonActivity();
+        }
         return () => {
             cancelled = true;
         };
-    }, [activeRange]);
+    }, [activeRange, isDashboardLoading]);
 
     const effectiveStreak = streakDays ?? 0;
 
@@ -231,23 +282,11 @@ export const DashboardScreen: React.FC = () => {
                                     <div>
                                         <h2 className="text-sm font-bold text-gray-800 mb-3">Tiến độ bài học</h2>
                                         <LessonProgressChart
-                                            datasets={
-                                                lessonActivityDataset
-                                                    ? [lessonActivityDataset]
-                                                    : [
-                                                          {
-                                                              label: activeRange,
-                                                              data: [
-                                                                  {
-                                                                      day: 'Hôm nay',
-                                                                      date: new Date().toLocaleDateString('vi-VN'),
-                                                                      value: 0,
-                                                                  },
-                                                              ],
-                                                              totalCompletedLessons: 0,
-                                                          },
-                                                      ]
-                                            }
+                                            datasets={lessonActivityDataset ? [lessonActivityDataset] : [{
+                                                label: activeRange,
+                                                data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                                                totalCompletedLessons: 0,
+                                            }]}
                                             totalLessons={totalLessons}
                                             activeRange={activeRange}
                                             onRangeChange={setActiveRange}
@@ -258,16 +297,8 @@ export const DashboardScreen: React.FC = () => {
 
                                 <div className="w-full flex-shrink-0 flex flex-col gap-4 xl:w-72">
                                     <LearningResultsChart
-                                        data={
-                                            learningResults.length
-                                                ? learningResults
-                                                : [{ label: 'N/A', actual: 0, target: 8 }]
-                                        }
-                                        currentScore={Number(
-                                            String(statCards.find((card) => card.id === 'score')?.value ?? '0').split(
-                                                '/'
-                                            )[0]
-                                        )}
+                                        data={learningResults.length ? learningResults : [{ label: 'N/A', actual: 0, target: 8 }]}
+                                        currentScore={Number(String(statCards.find((card) => card.id === 'score')?.value ?? '0').split('/')[0])}
                                     />
                                     <LearningProgress items={learningProgress} />
                                 </div>

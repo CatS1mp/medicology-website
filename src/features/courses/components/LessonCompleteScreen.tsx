@@ -6,14 +6,13 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { AppSidebar } from '@/shared/components/AppSidebar';
-import { Skeleton } from '@/shared/components/Skeleton';
+import { LessonCompletionLoadingScreen } from '@/features/courses/components/LessonCompletionLoadingScreen';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
+import { syncLearningStreakForCompletedAttempt, useLearningStreak } from '@/shared/hooks/useLearningStreak';
 import { getCourses, getRecommendationContext, notifyLearningProgressChanged } from '@/shared/api/learning';
+import type { LearningProgressChangedDetail } from '@/shared/api/learning';
 import { getAttemptResult, getAttemptResultFresh } from '@/shared/api/assessment';
 import { AttemptResultResponse } from '@/shared/types/assessment';
-import { clearEnrolledCoursesCache } from '@/features/courses/hooks/useEnrolledCourses';
-import { clearRoadmapCache } from '@/features/courses/hooks/useRoadmap';
 import { invalidateCachedValue, invalidateCachedValueByPrefix } from '@/shared/api/client-cache';
 import { cacheKeys } from '@/shared/api/cache-policy';
 import {
@@ -25,6 +24,7 @@ import {
     readingRecoSessionKey,
     writeReadingRecoToSession,
 } from '@/features/encyclopedia/readingRecoSessionCache';
+import { useUserStore } from '@/shared/store/useUserStore';
 import { mapDisplayOutcomeToUi, resolveMascotSrc, type LessonCompleteOutcome } from '@/shared/utils/attempt-display';
 
 interface LessonMeta {
@@ -50,7 +50,26 @@ function getResultScorePercent(result: AttemptResultResponse | null): number | n
     if (!result || !Number.isFinite(result.score) || !Number.isFinite(result.maxScore) || result.maxScore <= 0) {
         return null;
     }
+
     return Math.max(0, Math.min(100, Math.round((result.score / result.maxScore) * 100)));
+}
+
+function getMascotByScorePercent(percent: number): string {
+    if (percent >= 100) return '/images/Mascot/15.svg';
+    if (percent >= 75) return '/images/Mascot/22.svg';
+    if (percent >= 25) return '/images/Mascot/23.svg';
+    return '/images/Mascot/21.svg';
+}
+
+function preloadImageAsset(src: string): Promise<void> {
+    if (typeof window === 'undefined') return Promise.resolve();
+
+    return new Promise((resolve) => {
+        const image = new window.Image();
+        image.onload = () => resolve();
+        image.onerror = () => resolve();
+        image.src = src;
+    });
 }
 
 export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: string; lessonSlug: string }) {
@@ -59,8 +78,10 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     const attemptId = searchParams.get('attemptId');
     const { handleLogout } = useLogout();
     const { streakDays } = useLearningStreak();
+    const setStreakCardsBlocked = useUserStore((state) => state.setStreakCardsBlocked);
 
     const [loading, setLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState(0);
     const [pageError, setPageError] = useState('');
     const [resultFetchError, setResultFetchError] = useState('');
     const [lesson, setLesson] = useState<LessonMeta | null>(null);
@@ -69,16 +90,24 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     const [recommendationError, setRecommendationError] = useState('');
     const [recommendationStrategy, setRecommendationStrategy] = useState<'ai' | 'fallback_popular_unread' | null>(null);
     const [recommendations, setRecommendations] = useState<DictionaryArticleRecommendationItem[]>([]);
+    const streakSyncedRef = React.useRef(false);
     const progressSyncedRef = React.useRef(false);
 
     useEffect(() => {
+        streakSyncedRef.current = false;
         progressSyncedRef.current = false;
     }, [attemptId]);
+
+    React.useLayoutEffect(() => {
+        setStreakCardsBlocked(loading);
+        return () => setStreakCardsBlocked(false);
+    }, [loading, setStreakCardsBlocked]);
 
     useEffect(() => {
         let cancelled = false;
         async function run() {
             setLoading(true);
+            setLoadingProgress(8);
             setPageError('');
             setResultFetchError('');
             setRecommendationError('');
@@ -89,8 +118,10 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                 setRecommendations([]);
             }
             try {
+                setLoadingProgress(18);
                 const courses = await getCourses();
                 if (cancelled) return;
+                setLoadingProgress(32);
 
                 const course = courses.find((item) => item.slug === courseSlug);
                 let lessonFromCourses: LessonMeta | null = null;
@@ -110,11 +141,14 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                 }
                 setLesson(lessonFromCourses);
 
+                let fetchedResult: AttemptResultResponse | null = null;
                 if (!attemptId) {
                     setResult(null);
                 } else {
                     try {
+                        setLoadingProgress(48);
                         const attemptResult = await getAttemptResult(attemptId);
+                        fetchedResult = attemptResult;
                         if (!cancelled) setResult(attemptResult);
                     } catch (nextError) {
                         if (!cancelled) {
@@ -125,6 +159,16 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                         }
                     }
                 }
+                if (cancelled) return;
+
+                const scorePercent = getResultScorePercent(fetchedResult);
+                const mascotSrc = scorePercent === null ? null : getMascotByScorePercent(scorePercent);
+                if (mascotSrc) {
+                    setLoadingProgress(66);
+                    await preloadImageAsset(mascotSrc);
+                    if (cancelled) return;
+                }
+                setLoadingProgress(74);
 
                 try {
                     if (cachedRecoAtStart) {
@@ -134,6 +178,7 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                         }
                     } else {
                         setRecommendationLoading(true);
+                        setLoadingProgress(82);
                         const recentAttempts = await getRecommendationContext(8);
                         if (cancelled) return;
 
@@ -155,11 +200,12 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                 items: reco.items ?? [],
                             });
                         }
+                        if (!cancelled) setLoadingProgress(94);
                     }
                 } catch (nextError) {
                     if (!cancelled) {
                         setRecommendationError(
-                            nextError instanceof Error ? nextError.message : 'Không tải được đề xuất bài viết liên quan.'
+                            nextError instanceof Error ? nextError.message : 'Khong tai duoc de xuat bai viet lien quan.'
                         );
                     }
                 } finally {
@@ -170,7 +216,10 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                     setPageError(nextError instanceof Error ? nextError.message : 'Không thể tải trang hoàn thành.');
                 }
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) {
+                    setLoadingProgress(100);
+                    setLoading(false);
+                }
             }
         }
         void run();
@@ -195,6 +244,25 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     }, [attemptId, result?.resultStatus]);
 
     useEffect(() => {
+        if (!attemptId || !result || streakSyncedRef.current) {
+            return;
+        }
+
+        const completedStatuses = new Set(['SUBMITTED', 'PENDING_REVIEW', 'FINALIZED']);
+        if (!completedStatuses.has(result.attemptStatus)) {
+            return;
+        }
+
+        void syncLearningStreakForCompletedAttempt(attemptId)
+            .then(() => {
+                streakSyncedRef.current = true;
+            })
+            .catch(() => {
+                streakSyncedRef.current = false;
+            });
+    }, [attemptId, result]);
+
+    useEffect(() => {
         if (!result || progressSyncedRef.current) {
             return;
         }
@@ -207,13 +275,22 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
         invalidateCachedValue(
             cacheKeys.assessment.myAttempts(),
             cacheKeys.assessment.inProgressAttempts(),
-            cacheKeys.learning.progress()
         );
         invalidateCachedValueByPrefix(cacheKeys.learning.contentActivityPrefix());
-        clearEnrolledCoursesCache();
-        clearRoadmapCache(courseSlug);
-        notifyLearningProgressChanged();
-    }, [courseSlug, result]);
+        const progressDetail: LearningProgressChangedDetail = {
+            attemptId: attemptId ?? undefined,
+            courseSlug,
+            contentId: result.contentId,
+            completedAt: result.completedAt,
+            attemptStatus: result.attemptStatus,
+            resultStatus: result.resultStatus,
+            passed: result.passed,
+            score: result.score,
+            maxScore: result.maxScore,
+        };
+        useUserStore.getState().recordLearningProgressChange(progressDetail);
+        notifyLearningProgressChanged(progressDetail);
+    }, [attemptId, courseSlug, result]);
 
     const outcome: Outcome = useMemo(() => {
         if (loading) return 'loading';
@@ -335,9 +412,23 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     }, [outcome]);
 
     const resultScorePercent = useMemo(() => getResultScorePercent(result), [result]);
-    const resultMascotSrc = resolveMascotSrc(result?.mascotKey, resultScorePercent);
+    const resultMascotSrc = result
+        ? resolveMascotSrc(result.mascotKey, resultScorePercent) ??
+          (resultScorePercent === null ? '/images/Mascot/26.svg' : getMascotByScorePercent(resultScorePercent))
+        : null;
+    const resultMascotLabel = resultScorePercent === null ? 'Bài học' : `${resultScorePercent}% điểm`;
     const passThreshold =
         result?.passThresholdScore != null ? result.passThresholdScore : result ? result.maxScore * 0.5 : 0;
+
+    if (outcome === 'loading') {
+        return (
+            <LessonCompletionLoadingScreen
+                streakDays={streakDays ?? 0}
+                progress={loadingProgress}
+                onLogout={handleLogout}
+            />
+        );
+    }
 
     return (
         <div className="flex h-screen overflow-hidden bg-[#f7f8fa] font-sans">
@@ -354,36 +445,41 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                             Quay lại lộ trình
                         </Link>
 
-                        {outcome === 'loading' ? (
-                            <LessonCompleteSkeleton />
-                        ) : pageError ? (
+                        {pageError ? (
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{pageError}</div>
                         ) : (
-                            <div className={`rounded-3xl border px-8 py-10 shadow-sm ${panelClass}`}>
-                                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                                    <div className="min-w-0">
+                            <div className={`max-w-full overflow-hidden rounded-3xl border px-8 py-10 shadow-sm ${panelClass}`}>
+                                <div className="relative flex flex-col gap-6 lg:block lg:min-h-[clamp(14rem,20vw,24rem)]">
+                                    <div className="min-w-0 lg:max-w-[clamp(18rem,34vw,34rem)]">
                                         <div className="flex items-center gap-3">
                                             <span className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white ${iconWrapClass}`}>
                                                 {iconGlyph}
                                             </span>
-                                            <p className={`text-xs font-bold uppercase tracking-[0.24em] ${badgeTone}`}>{badgeLabel}</p>
+                                            <p className={`min-w-0 break-words text-xs font-bold uppercase tracking-[0.24em] [overflow-wrap:anywhere] ${badgeTone}`}>{badgeLabel}</p>
                                         </div>
-                                        <h1 className="mt-5 text-3xl font-extrabold text-gray-900">{headline}</h1>
-                                        {subline ? <p className="mt-2 text-sm text-gray-700">{subline}</p> : null}
+                                        <h1 className="mt-5 break-words text-3xl font-extrabold text-gray-900 [overflow-wrap:anywhere]">{headline}</h1>
+                                        {subline ? <p className="mt-2 break-words text-sm text-gray-700 [overflow-wrap:anywhere]">{subline}</p> : null}
                                     </div>
 
                                     {resultMascotSrc ? (
-                                        <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/80 bg-white/70 px-4 py-3 shadow-sm">
+                                        <div className="relative flex w-full shrink-0 flex-col items-center overflow-visible rounded-2xl px-4 py-0 lg:absolute lg:right-[-8rem] lg:top-[-9rem] lg:w-[clamp(15rem,22vw,28rem)]">
                                             <Image
                                                 src={resultMascotSrc}
                                                 alt="Mascot kết quả bài tập"
-                                                width={112}
-                                                height={112}
-                                                className="h-28 w-28 object-contain"
+                                                width={768}
+                                                height={768}
+                                                priority
+                                                loading="eager"
+                                                className="h-[clamp(15rem,27vw,32rem)] w-[clamp(15rem,27vw,32rem)] max-w-none object-contain"
                                             />
-                                            <span className="mt-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-700 shadow-sm">
+                                            <span className={`translate-x-[-1rem] mt-[clamp(-8rem,-9vw,-5.75rem)] rounded-full bg-white/85 px-4 py-1.5 text-sm font-bold text-gray-700 shadow-sm backdrop-blur-sm ${resultScorePercent === null ? 'hidden' : ''}`}>
                                                 {resultScorePercent}% điểm
                                             </span>
+                                            {resultScorePercent === null ? (
+                                                <span className="translate-x-[-1rem] mt-[clamp(-8rem,-9vw,-5.75rem)] rounded-full bg-white/85 px-4 py-1.5 text-sm font-bold text-gray-700 shadow-sm backdrop-blur-sm">
+                                                    {resultMascotLabel}
+                                                </span>
+                                            ) : null}
                                         </div>
                                     ) : null}
                                 </div>
@@ -392,7 +488,7 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                 ) : null}
 
                                 {lesson && (
-                                    <p className="mt-3 text-sm text-gray-600">
+                                    <p className="mt-3 max-w-full break-words text-sm text-gray-600 [overflow-wrap:anywhere]">
                                         <span className="font-semibold text-gray-800">{lesson.name}</span>
                                         {' · '}
                                         {lesson.courseName} • {lesson.sectionName}
@@ -402,12 +498,12 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                 {result && outcome !== 'result-error' ? (
                                     <>
                                         {outcome === 'grading' && result.pendingManualReviews > 0 ? (
-                                            <p className="mt-3 text-sm font-semibold text-amber-800">
+                                            <p className="mt-3 break-words text-sm font-semibold text-amber-800 [overflow-wrap:anywhere]">
                                                 Còn {result.pendingManualReviews} câu đang chờ chấm thủ công.
                                             </p>
                                         ) : null}
                                         {result.maxScore > 0 ? (
-                                            <p className="mt-3 text-sm text-gray-700">
+                                            <p className="mt-3 break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
                                                 <span className="font-semibold text-gray-900">Điều kiện đạt:</span>
                                                 {' '}
                                                 tổng điểm ≥ {formatScore(passThreshold)} / {formatScore(result.maxScore)}
@@ -426,18 +522,18 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                     </>
                                 ) : null}
 
-                                <div className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                                <div className="mt-6 max-w-full overflow-hidden rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+                                    <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 [overflow-wrap:anywhere]">
                                         Bài viết nên đọc tiếp
                                     </p>
                                     {recommendationLoading ? (
-                                        <p className="mt-2 text-sm text-gray-600">Đang phân tích các lần làm bài gần nhất để đề xuất bài viết...</p>
+                                        <p className="mt-2 break-words text-sm text-gray-600 [overflow-wrap:anywhere]">Dang phan tich attempts gan nhat de de xuat bai viet...</p>
                                     ) : null}
                                     {!recommendationLoading && recommendationError ? (
-                                        <p className="mt-2 text-sm text-rose-600">{recommendationError}</p>
+                                        <p className="mt-2 break-words text-sm text-rose-600 [overflow-wrap:anywhere]">{recommendationError}</p>
                                     ) : null}
                                     {!recommendationLoading && !recommendationError && recommendations.length === 0 ? (
-                                        <p className="mt-2 text-sm text-gray-600">Chưa có đề xuất phù hợp lúc này.</p>
+                                        <p className="mt-2 break-words text-sm text-gray-600 [overflow-wrap:anywhere]">Chua co de xuat phu hop luc nay.</p>
                                     ) : null}
                                     {!recommendationLoading && !recommendationError && recommendations.length > 0 ? (
                                         <div className="mt-3 grid gap-3">
@@ -447,24 +543,24 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
                                                     href={`/encyclopedia/${encodeURIComponent(item.slug)}`}
                                                     className="block rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-[#2aa4e8]"
                                                 >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-gray-900">{item.title}</p>
-                                                            <p className="mt-1 text-xs text-gray-600">{item.reason}</p>
+                                                    <div className="flex min-w-0 items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="break-words text-sm font-semibold text-gray-900 [overflow-wrap:anywhere]">{item.title}</p>
+                                                            <p className="mt-1 break-words text-xs text-gray-600 [overflow-wrap:anywhere]">{item.reason}</p>
                                                         </div>
-                                                        <span className="rounded-full bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
-                                                            {item.source === 'ai' ? `AI ${Math.round((item.matchScore ?? 0) * 100)}%` : 'Dự phòng'}
+                                                        <span className="shrink-0 rounded-full bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
+                                                            {item.source === 'ai' ? `AI ${Math.round((item.matchScore ?? 0) * 100)}%` : 'Fallback'}
                                                         </span>
                                                     </div>
                                                     {item.tags?.length ? (
-                                                        <p className="mt-2 text-[11px] text-gray-500">
-                                                            Thẻ: {item.tags.slice(0, 4).join(', ')}
+                                                        <p className="mt-2 break-words text-[11px] text-gray-500 [overflow-wrap:anywhere]">
+                                                            Tags: {item.tags.slice(0, 4).join(', ')}
                                                         </p>
                                                     ) : null}
                                                 </Link>
                                             ))}
-                                            <p className="text-[11px] text-gray-500">
-                                                Nguồn đề xuất: {recommendationStrategy === 'ai' ? 'AI khớp nội dung học' : 'Bài xem nhiều, chưa đọc'}
+                                            <p className="break-words text-[11px] text-gray-500 [overflow-wrap:anywhere]">
+                                                Nguon de xuat: {recommendationStrategy === 'ai' ? 'AI relevance matching' : 'Top viewed unread fallback'}
                                             </p>
                                         </div>
                                     ) : null}
@@ -504,28 +600,34 @@ export function LessonCompleteScreen({ courseSlug, lessonSlug }: { courseSlug: s
     );
 }
 
-function LessonCompleteSkeleton() {
-    return (
-        <div className="rounded-3xl border border-gray-200 bg-white px-8 py-10">
-            <Skeleton className="h-3 w-40 rounded" />
-            <Skeleton className="mt-5 h-10 w-2/3 rounded" />
-            <Skeleton className="mt-3 h-4 w-1/2 rounded" />
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-                        <Skeleton className="h-3 w-16 rounded" />
-                        <Skeleton className="mt-2 h-8 w-12 rounded" />
-                    </div>
-                ))}
-            </div>
-            <div className="mt-7 flex gap-3">
-                <Skeleton className="h-10 w-40 rounded-full" />
-                <Skeleton className="h-10 w-40 rounded-full" />
+/*
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-600">
+                Äang hoÃ n táº¥t bÃ i táº­p
+            </p>
+            <h1 className="mt-3 text-2xl font-extrabold text-gray-900">
+                Há»‡ thá»‘ng Ä‘ang ghi nháº­n káº¿t quáº£ cá»§a báº¡n
+            </h1>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">
+                Giá»¯ nguyÃªn mÃ n hÃ¬nh trong giÃ¢y lÃ¡t Ä‘á»ƒ cáº­p nháº­t tiáº¿n Ä‘á»™ khÃ³a há»c.
+            </p>
+
+            <div className="mt-8 w-full max-w-md">
+                <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+                    <span>Tiáº¿n trÃ¬nh</span>
+                    <span className="text-emerald-600">{safeProgress}%</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                        style={{ width: `${safeProgress}%` }}
+                    />
+                </div>
             </div>
         </div>
     );
 }
 
+*/
 function StatCard({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-2xl border border-white bg-white/70 px-4 py-4 shadow-sm backdrop-blur">

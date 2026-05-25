@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { getEnrolledCourses } from '@/shared/api/learning';
+import { getEnrolledCourses, getProgress } from '@/shared/api/learning';
 import { courseRoadmapPath } from '@/features/courses/utils/course-route';
+import { getUnreadCount } from '@/shared/api/notifications';
 
 interface NavItem {
     icon: React.ReactNode;
@@ -92,6 +93,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const [courseLinks, setCourseLinks] = useState<Array<{ href: string; label: string }>>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const isInCourses = pathname?.startsWith('/courses');
     const [coursesOpen, setCoursesOpen] = useState(false);
@@ -99,13 +101,60 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
     React.useEffect(() => {
         let cancelled = false;
 
+        async function fetchUnreadCount() {
+            try {
+                const res = await getUnreadCount();
+                if (!cancelled) {
+                    setUnreadCount(res.count);
+                }
+            } catch {
+                if (!cancelled) setUnreadCount(0);
+            }
+        }
+
+        fetchUnreadCount();
+
+        const handleNotificationsChanged = () => {
+            void fetchUnreadCount();
+        };
+
+        window.addEventListener('notifications:changed', handleNotificationsChanged);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('notifications:changed', handleNotificationsChanged);
+        };
+    }, [pathname]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
         async function loadEnrolledCourses() {
             try {
-                const courses = await getEnrolledCourses();
+                const [courses, progress] = await Promise.all([
+                    getEnrolledCourses(),
+                    getProgress().catch(() => []),
+                ]);
                 if (cancelled) return;
+
+                const incompleteCourseIds = new Set(
+                    progress
+                        .filter((item) => Math.round(Number(item.completionPercent ?? 0)) < 100)
+                        .map((item) => item.courseId)
+                );
+                const incompleteCourseSlugs = new Set(
+                    progress
+                        .filter((item) => Math.round(Number(item.completionPercent ?? 0)) < 100)
+                        .map((item) => item.courseSlug)
+                );
+
                 setCourseLinks(
                     courses
-                        .filter((course) => Boolean(course.slug?.trim() || course.id))
+                        .filter((course) =>
+                            Boolean(course.slug?.trim() || course.id) &&
+                            (progress.length === 0 ||
+                                incompleteCourseIds.has(course.id) ||
+                                incompleteCourseSlugs.has(course.slug))
+                        )
                         .slice(0, 3)
                         .map((course) => ({
                             href: courseRoadmapPath(course),
@@ -119,9 +168,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
 
         loadEnrolledCourses();
         window.addEventListener('learning:courses-changed', loadEnrolledCourses);
+        window.addEventListener('learning:progress-changed', loadEnrolledCourses);
         return () => {
             cancelled = true;
             window.removeEventListener('learning:courses-changed', loadEnrolledCourses);
+            window.removeEventListener('learning:progress-changed', loadEnrolledCourses);
         };
     }, []);
 
@@ -173,12 +224,20 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
                                                     : `gap-4 px-3 py-3 rounded-2xl text-[16px] ${isActive ? 'bg-[#E5F0FF] text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50'}`
                                             }`}
                                         >
-                                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+                                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 relative">
                                                 {item.icon}
+                                                {item.label === 'Thông báo' && unreadCount > 0 && collapsed && (
+                                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                                                )}
                                             </span>
                                             {!collapsed && (
                                                 <>
                                                     <span className="flex-1 truncate">{item.label}</span>
+                                                    {item.label === 'Thông báo' && unreadCount > 0 && (
+                                                        <span className="flex-shrink-0 bg-[#4147D5] text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                                            {unreadCount}
+                                                        </span>
+                                                    )}
                                                     {isCourses && (
                                                         <button
                                                             type="button"
@@ -217,7 +276,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ lockScroll = false }) =>
 
                                                                 <div className="flex items-center gap-3 justify-between">
                                                                     <span
-                                                                        className={`block text-[15px] leading-tight transition-colors font-medium ${
+                                                                        className={`block min-w-0 break-words text-[15px] font-medium leading-tight transition-colors [overflow-wrap:anywhere] ${
                                                                             isCourseActive
                                                                                 ? 'text-[#4147D5]'
                                                                                 : 'text-[#344054]'
