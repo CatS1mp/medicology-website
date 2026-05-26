@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseUserLayout } from '@/shared/components/BaseUserLayout';
 import {
     getNotificationPreference,
     getNotifications,
+    getUnreadCount,
     markNotificationRead,
     NotificationItem,
     NotificationPreference,
@@ -12,6 +13,7 @@ import {
 } from '@/shared/api/notifications';
 
 type FilterKey = 'ALL' | 'UNREAD' | 'READ';
+const PAGE_SIZE = 10;
 
 const typeMeta: Record<string, { label: string; tone: string; icon: React.ReactNode }> = {
     COMMENT: {
@@ -72,28 +74,58 @@ export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [preference, setPreference] = useState<NotificationPreference | null>(null);
     const [filter, setFilter] = useState<FilterKey>('ALL');
+    const [page, setPage] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingPreference, setIsSavingPreference] = useState(false);
     const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const loadNotifications = useCallback(async () => {
+        const read = filter === 'READ' ? true : filter === 'UNREAD' ? false : undefined;
+        const [notificationData, unreadData] = await Promise.all([
+            getNotifications({ page, size: PAGE_SIZE, read }),
+            getUnreadCount(),
+        ]);
+        setNotifications(notificationData.content);
+        setTotalItems(notificationData.totalElements);
+        setTotalPages(Math.max(1, notificationData.totalPages));
+        setUnreadCount(unreadData.count);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('notifications:changed'));
+        }
+    }, [filter, page]);
+
     useEffect(() => {
         let cancelled = false;
 
-        async function loadData() {
+        async function loadPreference() {
+            try {
+                const preferenceData = await getNotificationPreference();
+                if (!cancelled) setPreference(preferenceData);
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Không thể tải tùy chọn nhận tin.');
+                }
+            }
+        }
+
+        loadPreference();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadPage() {
             setIsLoading(true);
             setError(null);
             try {
-                const [notificationData, preferenceData] = await Promise.all([
-                    getNotifications(),
-                    getNotificationPreference(),
-                ]);
-                if (cancelled) return;
-                setNotifications(notificationData);
-                setPreference(preferenceData);
-                if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('notifications:changed'));
-                }
+                await loadNotifications();
             } catch (err) {
                 if (!cancelled) {
                     setError(err instanceof Error ? err.message : 'Không thể tải thông báo.');
@@ -103,30 +135,27 @@ export default function NotificationsPage() {
             }
         }
 
-        loadData();
+        loadPage();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [loadNotifications]);
 
-    const filteredNotifications = useMemo(() => {
-        if (filter === 'UNREAD') return notifications.filter((item) => !item.isRead);
-        if (filter === 'READ') return notifications.filter((item) => item.isRead);
-        return notifications;
-    }, [filter, notifications]);
+    useEffect(() => {
+        if (page > totalPages) {
+            setPage(totalPages);
+        }
+    }, [page, totalPages]);
 
-    const unreadCount = notifications.filter((item) => !item.isRead).length;
+    const pageNumbers = useMemo(() => Array.from({ length: totalPages }).map((_, index) => index + 1), [totalPages]);
 
     async function handleMarkRead(item: NotificationItem) {
         if (item.isRead) return;
         setPendingNotificationId(item.id);
         setError(null);
         try {
-            const updated = await markNotificationRead(item.id);
-            setNotifications((current) => current.map((entry) => (entry.id === item.id ? updated : entry)));
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('notifications:changed'));
-            }
+            await markNotificationRead(item.id);
+            await loadNotifications();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Không thể cập nhật trạng thái đọc.');
         } finally {
@@ -171,7 +200,7 @@ export default function NotificationsPage() {
                         <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
                             <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                                 <p className="text-xs font-medium text-gray-500">Tổng</p>
-                                <p className="mt-1 text-2xl font-semibold text-gray-950">{notifications.length}</p>
+                                <p className="mt-1 text-2xl font-semibold text-gray-950">{filter === 'ALL' ? totalItems : '-'}</p>
                             </div>
                             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
                                 <p className="text-xs font-medium text-blue-600">Chưa đọc</p>
@@ -192,7 +221,7 @@ export default function NotificationsPage() {
                         <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-950">Hộp thư</h2>
-                                <p className="mt-1 text-sm text-gray-500">Danh sách thông báo được lấy từ dịch vụ notification.</p>
+                                <p className="mt-1 text-sm text-gray-500">Danh sách thông báo được phân trang từ dịch vụ notification.</p>
                             </div>
 
                             <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
@@ -204,7 +233,10 @@ export default function NotificationsPage() {
                                     <button
                                         key={item.key}
                                         type="button"
-                                        onClick={() => setFilter(item.key as FilterKey)}
+                                        onClick={() => {
+                                            setFilter(item.key as FilterKey);
+                                            setPage(1);
+                                        }}
                                         className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                                             filter === item.key
                                                 ? 'bg-white text-[#4147D5] shadow-sm'
@@ -223,14 +255,14 @@ export default function NotificationsPage() {
                                     <div key={item} className="h-28 animate-pulse rounded-xl bg-gray-100" />
                                 ))}
                             </div>
-                        ) : filteredNotifications.length === 0 ? (
+                        ) : notifications.length === 0 ? (
                             <div className="py-16 text-center">
                                 <p className="text-base font-medium text-gray-900">Không có thông báo phù hợp</p>
                                 <p className="mt-2 text-sm text-gray-500">Khi có thông báo mới, nội dung sẽ xuất hiện tại đây.</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100">
-                                {filteredNotifications.map((item) => {
+                                {notifications.map((item) => {
                                     const type = typeMeta[item.type] ?? typeMeta.SYSTEM;
 
                                     return (
@@ -274,6 +306,68 @@ export default function NotificationsPage() {
                                         </article>
                                     );
                                 })}
+                            </div>
+                        )}
+
+                        {!isLoading && totalItems > 0 && (
+                            <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-gray-500">
+                                    Hiển thị {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, totalItems)} trong {totalItems} thông báo
+                                </p>
+                                <div className="flex items-center justify-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                                        disabled={page === 1}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label="Trang trước"
+                                    >
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+
+                                    {pageNumbers.map((pageNumber) => {
+                                        if (
+                                            pageNumber === 1 ||
+                                            pageNumber === totalPages ||
+                                            Math.abs(pageNumber - page) <= 1
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNumber}
+                                                    type="button"
+                                                    onClick={() => setPage(pageNumber)}
+                                                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                                                        page === pageNumber
+                                                            ? 'bg-[#4147D5] text-white shadow-sm'
+                                                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    {pageNumber}
+                                                </button>
+                                            );
+                                        }
+
+                                        if (pageNumber === page - 2 || pageNumber === page + 2) {
+                                            return <span key={pageNumber} className="px-1 text-sm text-gray-400">...</span>;
+                                        }
+
+                                        return null;
+                                    })}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                                        disabled={page === totalPages}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label="Trang sau"
+                                    >
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </section>
@@ -330,7 +424,6 @@ export default function NotificationsPage() {
                                 </label>
                             </div>
                         </section>
-
                     </aside>
                 </div>
             </div>

@@ -43,12 +43,37 @@ export interface NotificationCreatePayload {
     relatedCourseId?: string;
 }
 
-export function getNotifications() {
-    return requestApi<NotificationItem[]>('/api/notifications');
+export interface NotificationPage {
+    content: NotificationItem[];
+    totalElements: number;
+    totalPages: number;
+    page: number;
+    size: number;
+    numberOfElements: number;
+    first: boolean;
+    last: boolean;
 }
 
-export function getUnreadNotifications() {
-    return requestApi<NotificationItem[]>('/api/notifications/unread');
+export interface NotificationPageParams {
+    page?: number;
+    size?: number;
+    read?: boolean;
+}
+
+function toQueryString(params?: NotificationPageParams) {
+    const query = new URLSearchParams();
+    query.set('page', String(Math.max(0, (params?.page ?? 1) - 1)));
+    query.set('size', String(params?.size ?? 10));
+    if (params?.read !== undefined) query.set('read', String(params.read));
+    return `?${query.toString()}`;
+}
+
+export function getNotifications(params?: NotificationPageParams) {
+    return requestApi<NotificationPage>(`/api/notifications${toQueryString(params)}`);
+}
+
+export function getUnreadNotifications(params?: Omit<NotificationPageParams, 'read'>) {
+    return requestApi<NotificationPage>(`/api/notifications/unread${toQueryString(params)}`);
 }
 
 export function getUnreadCount() {
