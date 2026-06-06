@@ -14,10 +14,3 @@ export interface Topic {
     lessonCount?: number;
     imageUrl: string;
 }
-
-export interface TopicFiltersState {
-    sortBy: 'Phổ biến nhất' | 'Mới nhất' | 'Đánh giá cao';
-    level: 'Mọi trình độ' | TopicLevel;
-    category: 'Tất cả' | string;
-    courseCount: 'Tất cả' | '1-3 khóa học' | '4-7 khóa học' | '+7 khóa học';
-}

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import styles from '@/features/admin/admin.module.css';
 import tableStyles from './admin-dictionary-screen.module.css';
 import { BaseAdminLayout } from '@/features/admin/components/layout/BaseAdminLayout';
@@ -28,6 +29,7 @@ export const AdminDictionaryScreen: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [page, setPage] = useState(1);
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [total, setTotal] = useState(0);
 
     const load = useCallback(async () => {
@@ -53,12 +55,26 @@ export const AdminDictionaryScreen: React.FC = () => {
     useEffect(() => {
         const handleClickOutside = (evt: MouseEvent) => {
             const target = evt.target as HTMLElement | null;
-            if (!target?.closest(`.${tableStyles.rowMenuWrap}`)) {
+            if (!target?.closest(`.${tableStyles.rowMenuWrap}`) && !target?.closest(`.${tableStyles.rowMenuPortal}`)) {
                 setMenuOpenId(null);
+                setMenuPos(null);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const closeMenu = () => {
+            setMenuOpenId(null);
+            setMenuPos(null);
+        };
+        window.addEventListener('resize', closeMenu);
+        window.addEventListener('scroll', closeMenu, true);
+        return () => {
+            window.removeEventListener('resize', closeMenu);
+            window.removeEventListener('scroll', closeMenu, true);
+        };
     }, []);
 
     const handleDelete = async (a: DictionaryArticleResponse) => {
@@ -103,6 +119,32 @@ export const AdminDictionaryScreen: React.FC = () => {
         if (nearEnd) return ['1', '...', String(hardTotal - 2), String(hardTotal - 1), String(hardTotal)];
         return ['1', '...', String(currentPage), '...', String(hardTotal)];
     }, [currentPage, totalPages]);
+
+    const menuItem = useMemo(
+        () => pagedArticles.find((item) => item.id === menuOpenId) ?? null,
+        [menuOpenId, pagedArticles]
+    );
+
+    const openRowMenu = (event: React.MouseEvent<HTMLButtonElement>, articleId: string) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const menuWidth = 160;
+        const menuHeight = 132;
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        const gap = 6;
+
+        let left = rect.right - menuWidth;
+        if (left < gap) left = gap;
+        if (left + menuWidth > viewportW - gap) left = viewportW - menuWidth - gap;
+
+        let top = rect.bottom + gap;
+        if (top + menuHeight > viewportH - gap) {
+            top = Math.max(gap, rect.top - menuHeight - gap);
+        }
+
+        setMenuPos({ top, left });
+        setMenuOpenId((cur) => (cur === articleId ? null : articleId));
+    };
 
     const toHumanAuthor = (adminId?: string | null) => {
         if (!adminId) return 'Jana Kim';
@@ -217,7 +259,6 @@ export const AdminDictionaryScreen: React.FC = () => {
                         {pagedArticles.map((item, index) => {
                             const tagStr = (item.tags ?? []).map((t) => t.name).join(' | ') || '---';
                     const absoluteIndex = start + index;
-                            const isRowMenuOpen = menuOpenId === item.id;
                             return (
                                 <tr key={item.id}>
                                     <td className={tableStyles.checkboxCol}>
@@ -245,36 +286,11 @@ export const AdminDictionaryScreen: React.FC = () => {
                                                 type="button"
                                                 className={tableStyles.moreBtn}
                                                 aria-label="Tác vụ"
-                                                onClick={() => setMenuOpenId((cur) => (cur === item.id ? null : item.id))}
+                                                onClick={(event) => openRowMenu(event, item.id)}
                                                 disabled={busyId === item.id}
                                             >
                                                 ⋮
                                             </button>
-                                            {isRowMenuOpen && (
-                                                <div className={tableStyles.rowMenu}>
-                                                    <Link
-                                                        href={`/encyclopedia/${item.slug}`}
-                                                        className={tableStyles.rowMenuItem}
-                                                        onClick={() => setMenuOpenId(null)}
-                                                    >
-                                                        👁 Xem chi tiết
-                                                    </Link>
-                                                    <Link
-                                                        href={`/admin/dictionary/${item.id}/editor`}
-                                                        className={tableStyles.rowMenuItem}
-                                                        onClick={() => setMenuOpenId(null)}
-                                                    >
-                                                        ✎ Chỉnh sửa
-                                                    </Link>
-                                                    <button
-                                                        type="button"
-                                                        className={`${tableStyles.rowMenuItem} ${tableStyles.rowMenuDelete}`}
-                                                        onClick={() => void handleDelete(item)}
-                                                    >
-                                                        × Xóa thuật ngữ
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -322,6 +338,39 @@ export const AdminDictionaryScreen: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {menuItem && menuPos && createPortal(
+                <div className={tableStyles.rowMenuPortal} style={{ top: menuPos.top, left: menuPos.left }}>
+                    <Link
+                        href={`/encyclopedia/${menuItem.slug}`}
+                        className={tableStyles.rowMenuItem}
+                        onClick={() => {
+                            setMenuOpenId(null);
+                            setMenuPos(null);
+                        }}
+                    >
+                        👁 Xem chi tiết
+                    </Link>
+                    <Link
+                        href={`/admin/dictionary/${menuItem.id}/editor`}
+                        className={tableStyles.rowMenuItem}
+                        onClick={() => {
+                            setMenuOpenId(null);
+                            setMenuPos(null);
+                        }}
+                    >
+                        ✎ Chỉnh sửa
+                    </Link>
+                    <button
+                        type="button"
+                        className={`${tableStyles.rowMenuItem} ${tableStyles.rowMenuDelete}`}
+                        onClick={() => void handleDelete(menuItem)}
+                    >
+                        × Xóa thuật ngữ
+                    </button>
+                </div>,
+                document.body
+            )}
         </BaseAdminLayout>
     );
 };

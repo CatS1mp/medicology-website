@@ -3,12 +3,19 @@
 import React from 'react';
 import styles from '@/features/admin/admin.module.css';
 
-// Generating some dummy data for the 31 days
-const data = Array.from({ length: 11 }, (_, i) => ({
-    day: i * 3 + 1,
-    started: Math.floor(Math.random() * 60) + 20,
-    completed: Math.floor(Math.random() * 60) + 30,
-}));
+const data = [
+    { day: 1, started: 42, completed: 55 },
+    { day: 4, started: 38, completed: 48 },
+    { day: 7, started: 55, completed: 62 },
+    { day: 10, started: 47, completed: 58 },
+    { day: 13, started: 61, completed: 70 },
+    { day: 16, started: 53, completed: 65 },
+    { day: 19, started: 44, completed: 52 },
+    { day: 22, started: 68, completed: 75 },
+    { day: 25, started: 57, completed: 66 },
+    { day: 28, started: 49, completed: 59 },
+    { day: 31, started: 63, completed: 72 },
+];
 
 export const ContentInteractionChart: React.FC = () => {
     const WIDTH = 1000;

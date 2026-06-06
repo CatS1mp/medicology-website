@@ -21,13 +21,6 @@ type GoogleTokenClient = {
     requestAccessToken: (overrides?: { prompt?: string }) => void;
 };
 
-type GoogleUserInfo = {
-    email?: string;
-    id?: string;
-    sub?: string;
-    name?: string;
-};
-
 type FacebookAuthResponse = {
     accessToken: string;
 };
@@ -37,20 +30,9 @@ type FacebookLoginResponse = {
     status?: string;
 };
 
-type FacebookUserProfile = {
-    email?: string;
-    id?: string;
-    name?: string;
-};
-
 declare global {
     interface Window {
         FB?: {
-            api: (
-                path: string,
-                params: Record<string, string>,
-                callback: (response: FacebookUserProfile & { error?: { message?: string } }) => void
-            ) => void;
             init: (options: Record<string, unknown>) => void;
             login: (
                 callback: (response: FacebookLoginResponse) => void,
@@ -165,27 +147,10 @@ export const OAuthButtons: React.FC = () => {
                 }
 
                 try {
-                    const profile = await new Promise<FacebookUserProfile>((resolve, reject) => {
-                        window.FB?.api('/me', { fields: 'id,name,email' }, (result) => {
-                            if (result.error?.message) {
-                                reject(new Error(result.error.message));
-                                return;
-                            }
-                            resolve(result);
-                        });
-                    });
-
-                    if (!profile.email || !profile.id || !profile.name) {
-                        setError('ERR_FACEBOOK_EMAIL');
-                        showToast(ERROR_MESSAGES.ERR_FACEBOOK_EMAIL, 'error');
-                        return;
-                    }
-
                     await completeOAuthLogin(
                         oauthLogin({
-                            email: profile.email,
-                            name: profile.name,
-                            facebookId: profile.id,
+                            accessToken: response.authResponse.accessToken,
+                            provider: 'facebook',
                         })
                     );
                 } catch (err) {
@@ -226,30 +191,10 @@ export const OAuthButtons: React.FC = () => {
                 }
 
                 try {
-                    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                        headers: {
-                            Authorization: `Bearer ${tokenResponse.access_token}`,
-                        },
-                    });
-
-                    if (!profileRes.ok) {
-                        setError('ERR_GOOGLE_EXCHANGE');
-                        showToast(ERROR_MESSAGES.ERR_GOOGLE_EXCHANGE, 'error');
-                        return;
-                    }
-
-                    const profile = (await profileRes.json()) as GoogleUserInfo;
-                    const providerUserId = profile.id ?? profile.sub;
-                    if (!profile.email || !providerUserId || !profile.name) {
-                        setError('ERR_GOOGLE_PROFILE');
-                        showToast(ERROR_MESSAGES.ERR_GOOGLE_PROFILE, 'error');
-                        return;
-                    }
                     await completeOAuthLogin(
                         oauthLogin({
-                            email: profile.email,
-                            name: profile.name,
-                            googleId: providerUserId,
+                            accessToken: tokenResponse.access_token,
+                            provider: 'google',
                         })
                     );
                 } catch (err) {
@@ -259,7 +204,7 @@ export const OAuthButtons: React.FC = () => {
                         showToast(err.body.message || 'Đăng nhập OAuth thất bại', 'error');
                     } else {
                         setError('ERR_NETWORK');
-                        showToast(' Không thể kết nối đến máy chủ', 'error');
+                        showToast('Không thể kết nối đến máy chủ', 'error');
                     }
                 } finally {
                     setLoadingProvider(null);

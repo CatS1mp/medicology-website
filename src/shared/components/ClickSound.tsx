@@ -53,21 +53,10 @@ export function ClickSound() {
             playClickSound(event.target);
         }
 
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.defaultPrevented) return;
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            const target = event.target;
-            if (!(target instanceof Element)) return;
-            if (!target.closest('button,a,[role="button"],input,select,textarea')) return;
-            playClickSound(target);
-        }
-
         document.addEventListener('pointerdown', handlePointerDown, true);
-        document.addEventListener('keydown', handleKeyDown, true);
 
         return () => {
             document.removeEventListener('pointerdown', handlePointerDown, true);
-            document.removeEventListener('keydown', handleKeyDown, true);
             audio.pause();
             audioRef.current = null;
         };

@@ -38,6 +38,22 @@ export function proxyThroughGateway(
     return proxyToBackend(req, params, config.legacy);
 }
 
+const PUBLIC_AUTH_PATH_PREFIXES = new Set([
+    'login',
+    'register',
+    'refresh',
+    'verify',
+    'resend',
+    'reset',
+    'logout',
+]);
+
+function isPublicAuthProxyPath(segments: string[], upstreamBasePath: string): boolean {
+    if (!upstreamBasePath.endsWith('/auth')) return false;
+    const first = segments[0];
+    return typeof first === 'string' && PUBLIC_AUTH_PATH_PREFIXES.has(first);
+}
+
 function validatePathSegments(segments: string[]): boolean {
     if (segments.length > 12) return false;
     return segments.every((seg) => {
@@ -91,10 +107,13 @@ export async function proxyToBackend(
     const cookieAccess = req.cookies.get(AUTH_ACCESS_COOKIE)?.value;
 
     if (contentType) headers.set('content-type', contentType);
-    if (authHeader) {
-        headers.set('authorization', authHeader);
-    } else if (cookieAccess) {
-        headers.set('authorization', `Bearer ${cookieAccess}`);
+    const skipAuthForwarding = isPublicAuthProxyPath(segments, config.upstreamBasePath);
+    if (!skipAuthForwarding) {
+        if (authHeader) {
+            headers.set('authorization', authHeader);
+        } else if (cookieAccess) {
+            headers.set('authorization', `Bearer ${cookieAccess}`);
+        }
     }
 
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';

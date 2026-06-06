@@ -4,7 +4,6 @@ import React from 'react';
 import { AppSidebar } from '@/shared/components/AppSidebar';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { useLogout } from '@/shared/hooks/useLogout';
-import { TopicFilters } from './TopicFilters';
 import { TopicCard } from './TopicCard';
 import { useTopics } from '../hooks/useTopics';
 import { useLearningStreak } from '@/shared/hooks/useLearningStreak';
@@ -22,8 +21,6 @@ export const TopicsScreen: React.FC = () => {
 
     const {
         topics,
-        filters,
-        setFilters,
         page,
         setPage,
         totalPages,
@@ -72,8 +69,6 @@ export const TopicsScreen: React.FC = () => {
                             <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Chủ đề Học tập</h1>
                             <p className="text-gray-500 text-base">Hành trình hiểu về cơ thể và tâm trí qua các chủ đề học tập thiết thực</p>
                         </div>
-
-                        <TopicFilters filters={filters} onChange={setFilters} />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 content-start">
                             {isLoading ? (

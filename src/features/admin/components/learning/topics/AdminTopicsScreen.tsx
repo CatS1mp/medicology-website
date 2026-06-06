@@ -114,47 +114,6 @@ export const AdminTopicsScreen: React.FC = () => {
                 </div>
             </section>
             
-            <section className={styles.filterSection}>
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Sắp xếp theo:</span>
-                    <select className={styles.chartYearSelect} style={{ width: 160 }}>
-                        <option>Mới cập nhật</option>
-                        <option>Tên A-Z</option>
-                    </select>
-                </div>
-                
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Trình độ</span>
-                    <div className={styles.chipGroup}>
-                        <button className={`${styles.chip} ${styles.chipActive}`}>Mọi trình độ</button>
-                        <button className={styles.chip}>Cơ bản</button>
-                        <button className={styles.chip}>Trung cấp</button>
-                        <button className={styles.chip}>Nâng cao</button>
-                    </div>
-                </div>
-                
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Khóa học</span>
-                    <div className={styles.chipGroup}>
-                        <button className={`${styles.chip} ${styles.chipActive}`}>Tất cả</button>
-                        <button className={styles.chip}>Sơ cứu & Cấp cứu</button>
-                        <button className={styles.chip}>Dinh dưỡng & Chế độ ăn</button>
-                        <button className={styles.chip}>Sức khỏe Tinh thần</button>
-                        <button className={styles.chip}>Sức khỏe Tim mạch</button>
-                        <button className={styles.chip}>Y học Thường thức</button>
-                    </div>
-                </div>
-                
-                <div className={styles.filterRow}>
-                    <span className={styles.filterLabel}>Trạng thái hiển thị</span>
-                    <div className={styles.chipGroup}>
-                        <button className={`${styles.chip} ${styles.chipActive}`}>Tất cả</button>
-                        <button className={styles.chip}>Đã đăng tải</button>
-                        <button className={styles.chip}>Bản nháp</button>
-                    </div>
-                </div>
-            </section>
-            
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                     type="button"
@@ -167,7 +126,7 @@ export const AdminTopicsScreen: React.FC = () => {
             </div>
 
             {error && (
-                <section className={styles.filterSection} style={{ borderColor: '#fecaca', background: '#fef2f2', marginTop: 12 }}>
+                <section style={{ border: '1px solid #fecaca', borderRadius: 12, background: '#fef2f2', marginTop: 12, padding: 16 }}>
                     <p style={{ margin: 0, color: '#b91c1c' }}>{error}</p>
                     <button
                         type="button"

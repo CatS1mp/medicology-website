@@ -137,6 +137,9 @@ function shouldAttemptAuthRefresh(requestUrl: string): boolean {
         '/api/auth/login',
         '/api/auth/register',
         '/api/auth/refresh',
+        '/api/auth/reset',
+        '/api/auth/resend',
+        '/api/auth/verify',
         '/api/oauth/oauth',
     ];
     return !publicEndpoints.some((p) => requestUrl.includes(p));

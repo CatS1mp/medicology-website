@@ -8,7 +8,7 @@ export const HomepageScreen = () => {
     const router = useRouter();
     const INFINITE_CATEGORIES = React.useMemo(() => {
         const categories = ['SINH LÝ HỌC', 'NỘI KHOA', 'DƯỢC LÝ HỌC', 'BỆNH LÝ HỌC', 'NGOẠI KHOA', 'NHI KHOA', 'DA LIỄU'];
-        return Array(100).fill(categories).flat();
+        return Array(7).fill(categories).flat();
     }, []);
 
     const [activeIndex, setActiveIndex] = React.useState(Math.floor(INFINITE_CATEGORIES.length / 2));
@@ -236,7 +236,7 @@ export const HomepageScreen = () => {
                                     nhất và AI, hệ thống tạo điều kiện cho bất kỳ ai cũng có thể làm bài kiểm tra ở bất
                                     cứ đâu và khi nào họ cảm thấy sẵn sàng nhất.
                                 </p>
-                                <a href="#" className="text-blue-500 font-black tracking-widest uppercase hover:underline text-lg">KIỂM TRA KIẾN THỨC CỦA BẠN &rarr;</a>
+                                <a href="/courses" className="text-blue-500 font-black tracking-widest uppercase hover:underline text-lg">KIỂM TRA KIẾN THỨC CỦA BẠN &rarr;</a>
                             </div>
                             <div className="w-full md:w-1/2 flex justify-center md:justify-center shrink-0">
                                 <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] scale-110 md:scale-125">
@@ -274,7 +274,7 @@ export const HomepageScreen = () => {
                                 Các khóa học truyền đạt một cách hiệu quả và tối ưu các nền tảng y khoa và kỹ năng
                                 lâm sàng. Hãy xem qua các khóa học mới nhất của nền tảng!
                             </p>
-                            <a href="#" className="text-blue-500 font-black tracking-widest uppercase hover:underline text-lg">TÌM HIỂU THÊM &rarr;</a>
+                            <a href="/courses" className="text-blue-500 font-black tracking-widest uppercase hover:underline text-lg">TÌM HIỂU THÊM &rarr;</a>
                         </div>
                     </section>
 
@@ -317,25 +317,25 @@ export const HomepageScreen = () => {
                     <div>
                         <h3 className="font-bold text-lg mb-4">Về chúng tôi</h3>
                         <ul className="space-y-2 text-gray-300">
-                            <li><a href="#" className="hover:text-white">Đội nhóm</a></li>
-                            <li><a href="#" className="hover:text-white">Sứ mệnh</a></li>
-                            <li><a href="#" className="hover:text-white">Mục tiêu</a></li>
+                            <li><span className="text-gray-400">Đội nhóm</span></li>
+                            <li><span className="text-gray-400">Sứ mệnh</span></li>
+                            <li><span className="text-gray-400">Mục tiêu</span></li>
                         </ul>
                     </div>
 
                     <div>
                         <h3 className="font-bold text-lg mb-4">Trợ giúp và hỗ trợ</h3>
                         <ul className="space-y-2 text-gray-300">
-                            <li><a href="#" className="hover:text-white">Câu hỏi thường gặp về Medicology</a></li>
+                            <li><span className="text-gray-400">Câu hỏi thường gặp về Medicology</span></li>
                         </ul>
                     </div>
 
                     <div>
                         <h3 className="font-bold text-lg mb-4">Các điều khoản</h3>
                         <ul className="space-y-2 text-gray-300">
-                            <li><a href="#" className="hover:text-white">Nguyên tắc cộng đồng</a></li>
-                            <li><a href="#" className="hover:text-white">Điều khoản</a></li>
-                            <li><a href="#" className="hover:text-white">Quyền riêng tư</a></li>
+                            <li><span className="text-gray-400">Nguyên tắc cộng đồng</span></li>
+                            <li><span className="text-gray-400">Điều khoản</span></li>
+                            <li><span className="text-gray-400">Quyền riêng tư</span></li>
                         </ul>
                     </div>
                 </div>

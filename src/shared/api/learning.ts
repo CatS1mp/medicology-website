@@ -88,7 +88,7 @@ function jsonPost<T>(url: string, data?: unknown): Promise<T> {
 
 /** Learning service wraps list results in a Spring-style paginated object (`content`, `totalElements`, …). */
 function fetchCourseList(subpath: string): Promise<CourseResponse[]> {
-    const query = new URLSearchParams({ page: '0', size: '5000' }).toString();
+    const query = new URLSearchParams({ page: '0', size: '100' }).toString();
     return requestApi<unknown>(`${API}/${subpath}?${query}`, {
         method: 'GET',
         headers: buildHeaders({ includeJsonContentType: false }),

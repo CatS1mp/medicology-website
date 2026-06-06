@@ -12,10 +12,8 @@ export interface LoginRequest {
 }
 
 export interface OAuthLoginRequest {
-    email: string;
-    name: string;
-    facebookId?: string;
-    googleId?: string;
+    accessToken: string;
+    provider: 'google' | 'facebook';
 }
 
 export interface RefreshTokenRequest {

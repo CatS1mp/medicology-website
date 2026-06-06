@@ -2,7 +2,15 @@
 
 import { buildHeaders, requestApi } from '@/shared/api/http';
 
-export type NotificationType = 'COMMENT' | 'COURSE' | 'REMINDER' | 'SYSTEM' | string;
+export type NotificationType =
+    | 'COMMENT'
+    | 'COURSE'
+    | 'REMINDER'
+    | 'SYSTEM'
+    | 'DAILY_STUDY_REMINDER'
+    | 'CALLING_BACK_REMINDER'
+    | 'STREAK_RISK_REMINDER'
+    | string;
 export type DeliveryStatus = 'PENDING' | 'SENT' | 'FAILED' | string;
 
 export interface NotificationItem {

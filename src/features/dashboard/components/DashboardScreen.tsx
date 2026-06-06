@@ -128,6 +128,7 @@ export const DashboardScreen: React.FC = () => {
     );
     const [isDashboardLoading, setIsDashboardLoading] = React.useState(!canRenderFromUserData);
     const [showBotOverlay] = React.useState(!hasSeenDashboardLoading);
+    const [hasDataError, setHasDataError] = React.useState(false);
 
     const statCards: StatCard[] = [
         { id: 'streak', icon: '🔥', value: streakDays ?? 0, label: 'Chuỗi ngày học', color: 'text-orange-500' },
@@ -208,12 +209,15 @@ export const DashboardScreen: React.FC = () => {
                     setHasSeenDashboardLoading(true);
                 }
             } catch {
-                if (cancelled || canRenderFromUserData) return;
-                setLessonActivityDataset({
-                    label: 'last7',
-                    data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
-                    totalCompletedLessons: 0,
-                });
+                if (cancelled) return;
+                if (!canRenderFromUserData) {
+                    setHasDataError(true);
+                    setLessonActivityDataset({
+                        label: 'last7',
+                        data: [{ day: 'Hôm nay', date: new Date().toLocaleDateString('vi-VN'), value: 0 }],
+                        totalCompletedLessons: 0,
+                    });
+                }
             } finally {
                 if (!cancelled) {
                     setIsDashboardLoading(false);
@@ -268,6 +272,12 @@ export const DashboardScreen: React.FC = () => {
                 <AppHeader streak={effectiveStreak} onLogout={handleLogout} />
 
                 <div className="flex-1 overflow-y-auto">
+                    {hasDataError && (
+                        <div className="mx-3 mt-3 sm:mx-5 sm:mt-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span>Không thể tải dữ liệu dashboard. Vui lòng thử lại sau.</span>
+                        </div>
+                    )}
                     {isDashboardLoading ? (
                         <DashboardSkeleton />
                     ) : (

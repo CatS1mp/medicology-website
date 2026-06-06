@@ -10,16 +10,18 @@ export default function AttemptPage() {
             <AppSidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AppHeader streak={0} />
-                <div className="flex-1 overflow-y-auto px-6 py-8">
-                    <div className="mx-auto max-w-3xl rounded-3xl border border-gray-200 bg-white px-6 py-8">
-                        <h1 className="text-2xl font-extrabold text-gray-900">Route bài kiểm tra đã sẵn sàng</h1>
-                        <p className="mt-3 text-sm leading-6 text-gray-600">
-                            FE đã có route cho attempt detail, nhưng luồng bắt đầu bài kiểm tra vẫn còn phụ thuộc endpoint discovery
-                            theo `section/lesson` ở assessment service. Mục này được giữ để đảm bảo liên kết route không bị hỏng trong
-                            giai đoạn tích hợp.
+                <div className="flex-1 overflow-y-auto px-6 py-8 flex items-center justify-center">
+                    <div className="mx-auto max-w-md text-center space-y-4">
+                        <div className="text-6xl">📋</div>
+                        <h1 className="text-2xl font-extrabold text-gray-900">Tính năng đang phát triển</h1>
+                        <p className="text-gray-500 text-sm leading-relaxed">
+                            Chi tiết bài kiểm tra sẽ sớm được cập nhật. Hãy quay lại sau nhé!
                         </p>
-                        <Link href="/dashboard" className="mt-6 inline-flex text-sm font-semibold text-[#2aa4e8] hover:text-[#1d8bcb]">
-                            Quay lại dashboard
+                        <Link
+                            href="/dashboard"
+                            className="inline-block mt-4 px-6 py-2 rounded-full bg-[#2aa4e8] text-white text-sm font-semibold hover:bg-[#1d8bcb] transition-colors"
+                        >
+                            Quay lại Dashboard
                         </Link>
                     </div>
                 </div>

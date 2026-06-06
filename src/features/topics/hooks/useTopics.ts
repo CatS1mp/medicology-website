@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Topic, TopicFiltersState } from '../types';
+import { useEffect, useState } from 'react';
+import { Topic } from '../types';
 import { enrollCourse, getAvailableStudentCoursesPaged } from '@/shared/api/learning';
 import { resolveCourseIconSrc } from '@/shared/utils/course-icon';
 import { addEnrolledCourseToCache } from '@/features/courses/hooks/useEnrolledCourses';
@@ -12,13 +12,6 @@ export function clearTopicsCache() {
 }
 
 export const useTopics = () => {
-    const [filters, setFilters] = useState<TopicFiltersState>({
-        sortBy: 'Phổ biến nhất',
-        level: 'Mọi trình độ',
-        category: 'Tất cả',
-        courseCount: 'Tất cả'
-    });
-
     const [page, setPage] = useState(1);
     const limit = 6;
 
@@ -87,34 +80,8 @@ export const useTopics = () => {
         };
     }, [page]);
 
-    const filteredTopics = useMemo(() => {
-        let result = [...allTopics];
-
-        if (filters.level !== 'Mọi trình độ') {
-            result = result.filter(t => t.level === filters.level);
-        }
-        
-        if (filters.category !== 'Tất cả') {
-            result = result.filter(t => t.category === filters.category);
-        }
-
-        if (filters.courseCount !== 'Tất cả') {
-            if (result.some((t) => typeof t.courseCount === 'number')) {
-                if (filters.courseCount === '1-3 khóa học') result = result.filter(t => (t.courseCount ?? 0) >= 1 && (t.courseCount ?? 0) <= 3);
-                if (filters.courseCount === '4-7 khóa học') result = result.filter(t => (t.courseCount ?? 0) >= 4 && (t.courseCount ?? 0) <= 7);
-                if (filters.courseCount === '+7 khóa học') result = result.filter(t => (t.courseCount ?? 0) > 7);
-            }
-        }
-
-        if (filters.sortBy === 'Đánh giá cao' && result.some((t) => typeof t.rating === 'number')) {
-            result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        }
-
-        return result;
-    }, [allTopics, filters]);
-
     const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-    const paginatedTopics = filteredTopics;
+    const paginatedTopics = allTopics;
 
     async function handleEnroll(topicId: string) {
         if (enrollingTopicId) return;
@@ -138,11 +105,6 @@ export const useTopics = () => {
 
     return {
         topics: paginatedTopics,
-        filters,
-        setFilters: (next: TopicFiltersState) => {
-            setFilters(next);
-            setPage(1);
-        },
         page,
         setPage,
         totalPages,
